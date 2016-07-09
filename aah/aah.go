@@ -1,3 +1,7 @@
+// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
+// go-aah/tools source code and usage is governed by a MIT style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -10,6 +14,9 @@ import (
 )
 
 var (
+	// Version no. of aah CLI tool
+	Version = "0.1"
+
 	isWindows = (runtime.GOOS == "windows")
 
 	commands Commands
@@ -19,7 +26,7 @@ var (
 ––––––––––––––––––––––––––––––––––––––
 `
 
-	usageTemplate = `usage: aah command [arguments]
+	usageTemplate = `Usage: aah command [arguments]
 
 The commands are:
 {{range .}}
@@ -56,7 +63,7 @@ func main() {
 	defer func() {
 		if err := recover(); err != nil {
 			if er, ok := err.(error); ok {
-				abort(er, "this is unexpected!!!")
+				abortm(er, "this is unexpected!!!")
 			}
 			panic(err)
 		}
@@ -69,13 +76,24 @@ func main() {
 		commandNotFound(cmdName)
 	}
 
+	// Validate command arguments count
+	if len(args)-1 > cmd.ArgsCount {
+		log.Errorf("Too many arguments provided. The usage is given below. Please have a look.\n")
+		cmd.Usage()
+	}
+
 	// running request command
 	cmd.Run(args[1:])
 	return
 }
 
-func abort(err error, msg string) {
-	log.Errorf("%v: %v\n", err, msg)
+func abortm(err error, msg string) {
+	log.Errorf("%v: %v\n", msg, err)
+	os.Exit(1)
+}
+
+func abort(err error) {
+	log.Errorf("%v\n", err)
 	os.Exit(1)
 }
 

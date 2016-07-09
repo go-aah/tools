@@ -1,3 +1,7 @@
+// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
+// go-aah/tools source code and usage is governed by a MIT style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -13,23 +17,26 @@ type Command struct {
 	// Name of the command
 	Name string
 
-	// Run runs the command.
-	// The args are the arguments after the command name.
-	Run func(args []string)
-
 	// UsageLine is the one-line usage message.
 	UsageLine string
+
+	// Total no of arguments (mandatory & optionals)
+	ArgsCount int
 
 	// Short is the short description shown in the 'aah help' output.
 	Short string
 
 	// Long is the long message shown in the 'aah help <this-command>' output.
 	Long string
+
+	// Run runs the command.
+	// The args are the arguments after the command name.
+	Run func(args []string)
 }
 
 // Usage displays the usage line and long description then exits
 func (c *Command) Usage() {
-	fmt.Fprintf(os.Stderr, "usage: %v\n\n", c.UsageLine)
+	fmt.Fprintf(os.Stderr, "Usage: %v\n\n", c.UsageLine)
 	fmt.Fprintf(os.Stderr, "%v\n\n", strings.TrimSpace(c.Long))
 	os.Exit(2)
 }
