@@ -10,7 +10,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/go-aah/log"
+	"aahframework.org/log"
 )
 
 var (
