@@ -31,7 +31,7 @@ Parameter(s):
 importPath      mandatory   e.g: github.com/user/appname
 profile         optional    web or api, defalut is web
 
-For example:
+Example(s):
     aah new github.com/user/appname
 
     aah new github.com/user/appname api
@@ -39,18 +39,12 @@ For example:
 }
 
 func newRun(args []string) {
-	gopath, err := ess.GoPath()
-	if err != nil {
-		abort(err)
-	}
-
 	importPath, profile := parseNewArgs(args)
 	if ess.IsImportPathExists(importPath) {
 		abort(fmt.Errorf("Given import path '%s' already exists", importPath))
 	}
 
-	goSrcDir := filepath.Join(gopath, "src")
-	appDir := filepath.Join(goSrcDir, filepath.FromSlash(importPath))
+	appDir := filepath.Join(gosrcDir, filepath.FromSlash(importPath))
 	appName := filepath.Base(appDir)
 
 	_ = importPath

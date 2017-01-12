@@ -31,18 +31,19 @@ type (
 
 	// PackageInfo holds the single paackge information.
 	packageInfo struct {
-		Fset     *token.FileSet
-		Pkg      *ast.Package
-		Types    map[string]*typeInfo
-		Path     string
-		FilePath string
-		Files    []string
+		Fset       *token.FileSet
+		Pkg        *ast.Package
+		Types      map[string]*typeInfo
+		ImportPath string
+		FilePath   string
+		Files      []string
 	}
 
 	// Type holds the information about type e.g. struct, func, custom type etc.
 	typeInfo struct {
 		Name          string
-		Package       string
+		ImportPath    string
+		PackageName   string
 		EmbeddedTypes []*typeInfo
 	}
 )
@@ -97,6 +98,7 @@ func loadProgram(path string, excludes ess.Excludes) (*program, []error) {
 
 		if err != nil {
 			if errList, ok := err.(scanner.ErrorList); ok {
+				// TODO parsing error list
 				fmt.Println(errList)
 			}
 
@@ -112,7 +114,7 @@ func loadProgram(path string, excludes ess.Excludes) (*program, []error) {
 
 		if pkg != nil {
 			pkg.FilePath = srcPath
-			pkg.Path = stripGoPath(srcPath)
+			pkg.ImportPath = stripGoPath(srcPath)
 			prg.Packages = append(prg.Packages, pkg)
 		}
 
@@ -130,52 +132,78 @@ func loadProgram(path string, excludes ess.Excludes) (*program, []error) {
 // Program methods
 //___________________________________
 
-// FindPackage method returns the package info instance for given package name
-// otherwise nil
-func (prg *program) FindPackage(packageName string) *packageInfo {
-	for _, p := range prg.Packages {
-		if p.Name() == packageName {
-			return p
+// Process method processes all packages in the program for `Type`,
+// `Embedded Type`, `Method`, etc.
+func (prg *program) Process() {
+	for _, pkgInfo := range prg.Packages {
+		pkgInfo.Types = map[string]*typeInfo{}
+
+		// Each source file
+		for name, file := range pkgInfo.Pkg.Files {
+			pkgInfo.Files = append(pkgInfo.Files, filepath.Base(name))
+			var fileImports map[string]string
+
+			// collecting imports
+			for _, decl := range file.Decls {
+				if genDecl, ok := decl.(*ast.GenDecl); ok {
+					if isImportTok(genDecl) {
+						fileImports = pkgInfo.processImports(genDecl)
+					}
+				}
+			}
+
+			// collecting types
+			for _, decl := range file.Decls {
+				if genDecl, ok := decl.(*ast.GenDecl); ok {
+					if isTypeTok(genDecl) {
+						pkgInfo.processTypes(genDecl, fileImports)
+					}
+				}
+			}
 		}
 	}
-	return nil
 }
 
-// Process method process particular packages in the program for `Type`,
-// `Method`, etc.
-func (prg *program) Process(packageName string) error {
-	pkgInfo := prg.FindPackage(packageName)
-	if pkgInfo == nil {
-		return fmt.Errorf("package: %s not found", packageName)
-	}
+// FindTypeByEmbeddedType method returns all the typeInfo that has directly or
+// indirectly embedded by given type name. Type name must be fully qualified
+// type name. E.g.: aahframework.org/aah.Controller
+func (prg *program) FindTypeByEmbeddedType(qualifiedTypeName string) []*typeInfo {
+	var (
+		queue     = []string{qualifiedTypeName}
+		processed []string
+		result    []*typeInfo
+	)
 
-	pkgInfo.Types = map[string]*typeInfo{}
+	for len(queue) > 0 {
+		typeName := queue[0]
+		queue = queue[1:]
+		processed = append(processed, typeName)
 
-	// Each source file
-	for name, file := range pkgInfo.Pkg.Files {
-		pkgInfo.Files = append(pkgInfo.Files, filepath.Base(name))
-		var fileImports *map[string]string
+		// search within all packages in the program
+		for _, p := range prg.Packages {
+			// search within all struct type in the package
+			for _, t := range p.Types {
+				// If this one has been processed or is already in queue, then move on.
+				if ess.IsSliceContainsString(processed, t.FullyQualifiedName()) ||
+					ess.IsSliceContainsString(queue, t.FullyQualifiedName()) {
+					continue
+				}
 
-		// collecting imports
-		for _, decl := range file.Decls {
-			if genDecl, ok := decl.(*ast.GenDecl); ok {
-				if isImportTok(genDecl) {
-					fileImports = pkgInfo.processImports(genDecl)
+				// search through the embedded types to see if the current type is among them.
+				for _, et := range t.EmbeddedTypes {
+					// If so, add this type's FullyQualifiedName into queue,
+					//  and it's typeInfo into result.
+					if typeName == et.FullyQualifiedName() {
+						queue = append(queue, t.FullyQualifiedName())
+						result = append(result, t)
+						break
+					}
 				}
 			}
 		}
-
-		// collecting types
-		for _, decl := range file.Decls {
-			if genDecl, ok := decl.(*ast.GenDecl); ok {
-				if isTypeTok(genDecl) {
-					pkgInfo.processTypes(genDecl, fileImports)
-				}
-			}
-		}
 	}
 
-	return nil
+	return result
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -187,10 +215,15 @@ func (p *packageInfo) Name() string {
 	return p.Pkg.Name
 }
 
-func (p *packageInfo) processTypes(decl *ast.GenDecl, imports *map[string]string) {
+func (p *packageInfo) processTypes(decl *ast.GenDecl, imports map[string]string) {
 	spec := decl.Specs[0].(*ast.TypeSpec)
 	typeName := spec.Name.Name
-	ty := &typeInfo{Name: typeName}
+	ty := &typeInfo{
+		Name:          typeName,
+		ImportPath:    p.ImportPath,
+		PackageName:   p.Name(),
+		EmbeddedTypes: []*typeInfo{},
+	}
 
 	// struct type
 	st, ok := spec.Type.(*ast.StructType)
@@ -203,20 +236,34 @@ func (p *packageInfo) processTypes(decl *ast.GenDecl, imports *map[string]string
 			}
 
 			fPkgName, fTypeName := findPkgAndTypeName(field.Type)
-			_ = fPkgName // TODO need to work package import for embedded types
 
 			// field type name empty, move on
 			if ess.IsStrEmpty(fTypeName) {
 				continue
 			}
-		}
 
+			// Find the import path for this type.
+			// If it was referenced without a package name, use the current package import path.
+			// Else, look up the package's import path by name.
+			var eTypeImportPath string
+			if ess.IsStrEmpty(fPkgName) {
+				eTypeImportPath = ty.ImportPath
+			} else {
+				var ok bool
+				if eTypeImportPath, ok = imports[fPkgName]; !ok {
+					log.Errorf("Unable to find import path for %s.%s", fPkgName, fTypeName)
+					continue
+				}
+			}
+
+			ty.EmbeddedTypes = append(ty.EmbeddedTypes, &typeInfo{Name: fTypeName, ImportPath: eTypeImportPath})
+		}
 	}
 
 	p.Types[strings.ToLower(typeName)] = ty
 }
 
-func (p *packageInfo) processImports(decl *ast.GenDecl) *map[string]string {
+func (p *packageInfo) processImports(decl *ast.GenDecl) map[string]string {
 	imports := map[string]string{}
 	for _, dspec := range decl.Specs {
 		spec := dspec.(*ast.ImportSpec)
@@ -247,7 +294,15 @@ func (p *packageInfo) processImports(decl *ast.GenDecl) *map[string]string {
 		imports[pkgAlias] = importPath
 	}
 
-	return &imports
+	return imports
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// TypeInfo methods
+//___________________________________
+
+func (t *typeInfo) FullyQualifiedName() string {
+	return fmt.Sprintf("%s.%s", t.ImportPath, t.Name)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

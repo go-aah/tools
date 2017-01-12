@@ -9,19 +9,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"aahframework.org/essentials"
 	"aahframework.org/log"
 )
 
-var (
-	// Version no. of aah CLI tool
-	Version = "0.1"
-
-	isWindows = (runtime.GOOS == "windows")
-	commands  Commands
-	header    = `–––––––––––––––––––––––––––––––––––––––––––––––
+const (
+	header = `–––––––––––––––––––––––––––––––––––––––––––––––
    aah framework -  https://aahframework.org
 –––––––––––––––––––––––––––––––––––––––––––––––
 `
@@ -37,29 +33,21 @@ Use "aah help [command]" for more information.
 `
 )
 
+var (
+	// Version no. of aah CLI tool
+	Version = "0.1"
+
+	isWindows     = (runtime.GOOS == "windows")
+	aahImportPath = "aahframework.org/aah"
+
+	commands Commands
+	gopath   string
+	gosrcDir string
+)
+
 // aah cli tool entry point
 func main() {
-	flag.Parse()
-	args := flag.Args()
-
-	printHeader()
-	noOfArgs := len(args)
-	if noOfArgs == 0 {
-		displayUsage(1, usageTemplate, commands)
-	}
-
-	if args[0] == "help" {
-		if noOfArgs > 1 {
-			cmd, err := commands.Find(args[1])
-			if err != nil {
-				commandNotFound(args[1])
-			}
-			cmd.Usage()
-		}
-		displayUsage(0, usageTemplate, commands)
-	}
-
-	// if any panic happens recover and abort nicely :)
+	// if  panic happens, recover and abort nicely :)
 	defer func() {
 		if err := recover(); err != nil {
 			if er, ok := err.(error); ok {
@@ -69,8 +57,37 @@ func main() {
 		}
 	}()
 
+	// check go is installed or not
 	if !ess.LookExecutable("go") {
 		abort(errors.New("Unable to find Go executable in PATH"))
+	}
+
+	var err error
+
+	// get GOPATH, refer https://godoc.org/aahframework.org/essentials#GoPath
+	if gopath, err = ess.GoPath(); err != nil {
+		abort(err)
+	}
+
+	flag.Parse()
+	args := flag.Args()
+	gosrcDir = filepath.Join(gopath, "src")
+
+	printHeader()
+	noOfArgs := len(args)
+	if noOfArgs == 0 {
+		displayUsage(1, usageTemplate, commands)
+	}
+
+	if args[0] == "help" {
+		if noOfArgs > 1 {
+			var cmd *Command
+			if cmd, err = commands.Find(args[1]); err != nil {
+				commandNotFound(args[1])
+			}
+			cmd.Usage()
+		}
+		displayUsage(0, usageTemplate, commands)
 	}
 
 	// find the command
@@ -107,7 +124,8 @@ func abort(err error) {
 
 func printHeader() {
 	if !isWindows {
-		header = fmt.Sprintf("\033[1;32m%v\033[0m\n", header)
+		fmt.Fprintf(os.Stdout, fmt.Sprintf("\033[1;32m%v\033[0m\n", header))
+		return
 	}
 	fmt.Fprintf(os.Stdout, header)
 }
@@ -115,8 +133,8 @@ func printHeader() {
 func init() {
 	_ = log.SetPattern("%level:-5 %message")
 
-	// Adding list of commands
-	// The order here is the order in which they are printed by 'aah help'.
+	// Adding list of commands. The order here is the order in
+	// which commands are printed by 'aah help'.
 	commands = Commands{
 		cmdNew,
 		cmdVersion,
