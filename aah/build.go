@@ -8,15 +8,21 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
 
 	"aahframework.org/aah"
 	"aahframework.org/aah/router"
+	"aahframework.org/config"
 	"aahframework.org/essentials"
 	"aahframework.org/log"
 )
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
 
 // buildApp method calls Go ast parser, generates main.go and builds aah
 // application binary at Go bin directory
@@ -31,20 +37,23 @@ func buildApp() error {
 	// clean up before we start build aah application
 	ess.DeleteFiles(filepath.Join(appCodeDir, "main.go"))
 
-	// excludes for Go AST processing
-	excludes := ess.Excludes{
-		"*_test.go",
-		".*",
-		"*.bak",
-		"*.tmp",
-		"vendor",
+	// read build config from 'aah.project'
+	aahProjectFile := filepath.Join(appBaseDir, "aah.project")
+
+	log.Infof("Reading aah project file: %s", aahProjectFile)
+	buildCfg, err := config.LoadFile(aahProjectFile)
+	if err != nil {
+		log.Fatalf("aah project file error: %s", err)
 	}
+
+	// excludes for Go AST processing
+	excludes, _ := buildCfg.StringList("build.excludes")
 
 	// get all configured Controllers with action info
 	registeredActions := router.RegisteredActions()
 
 	// Go AST processing for Controllers
-	prg, errs := loadProgram(appControllersPath, excludes, registeredActions)
+	prg, errs := loadProgram(appControllersPath, ess.Excludes(excludes), registeredActions)
 	if len(errs) > 0 {
 		errMsgs := []string{}
 		for _, e := range errs {
@@ -66,8 +75,8 @@ func buildApp() error {
 		}
 	}
 	if len(missingActions) > 0 {
-		log.Error("Following actions are configured in 'routes.conf', however not implemented in Controller:\n",
-			strings.Join(missingActions, "\n"))
+		log.Error("Following actions are configured in 'routes.conf', however not implemented in Controller:\n\t",
+			strings.Join(missingActions, "\n\t"))
 	}
 
 	// get all the types info refered aah framework controller
@@ -79,6 +88,10 @@ func buildApp() error {
 		"Controllers":   controllers,
 		"ImportPaths":   importPaths,
 	})
+
+	if err := checkAndGetAppDeps(appImportPath, buildCfg); err != nil {
+		log.Fatal(err)
+	}
 
 	// TODO further build implementation
 
@@ -103,6 +116,59 @@ func generateSource(dir, filename, templateSource string, templateArgs map[strin
 	if err := ioutil.WriteFile(file, buf.Bytes(), 0755); err != nil {
 		log.Fatalf("aah '%s' file write error: %s", filename, err)
 	}
+}
+
+// checkAndGetAppDeps method project dependencies is present otherwise
+// it tries to get it if any issues it will return error. It internally uses
+// go list command.
+// 		go list -f '{{ join .Imports "\n" }}' aah-app/import/path
+//
+func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
+	args := []string{"list", "-f", "{{.Imports}}", appImportPath}
+
+	output, err := execCmd(gocmd, args)
+	if err != nil {
+		log.Errorf("unable to get application dependencies: %s", err)
+		return nil
+	}
+
+	output = strings.Replace(strings.Replace(output, "]", "", -1), "[", "", -1)
+	output = strings.Replace(strings.Replace(output, "\r", "", -1), "\n", "", -1)
+	if ess.IsStrEmpty(output) {
+		// all dependencies is available
+		return nil
+	}
+
+	notExistsPkgs := []string{}
+	for _, pkg := range strings.Split(output, " ") {
+		if !ess.IsImportPathExists(pkg) {
+			notExistsPkgs = append(notExistsPkgs, pkg)
+		}
+	}
+
+	if cfg.BoolDefault("build.go_get", true) && len(notExistsPkgs) > 0 {
+		log.Info("Getting application dependencies ...")
+		for _, pkg := range notExistsPkgs {
+			args := []string{"get", pkg}
+			if _, err := execCmd(gocmd, args); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func execCmd(cmdName string, args []string) (string, error) {
+	cmd := exec.Command(cmdName, args...)
+	log.Info("Exec: ", strings.Join(cmd.Args, " "))
+
+	bytes, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

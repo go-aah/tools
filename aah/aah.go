@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
@@ -43,6 +44,7 @@ var (
 
 	cliCommands commands
 	gopath      string
+	gocmd       string
 	gosrcDir    string
 )
 
@@ -68,6 +70,10 @@ func main() {
 
 	// get GOPATH, refer https://godoc.org/aahframework.org/essentials#GoPath
 	if gopath, err = ess.GoPath(); err != nil {
+		abort(err)
+	}
+
+	if gocmd, err = exec.LookPath("go"); err != nil {
 		abort(err)
 	}
 
