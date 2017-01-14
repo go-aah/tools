@@ -24,8 +24,9 @@ func buildApp() error {
 	_ = log.SetPattern("%level:-5 %message")
 
 	appBaseDir := aah.AppBaseDir()
-	appCodeDir := filepath.Join(appBaseDir, "app")
 	appImportPath := aah.AppImportPath()
+	appCodeDir := filepath.Join(appBaseDir, "app")
+	appControllersPath := filepath.Join(appCodeDir, "controllers")
 
 	// clean up before we start build aah application
 	ess.DeleteFiles(filepath.Join(appCodeDir, "main.go"))
@@ -39,8 +40,11 @@ func buildApp() error {
 		"vendor",
 	}
 
+	// get all configured Controllers with action info
+	registeredActions := router.RegisteredActions()
+
 	// Go AST processing for Controllers
-	prg, errs := loadProgram(filepath.Join(appCodeDir, "controllers"), excludes)
+	prg, errs := loadProgram(appControllersPath, excludes, registeredActions)
 	if len(errs) > 0 {
 		errMsgs := []string{}
 		for _, e := range errs {
@@ -49,15 +53,12 @@ func buildApp() error {
 		log.Fatal(strings.Join(errMsgs, "\n"))
 	}
 
-	// fetch all configured Controllers with action info
-	prg.RouteMethods = router.AllControllerMethods()
-
 	// call the process
 	prg.Process()
 
 	// Print router configuration missing/error details
 	missingActions := []string{}
-	for c, m := range prg.RouteMethods {
+	for c, m := range prg.RegisteredActions {
 		for a, v := range m {
 			if v == 1 && !router.IsDefaultAction(a) {
 				missingActions = append(missingActions, fmt.Sprintf("%s.%s", c, a))
@@ -70,18 +71,12 @@ func buildApp() error {
 	}
 
 	// get all the types info refered aah framework controller
-	types := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Controller", aahImportPath))
-	configuredTypes := []*typeInfo{}
-	for _, t := range types {
-		if len(t.Methods) > 0 {
-			configuredTypes = append(configuredTypes, t)
-		}
-	}
+	controllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Controller", aahImportPath))
+	importPaths := prg.CreateImportPaths(controllers)
 
-	importPaths := createImportPaths(configuredTypes)
 	generateSource(appCodeDir, "main.go", aahMainTemplate, map[string]interface{}{
 		"AppImportPath": appImportPath,
-		"Controllers":   configuredTypes,
+		"Controllers":   controllers,
 		"ImportPaths":   importPaths,
 	})
 
@@ -144,7 +139,7 @@ func main() {
       {{range .Methods}}&aah.MethodInfo{
         Name: "{{.Name}}",
         Parameters: []*aah.ParameterInfo{ {{range .Parameters}}
-          &aah.ParameterInfo{Name: "{{.Name}}", Type: reflect.TypeOf((*{{.Type.Name}})(nil)) },{{end}}
+          &aah.ParameterInfo{Name: "{{.Name}}", Type: reflect.TypeOf((*{{.Type.Name}})(nil))},{{end}}
         },
       },
       {{end}}

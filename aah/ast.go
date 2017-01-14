@@ -51,9 +51,9 @@ var (
 type (
 	// Program holds all details loaded from the Go source code for given Path.
 	program struct {
-		Path         string
-		Packages     []*packageInfo
-		RouteMethods map[string]map[string]uint8
+		Path              string
+		Packages          []*packageInfo
+		RegisteredActions map[string]map[string]uint8
 	}
 
 	// PackageInfo holds the single paackge information.
@@ -105,15 +105,15 @@ type (
 //___________________________________
 
 // LoadProgram method loads the Go source code for the given directory.
-func loadProgram(path string, excludes ess.Excludes) (*program, []error) {
+func loadProgram(path string, excludes ess.Excludes, registeredActions map[string]map[string]uint8) (*program, []error) {
 	if err := validateInput(path); err != nil {
 		return nil, append([]error{}, err)
 	}
 
 	prg := &program{
-		Path:         path,
-		Packages:     []*packageInfo{},
-		RouteMethods: map[string]map[string]uint8{},
+		Path:              path,
+		Packages:          []*packageInfo{},
+		RegisteredActions: registeredActions,
 	}
 
 	var (
@@ -126,12 +126,12 @@ func loadProgram(path string, excludes ess.Excludes) (*program, []error) {
 			errs = append(errs, err)
 		}
 
+		// Excludes
 		if excludes.Match(filepath.Base(srcPath)) {
 			if info.IsDir() {
-				// excluding directory
 				return filepath.SkipDir
 			}
-			// excluding file
+
 			return nil
 		}
 
@@ -159,7 +159,7 @@ func loadProgram(path string, excludes ess.Excludes) (*program, []error) {
 			return nil
 		}
 
-		pkg, err := validatePkgAndGet(pkgs, srcPath)
+		pkg, err := validateAndGetPkg(pkgs, srcPath)
 		if err != nil {
 			errs = append(errs, err)
 			return nil
@@ -218,9 +218,10 @@ func (prg *program) Process() {
 			// collecting methods
 			for _, decl := range file.Decls {
 				if funcDecl, ok := decl.(*ast.FuncDecl); ok {
-					findMethods(pkgInfo, prg.RouteMethods, funcDecl, fileImports)
+					findMethods(pkgInfo, prg.RegisteredActions, funcDecl, fileImports)
 				}
 			}
+
 		}
 	}
 }
@@ -267,6 +268,26 @@ func (prg *program) FindTypeByEmbeddedType(qualifiedTypeName string) []*typeInfo
 	return result
 }
 
+// CreateImportPaths method returns unique package alias with import path.
+func (prg *program) CreateImportPaths(types []*typeInfo) map[string]string {
+	importPaths := map[string]string{}
+	for _, t := range types {
+		if _, found := importPaths[t.ImportPath]; !found {
+			cnt := 0
+			pkgAlias := t.PackageName()
+
+			for isPkgAliasExists(importPaths, pkgAlias) {
+				pkgAlias = fmt.Sprintf("%s%d", t.PackageName(), cnt)
+				cnt++
+			}
+
+			importPaths[t.ImportPath] = pkgAlias
+		}
+	}
+
+	return importPaths
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // PackageInfo methods
 //___________________________________
@@ -296,20 +317,20 @@ func (p *packageInfo) processTypes(decl *ast.GenDecl, imports map[string]string)
 				continue
 			}
 
-			fPkgName, fTypeName := findPkgAndTypeName(field.Type)
+			fPkgName, fTypeName := parseStructFieldExpr(field.Type)
 			if ess.IsStrEmpty(fTypeName) {
 				continue
 			}
 
 			// Find the import path for embedded type. If it was referenced without
 			// a package name, use the current package import path otherwise
-			// look up the package's import path by name.
+			// get the import path by package name.
 			var eTypeImportPath string
 			if ess.IsStrEmpty(fPkgName) {
 				eTypeImportPath = ty.ImportPath
 			} else {
-				var ok bool
-				if eTypeImportPath, ok = imports[fPkgName]; !ok {
+				var found bool
+				if eTypeImportPath, found = imports[fPkgName]; !found {
 					log.Errorf("Unable to find import path for %s.%s", fPkgName, fTypeName)
 					continue
 				}
@@ -399,7 +420,7 @@ func validateInput(path string) error {
 	return nil
 }
 
-func validatePkgAndGet(pkgs map[string]*ast.Package, path string) (*packageInfo, error) {
+func validateAndGetPkg(pkgs map[string]*ast.Package, path string) (*packageInfo, error) {
 	pkgCnt := len(pkgs)
 
 	// no source code found in the directory
@@ -436,55 +457,6 @@ func isTypeTok(decl *ast.GenDecl) bool {
 func stripGoPath(pkgFilePath string) string {
 	idx := strings.Index(pkgFilePath, "src")
 	return filepath.Clean(pkgFilePath[idx+4:])
-}
-
-// findPkgAndTypeName method to find a direct "embedded|sub-type".
-// It has an ast.Field as follows:
-//   Ident { "type-name" } e.g. UserController
-//   SelectorExpr { "package-name", "type-name" } e.g. aah.Controller
-// Additionally, that can be wrapped by StarExprs.
-func findPkgAndTypeName(fieldType ast.Expr) (string, string) {
-	for {
-		if starExpr, ok := fieldType.(*ast.StarExpr); ok {
-			fieldType = starExpr.X
-			continue
-		}
-		break
-	}
-
-	// Embedded type it's in the same package, it's an ast.Ident.
-	if ident, ok := fieldType.(*ast.Ident); ok {
-		return "", ident.Name
-	}
-
-	// Embedded type it's in the different package, it's an ast.SelectorExpr.
-	if selectorExpr, ok := fieldType.(*ast.SelectorExpr); ok {
-		if pkgIdent, ok := selectorExpr.X.(*ast.Ident); ok {
-			return pkgIdent.Name, selectorExpr.Sel.Name
-		}
-	}
-
-	return "", ""
-}
-
-func createImportPaths(types []*typeInfo) map[string]string {
-	importPaths := map[string]string{}
-	for _, t := range types {
-		addPkgAlias(importPaths, t)
-	}
-	return importPaths
-}
-
-func addPkgAlias(importPaths map[string]string, t *typeInfo) {
-	if _, found := importPaths[t.ImportPath]; !found {
-		cnt := 0
-		pkgAlias := t.PackageName()
-		for isPkgAliasExists(importPaths, pkgAlias) {
-			pkgAlias = fmt.Sprintf("%s%d", t.PackageName(), cnt)
-			cnt++
-		}
-		importPaths[t.ImportPath] = pkgAlias
-	}
 }
 
 func isPkgAliasExists(importPaths map[string]string, pkgAlias string) bool {
@@ -526,17 +498,16 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 	// processing method parameters
 	for _, field := range fn.Type.Params.List {
 		for _, fieldName := range field.Names {
-			typeExpr := parseTypeExpr(pkg.Name(), field.Type)
-			if !typeExpr.Valid {
+			te, err := parseParamFieldExpr(pkg.Name(), field.Type)
+			if err != nil {
 				log.Errorf("Unable to parse parameter '%s' on action '%s.%s', ignoring it", fieldName.Name, controllerName, actionName)
 				return
 			}
 
 			var importPath string
-			if !ess.IsStrEmpty(typeExpr.PackageName) {
+			if !ess.IsStrEmpty(te.PackageName) {
 				var found bool
-				if importPath, found = imports[typeExpr.PackageName]; !found {
-					// typeExpr.PackageName = ""
+				if importPath, found = imports[te.PackageName]; !found {
 					importPath = pkg.ImportPath
 				}
 			}
@@ -544,7 +515,7 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 			method.Parameters = append(method.Parameters, &parameterInfo{
 				Name:       fieldName.Name,
 				ImportPath: importPath,
-				Type:       typeExpr,
+				Type:       te,
 			})
 		}
 	}
@@ -556,15 +527,16 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 }
 
 func getName(expr ast.Expr) string {
-	if ident, ok := expr.(*ast.Ident); ok {
-		return ident.Name
+	switch t := expr.(type) {
+	case *ast.Ident:
+		return t.Name
+	case *ast.SelectorExpr:
+		return getName(t.X)
+	case *ast.StarExpr:
+		return getName(t.X)
+	default:
+		return ""
 	}
-
-	if starExpr, ok := expr.(*ast.StarExpr); ok {
-		return starExpr.X.(*ast.Ident).Name
-	}
-
-	return ""
 }
 
 func isBuiltInDataType(typeName string) bool {
@@ -572,28 +544,57 @@ func isBuiltInDataType(typeName string) bool {
 	return found
 }
 
-func parseTypeExpr(pkgName string, expr ast.Expr) *typeExpr {
+// parseStructFieldExpr method to find a direct "embedded|sub-type".
+// Struct ast.Field as follows:
+//   Ident { "type-name" } e.g. UserController
+//   SelectorExpr { "package-name", "type-name" } e.g. aah.Controller
+//   StarExpr { "*", "package-name", "type-name"} e.g. *aah.Controller
+func parseStructFieldExpr(fieldType ast.Expr) (string, string) {
+	for {
+		if starExpr, ok := fieldType.(*ast.StarExpr); ok {
+			fieldType = starExpr.X
+			continue
+		}
+		break
+	}
+
+	// type it's in the same package, it's an ast.Ident.
+	if ident, ok := fieldType.(*ast.Ident); ok {
+		return "", ident.Name
+	}
+
+	// type it's in the different package, it's an ast.SelectorExpr.
+	if selectorExpr, ok := fieldType.(*ast.SelectorExpr); ok {
+		if pkgIdent, ok := selectorExpr.X.(*ast.Ident); ok {
+			return pkgIdent.Name, selectorExpr.Sel.Name
+		}
+	}
+
+	return "", ""
+}
+
+func parseParamFieldExpr(pkgName string, expr ast.Expr) (*typeExpr, error) {
 	switch t := expr.(type) {
 	case *ast.Ident:
 		if isBuiltInDataType(t.Name) {
-			return &typeExpr{Expr: t.Name, IsBuiltIn: true, Valid: true}
+			return &typeExpr{Expr: t.Name, IsBuiltIn: true}, nil
 		}
-		return &typeExpr{Expr: t.Name, PackageName: pkgName, Valid: true}
+		return &typeExpr{Expr: t.Name, PackageName: pkgName}, nil
 	case *ast.SelectorExpr:
-		e := parseTypeExpr(pkgName, t.X)
-		return &typeExpr{Expr: t.Sel.Name, PackageName: e.Expr, Valid: e.Valid}
+		e, err := parseParamFieldExpr(pkgName, t.X)
+		return &typeExpr{Expr: t.Sel.Name, PackageName: e.Expr}, err
 	case *ast.StarExpr:
-		e := parseTypeExpr(pkgName, t.X)
-		return &typeExpr{Expr: "*" + e.Expr, PackageName: e.PackageName, PackageIndex: e.PackageIndex + uint8(1), Valid: e.Valid}
+		e, err := parseParamFieldExpr(pkgName, t.X)
+		return &typeExpr{Expr: "*" + e.Expr, PackageName: e.PackageName, PackageIndex: e.PackageIndex + uint8(1)}, err
 	case *ast.ArrayType:
-		e := parseTypeExpr(pkgName, t.Elt)
-		return &typeExpr{Expr: "[]" + e.Expr, PackageName: e.PackageName, PackageIndex: e.PackageIndex + uint8(2), Valid: e.Valid}
+		e, err := parseParamFieldExpr(pkgName, t.Elt)
+		return &typeExpr{Expr: "[]" + e.Expr, PackageName: e.PackageName, PackageIndex: e.PackageIndex + uint8(2)}, err
 	case *ast.Ellipsis:
-		e := parseTypeExpr(pkgName, t.Elt)
-		return &typeExpr{Expr: "[]" + e.Expr, PackageName: e.PackageName, PackageIndex: e.PackageIndex + uint8(2), Valid: e.Valid}
+		e, err := parseParamFieldExpr(pkgName, t.Elt)
+		return &typeExpr{Expr: "[]" + e.Expr, PackageName: e.PackageName, PackageIndex: e.PackageIndex + uint8(2)}, err
 	}
 
-	return &typeExpr{Valid: false}
+	return nil, errors.New("not a valid fieldname/parameter name")
 }
 
 func init() {
