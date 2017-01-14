@@ -13,7 +13,7 @@ import (
 )
 
 // Command structure insprired by `go` command
-type Command struct {
+type command struct {
 	// Name of the command
 	Name string
 
@@ -35,17 +35,17 @@ type Command struct {
 }
 
 // Usage displays the usage line and long description then exits
-func (c *Command) Usage() {
+func (c *command) Usage() {
 	fmt.Fprintf(os.Stderr, "Usage: %v\n\n", c.UsageLine)
 	fmt.Fprintf(os.Stderr, "%v\n\n", strings.TrimSpace(c.Long))
 	os.Exit(2)
 }
 
 // Commands groups set of commands together and provides handy methods around it
-type Commands []*Command
+type commands []*command
 
 // Find finds the command from command name otherwise returns error
-func (c *Commands) Find(name string) (*Command, error) {
+func (c *commands) Find(name string) (*command, error) {
 	for _, cmd := range *c {
 		if cmd.Name == name {
 			return cmd, nil
@@ -63,7 +63,7 @@ func displayUsage(exitCode int, text string, data interface{}) {
 
 func commandNotFound(name string) {
 	fmt.Printf("Command '%v' is not found, available commands and it's usage.\n\n", name)
-	displayUsage(2, usageTemplate, commands)
+	displayUsage(2, usageTemplate, cliCommands)
 }
 
 func renderTmpl(w io.Writer, text string, data interface{}) {

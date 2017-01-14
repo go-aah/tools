@@ -9,7 +9,7 @@ import (
 	"aahframework.org/log"
 )
 
-var cmdRun = &Command{
+var cmdRun = &command{
 	Name:      "run",
 	UsageLine: "run [importPath] [config]",
 	ArgsCount: 2,

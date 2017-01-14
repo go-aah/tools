@@ -17,7 +17,7 @@ const (
 	profileAPI = "api"
 )
 
-var cmdNew = &Command{
+var cmdNew = &command{
 	Name:      "new",
 	UsageLine: "aah new importPath [profile]",
 	ArgsCount: 2,

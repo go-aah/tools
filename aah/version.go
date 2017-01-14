@@ -11,7 +11,7 @@ import (
 	"aahframework.org/aah"
 )
 
-var cmdVersion = &Command{
+var cmdVersion = &command{
 	Name:      "version",
 	UsageLine: "aah version",
 	Short:     "print aah framework version and Go version",

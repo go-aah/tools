@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 
 	"aahframework.org/essentials"
 	"aahframework.org/log"
@@ -40,9 +41,9 @@ var (
 	isWindows     = (runtime.GOOS == "windows")
 	aahImportPath = "aahframework.org/aah"
 
-	commands Commands
-	gopath   string
-	gosrcDir string
+	cliCommands commands
+	gopath      string
+	gosrcDir    string
 )
 
 // aah cli tool entry point
@@ -51,6 +52,7 @@ func main() {
 	defer func() {
 		if err := recover(); err != nil {
 			if er, ok := err.(error); ok {
+				fmt.Println(string(debug.Stack()))
 				abortm(er, "this is unexpected!!!")
 			}
 			log.Fatal(err)
@@ -76,23 +78,23 @@ func main() {
 	printHeader()
 	noOfArgs := len(args)
 	if noOfArgs == 0 {
-		displayUsage(1, usageTemplate, commands)
+		displayUsage(1, usageTemplate, cliCommands)
 	}
 
 	if args[0] == "help" {
 		if noOfArgs > 1 {
-			var cmd *Command
-			if cmd, err = commands.Find(args[1]); err != nil {
+			var cmd *command
+			if cmd, err = cliCommands.Find(args[1]); err != nil {
 				commandNotFound(args[1])
 			}
 			cmd.Usage()
 		}
-		displayUsage(0, usageTemplate, commands)
+		displayUsage(0, usageTemplate, cliCommands)
 	}
 
 	// find the command
 	cmdName := args[0]
-	cmd, err := commands.Find(cmdName)
+	cmd, err := cliCommands.Find(cmdName)
 	if err != nil {
 		commandNotFound(cmdName)
 	}
@@ -135,8 +137,9 @@ func init() {
 
 	// Adding list of commands. The order here is the order in
 	// which commands are printed by 'aah help'.
-	commands = Commands{
+	cliCommands = commands{
 		cmdNew,
+		cmdRun,
 		cmdVersion,
 	}
 }
