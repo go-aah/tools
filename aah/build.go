@@ -8,10 +8,12 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
-	"text/template"
+	"time"
 
 	"aahframework.org/aah"
 	"aahframework.org/aah/router"
@@ -29,13 +31,11 @@ import (
 func buildApp() error {
 	_ = log.SetPattern("%level:-5 %message")
 
+	// app variables
 	appBaseDir := aah.AppBaseDir()
 	appImportPath := aah.AppImportPath()
 	appCodeDir := filepath.Join(appBaseDir, "app")
 	appControllersPath := filepath.Join(appCodeDir, "controllers")
-
-	// clean up before we start build aah application
-	ess.DeleteFiles(filepath.Join(appCodeDir, "main.go"))
 
 	// read build config from 'aah.project'
 	aahProjectFile := filepath.Join(appBaseDir, "aah.project")
@@ -47,7 +47,7 @@ func buildApp() error {
 	}
 
 	// excludes for Go AST processing
-	excludes, _ := buildCfg.StringList("build.excludes")
+	excludes, _ := buildCfg.StringList("build.ast_excludes")
 
 	// get all configured Controllers with action info
 	registeredActions := router.RegisteredActions()
@@ -80,20 +80,66 @@ func buildApp() error {
 	}
 
 	// get all the types info refered aah framework controller
-	controllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Controller", aahImportPath))
-	importPaths := prg.CreateImportPaths(controllers)
+	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Controller", aahImportPath))
+	appImportPaths := prg.CreateImportPaths(appControllers)
+
+	// prepare aah application version and build date
+	appVersion := getAppVersion(appBaseDir, buildCfg)
+	appBuildDate := getBuildDate()
+
+	// create go build arguments
+	buildArgs := []string{"build"}
+
+	flags, _ := buildCfg.StringList("build.flags")
+	buildArgs = append(buildArgs, flags...)
+
+	if ldflags := buildCfg.StringDefault("build.ldflags", ""); !ess.IsStrEmpty(ldflags) {
+		buildArgs = append(buildArgs, "-ldflags", ldflags)
+	}
+
+	if tags := buildCfg.StringDefault("build.tags", ""); !ess.IsStrEmpty(tags) {
+		buildArgs = append(buildArgs, "-tags", tags)
+	}
+
+	// binary name creation
+	name := strings.Replace(buildCfg.StringDefault("name", aah.AppName()), " ", "_", -1)
+	appBinaryName := buildCfg.StringDefault("build.binary_name", name)
+	if isWindows {
+		appBinaryName += ".exe"
+	}
+
+	appBinary := filepath.Join(gopath, "bin", "aah.d", appImportPath, appBinaryName)
+	buildArgs = append(buildArgs, "-o", appBinary)
+
+	// main.go location e.g. path/to/import/app
+	buildArgs = append(buildArgs, path.Join(appImportPath, "app"))
+
+	// clean previous main.go and binary file up before we start the build
+	appMainGoFile := filepath.Join(appCodeDir, "main.go")
+	log.Infof("Cleaning %s", appMainGoFile)
+	log.Infof("Cleaning %s", appBinary)
+	ess.DeleteFiles(appMainGoFile, appBinary)
 
 	generateSource(appCodeDir, "main.go", aahMainTemplate, map[string]interface{}{
-		"AppImportPath": appImportPath,
-		"Controllers":   controllers,
-		"ImportPaths":   importPaths,
+		"AahVersion":     aah.Version,
+		"AppImportPath":  appImportPath,
+		"AppVersion":     appVersion,
+		"AppBuildDate":   appBuildDate,
+		"AppBinaryName":  appBinaryName,
+		"AppControllers": appControllers,
+		"AppImportPaths": appImportPaths,
 	})
 
-	if err := checkAndGetAppDeps(appImportPath, buildCfg); err != nil {
+	if err = checkAndGetAppDeps(appImportPath, buildCfg); err != nil {
 		log.Fatal(err)
 	}
 
-	// TODO further build implementation
+	// execute aah applictaion build
+	if _, err = execCmd(gocmd, buildArgs); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("'%s' application build successful.", aah.AppName())
 
 	return nil
 }
@@ -106,12 +152,8 @@ func generateSource(dir, filename, templateSource string, templateArgs map[strin
 	}
 
 	file := filepath.Join(dir, filename)
-	tmpl := template.Must(template.New("").Parse(templateSource))
-
 	buf := &bytes.Buffer{}
-	if err := tmpl.Execute(buf, templateArgs); err != nil {
-		log.Fatalf("Unable to render template: %s", err)
-	}
+	renderTmpl(buf, templateSource, templateArgs)
 
 	if err := ioutil.WriteFile(file, buf.Bytes(), 0755); err != nil {
 		log.Fatalf("aah '%s' file write error: %s", filename, err)
@@ -159,9 +201,62 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 	return nil
 }
 
+// getAppVersion method returns the aah application version, which used to display
+// version from compiled bnary
+// 		$ appname version
+//
+// Application version value priority are -
+// 		1. Env variable - AAH_APP_VERSION
+// 		2. git describe
+// 		3. version number from aah.project file
+func getAppVersion(appBaseDir string, cfg *config.Config) string {
+	// From env variable
+	if version := os.Getenv("AAH_APP_VERSION"); !ess.IsStrEmpty(version) {
+		return version
+	}
+
+	// fallback version number from file aah.project
+	version := cfg.StringDefault("version", "")
+
+	// git describe
+	if gitcmd, err := exec.LookPath("git"); err == nil {
+		appGitDir := filepath.Join(appBaseDir, ".git")
+		if !ess.IsFileExists(appGitDir) {
+			return version
+		}
+
+		gitArgs := []string{fmt.Sprintf("--git-dir=%s", appGitDir), "describe", "--always", "--dirty"}
+		output, err := execCmd(gitcmd, gitArgs)
+		if err != nil {
+			fmt.Println(err)
+			return version
+		}
+
+		version = strings.TrimSpace(output)
+	}
+
+	return version
+}
+
+// getBuildDate method returns application build date, which used to display
+// version from compiled bnary
+// 		$ appname version
+//
+// Application build date value priority are -
+// 		1. Env variable - AAH_APP_BUILD_DATE
+// 		2. Created with time.Now().Format(time.RFC3339)
+func getBuildDate() string {
+	// From env variable
+	if buildDate := os.Getenv("AAH_APP_BUILD_DATE"); !ess.IsStrEmpty(buildDate) {
+		return buildDate
+	}
+
+	return time.Now().Format(time.RFC3339)
+}
+
 func execCmd(cmdName string, args []string) (string, error) {
 	cmd := exec.Command(cmdName, args...)
-	log.Info("Exec: ", strings.Join(cmd.Args, " "))
+	log.Info("Executing ", strings.Join(cmd.Args, " "))
 
 	bytes, err := cmd.CombinedOutput()
 	if err != nil {
@@ -175,7 +270,7 @@ func execCmd(cmdName string, args []string) (string, error) {
 // Generate Templates
 //___________________________________
 
-const aahMainTemplate = `// aah framework - https://aahframework.org
+const aahMainTemplate = `// aah framework v{{.AahVersion}} - https://aahframework.org
 // FILE: main.go
 // GENERATED CODE - DO NOT EDIT
 
@@ -183,24 +278,51 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"reflect"
-	"aahframework.org/aah"{{range $k, $v := $.ImportPaths}}
+
+	"aahframework.org/aah"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/log"{{range $k, $v := $.AppImportPaths}}
 	{{$v}} "{{$k}}"{{end}}
 )
 
 var (
-	// So compiler won't complain if the generated code doesn't reference reflect package...
-	// _ = reflect.Invalid
+	appBinaryName = "{{.AppBinaryName}}"
+	appVersion = "{{.AppVersion}}"
+	appBuildDate = "{{.AppBuildDate}}"
 )
 
 func main() {
-  flag.Parse()
+	// Defining flags
+	version := flag.Bool("version", false, "Display application version and build date.")
+	configPath := flag.String("config", "", "Absolute path of external config file.")
+	flag.Parse()
+
+	// display application information
+	if *version {
+		fmt.Printf("%-12s: %s\n", "Binary Name", appBinaryName)
+		fmt.Printf("%-12s: %s\n", "Version", appVersion)
+		fmt.Printf("%-12s: %s\n", "Build Date", appBuildDate)
+		return
+	}
 
   aah.Init("{{.AppImportPath}}")
 
+	// Loading externally supplied config file
+	if !ess.IsStrEmpty(*configPath) {
+		externalConfig, err := config.LoadFile(*configPath)
+		if err != nil {
+			log.Fatalf("Unable to load external config: %s", *configPath)
+		}
+
+		aah.MergeAppConfig(externalConfig)
+	}
+
   // Adding all the controllers which refers 'aah.Controller' directly
-  // or indirectly from app/controllers/** {{range $i, $c := .Controllers}}
-  aah.AddController((*{{index $.ImportPaths .ImportPath}}.{{.Name}})(nil),
+  // or indirectly from app/controllers/** {{range $i, $c := .AppControllers}}
+  aah.AddController((*{{index $.AppImportPaths .ImportPath}}.{{.Name}})(nil),
     []*aah.MethodInfo{
       {{range .Methods}}&aah.MethodInfo{
         Name: "{{.Name}}",

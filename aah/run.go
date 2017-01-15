@@ -17,14 +17,17 @@ var cmdRun = &command{
 	Long: `
 Run the aah web/api application.
 
+Arguments:
+importPath      optional    e.g: github.com/user/appname
+config          optional    external config for override app.conf
+
 Example(s):
 
     aah run
 
     aah run github.com/username/name
 
-    Want to override 'app.conf' values by external config?
-    aah run github.com/username/name /path/to/config/app.conf
+    aah run github.com/username/name /path/to/config/external.conf
 
 Default aah application profile is 'dev'.`,
 }
@@ -56,6 +59,8 @@ func runRun(args []string) {
 		}
 	}
 
+	// IDEA ...
+	// REVIEW ...
 	aah.Init(importPath)
 
 	if externalCfg != nil {

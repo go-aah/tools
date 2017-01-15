@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"text/template"
@@ -67,9 +68,8 @@ func commandNotFound(name string) {
 }
 
 func renderTmpl(w io.Writer, text string, data interface{}) {
-	t := template.New("command")
-	template.Must(t.Parse(text))
-	if err := t.Execute(w, data); err != nil {
-		panic(err)
+	tmpl := template.Must(template.New("").Parse(text))
+	if err := tmpl.Execute(w, data); err != nil {
+		log.Fatalf("Unable to render template text: %s", err)
 	}
 }
