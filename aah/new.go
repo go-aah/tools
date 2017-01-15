@@ -23,11 +23,11 @@ var cmdNew = &command{
 	ArgsCount: 2,
 	Short:     "create new aah 'web' or 'api' application",
 	Long: `
-Command 'new' creates aah application with given profile for quickly start.
+Creates new aah application with given profile for quick start.
 
 Go to https://aahframework.org/getting-started to learn more and customize your application.
 
-Parameter(s):
+Arguments:
 importPath      mandatory   e.g: github.com/user/appname
 profile         optional    web or api, defalut is web
 
