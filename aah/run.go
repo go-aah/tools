@@ -1,75 +1,93 @@
+// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// go-aah/tools source code and usage is governed by a MIT style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 
 	"aahframework.org/aah"
 	"aahframework.org/config"
+	"aahframework.org/essentials"
 	"aahframework.org/log"
 )
 
-var cmdRun = &command{
-	Name:      "run",
-	UsageLine: "run [importPath] [config]",
-	ArgsCount: 2,
-	Short:     "run aah framework application",
-	Long: `
+var (
+	runCmdFlags       = flag.NewFlagSet("run", flag.ExitOnError)
+	runImportPathFlag = runCmdFlags.String("importPath", "", "Import path of aah application")
+	runConfigFlag     = runCmdFlags.String("config", "", "External config for overriding app.conf")
+	runCmd            = &command{
+		Name:      "run",
+		UsageLine: "aah run [importPath] [config]",
+		ArgsCount: 2,
+		Short:     "run aah framework application",
+		Long: `
 Run the aah web/api application.
-
-Arguments:
-importPath      optional    e.g: github.com/user/appname
-config          optional    external config for override app.conf
 
 Example(s):
 
     aah run
 
-    aah run github.com/username/name
+    aah run -importPath=github.com/username/name
 
-    aah run github.com/username/name /path/to/config/external.conf
+    aah run -importPath=github.com/username/name -config=/path/to/config/external.conf
 
 Default aah application profile is 'dev'.`,
-}
+	}
+)
 
 func runRun(args []string) {
+	runCmdFlags.Parse(args)
+
 	var (
 		err         error
 		importPath  string
 		externalCfg *config.Config
 	)
 
-	if len(args) == 0 {
+	if ess.IsStrEmpty(*runImportPathFlag) {
 		importPath = importPathRelwd()
 	} else {
-		importPath = args[0]
+		importPath = *runImportPathFlag
 	}
 
-	if len(args) == 2 {
-		var configPath string
-		configPath, err = filepath.Abs(args[1])
+	if !ess.IsImportPathExists(importPath) {
+		log.Fatalf("Given import path '%s' does not exists", importPath)
+	}
+
+	var configPath string
+	if !ess.IsStrEmpty(*runConfigFlag) {
+		configPath, err = filepath.Abs(*runConfigFlag)
 		if err != nil {
-			abort(err)
+			log.Fatal(err)
 		}
 
 		externalCfg, err = config.LoadFile(configPath)
 		if err != nil {
-			log.Errorf("Unable to load external config file[%s]: %s", args[1], err)
+			log.Errorf("Unable to load external config: %s", err)
 			log.Info("Move on with configuration from application")
 		}
 	}
 
-	// IDEA ...
 	// REVIEW ...
 	aah.Init(importPath)
+	_ = log.SetPattern("%level:-5 %message")
 
 	if externalCfg != nil {
+		log.Infof("Applying config: %s", configPath)
 		aah.MergeAppConfig(externalCfg)
 	}
 
-	if err = buildApp(); err != nil {
-		abort(err)
-	}
+	// _ = log.SetPattern("%level:-5 %message")
+	// if err = buildApp(); err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	_ = log.SetPattern(log.DefaultPattern)
+	aah.Start()
 
 	// TODO further implementation
 
@@ -82,5 +100,5 @@ func importPathRelwd() string {
 }
 
 func init() {
-	cmdRun.Run = runRun
+	runCmd.Run = runRun
 }

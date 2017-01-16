@@ -7,6 +7,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"html/template"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -29,8 +31,6 @@ import (
 // buildApp method calls Go ast parser, generates main.go and builds aah
 // application binary at Go bin directory
 func buildApp() error {
-	_ = log.SetPattern("%level:-5 %message")
-
 	// app variables
 	appBaseDir := aah.AppBaseDir()
 	appImportPath := aah.AppImportPath()
@@ -39,6 +39,9 @@ func buildApp() error {
 
 	// read build config from 'aah.project'
 	aahProjectFile := filepath.Join(appBaseDir, "aah.project")
+	if !ess.IsFileExists(aahProjectFile) {
+		log.Fatal("Missing 'aah.project' file, not a valid aah application.")
+	}
 
 	log.Infof("Reading aah project file: %s", aahProjectFile)
 	buildCfg, err := config.LoadFile(aahProjectFile)
@@ -264,6 +267,13 @@ func execCmd(cmdName string, args []string) (string, error) {
 	}
 
 	return string(bytes), nil
+}
+
+func renderTmpl(w io.Writer, text string, data interface{}) {
+	tmpl := template.Must(template.New("").Parse(text))
+	if err := tmpl.Execute(w, data); err != nil {
+		log.Fatalf("Unable to render template text: %s", err)
+	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

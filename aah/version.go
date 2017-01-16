@@ -5,6 +5,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"runtime"
 
@@ -15,32 +16,37 @@ import (
 	"aahframework.org/test"
 )
 
-var cmdVersion = &command{
-	Name:      "version",
-	UsageLine: "aah version [all]",
-	ArgsCount: 1,
-	Short:     "print aah framework version and Go version",
-	Long: `
-  Prints the aah framework, modules version and Go version.
+var (
+	versionCmdFlags = flag.NewFlagSet("version", flag.ExitOnError)
+	allFlag         = versionCmdFlags.Bool("all", false, "Display aah framework, modules version and go version")
+	versionCmd      = &command{
+		Name:      "version",
+		UsageLine: "aah version [-all]",
+		Flags:     versionCmdFlags,
+		ArgsCount: 1,
+		Short:     "print aah framework version and go version",
+		Long: `
+	  Prints the aah framework, modules version and go version.
 
-  For example:
+	  For example:
 
-    aah version
-		aah version all
-`,
-}
+	    aah version
+			aah version -all
+	`,
+	}
+)
 
 func versionRun(args []string) {
+	versionCmdFlags.Parse(args)
+
 	fmt.Printf("Version Info:\n")
 	printVersion("aah framework", aah.Version)
 
-	if len(args) > 0 {
-		if args[0] == "all" {
-			printVersion("config", config.Version)
-			printVersion("log", log.Version)
-			printVersion("essentials", ess.Version)
-			printVersion("test", test.Version)
-		}
+	if *allFlag {
+		printVersion("config", config.Version)
+		printVersion("log", log.Version)
+		printVersion("essentials", ess.Version)
+		printVersion("test", test.Version)
 	}
 
 	printVersion(fmt.Sprintf("go[%s/%s]", runtime.GOOS, runtime.GOARCH), runtime.Version()[2:])
@@ -52,5 +58,5 @@ func printVersion(name, version string) {
 }
 
 func init() {
-	cmdVersion.Run = versionRun
+	versionCmd.Run = versionRun
 }

@@ -5,14 +5,12 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"runtime/debug"
 
 	"aahframework.org/essentials"
 	"aahframework.org/log"
@@ -23,58 +21,46 @@ const (
    aah framework -  https://aahframework.org
 –––––––––––––––––––––––––––––––––––––––––––––––
 `
-
-	usageTemplate = `Usage: aah command [arguments]
-
-The commands are:
-{{range .}}
-    {{.Name | printf "%-12s"}} {{.Short}}{{end}}
-
-Use "aah help [command]" for more information.
-
-`
+	isWindows     = (runtime.GOOS == "windows")
+	aahImportPath = "aahframework.org/aah"
 )
 
 var (
 	// Version no. of aah CLI tool
 	Version = "0.1"
 
-	isWindows     = (runtime.GOOS == "windows")
-	aahImportPath = "aahframework.org/aah"
-
-	cliCommands commands
-	gopath      string
-	gocmd       string
-	gosrcDir    string
+	gopath   string
+	gocmd    string
+	gosrcDir string
+	subCmds  commands
 )
 
 // aah cli tool entry point
 func main() {
-	// if  panic happens, recover and abort nicely :)
+	// if panic happens, recover and abort nicely :)
 	defer func() {
-		if err := recover(); err != nil {
-			if er, ok := err.(error); ok {
-				fmt.Println(string(debug.Stack()))
-				abortm(er, "this is unexpected!!!")
+		if r := recover(); r != nil {
+			if err, ok := r.(error); ok {
+				log.Fatalf("this is unexpected!!! | %s", err)
 			}
-			log.Fatal(err)
+			log.Fatal(r)
 		}
 	}()
 
 	// check go is installed or not
 	if !ess.LookExecutable("go") {
-		abort(errors.New("Unable to find Go executable in PATH"))
+		log.Fatal("Unable to find Go executable in PATH")
 	}
 
 	var err error
 
 	// get GOPATH, refer https://godoc.org/aahframework.org/essentials#GoPath
 	if gopath, err = ess.GoPath(); err != nil {
-		abort(err)
+		log.Fatal(err)
 	}
 
 	if gocmd, err = exec.LookPath("go"); err != nil {
-		abort(err)
+		log.Fatal(err)
 	}
 
 	flag.Parse()
@@ -82,33 +68,20 @@ func main() {
 	gosrcDir = filepath.Join(gopath, "src")
 
 	printHeader()
-	noOfArgs := len(args)
-	if noOfArgs == 0 {
-		displayUsage(1, usageTemplate, cliCommands)
-	}
-
-	if args[0] == "help" {
-		if noOfArgs > 1 {
-			var cmd *command
-			if cmd, err = cliCommands.Find(args[1]); err != nil {
-				commandNotFound(args[1])
-			}
-			cmd.Usage()
-		}
-		displayUsage(0, usageTemplate, cliCommands)
+	if len(args) == 0 {
+		displayUsage()
 	}
 
 	// find the command
-	cmdName := args[0]
-	cmd, err := cliCommands.Find(cmdName)
+	cmd, err := subCmds.Find(args[0])
 	if err != nil {
-		commandNotFound(cmdName)
+		commandNotFound(args[0])
 	}
 
 	// Validate command arguments count
 	if len(args)-1 > cmd.ArgsCount {
-		log.Errorf("Too many arguments provided. The usage is given below. Please have a look.\n")
-		cmd.Usage()
+		log.Errorf("Too many arguments given. Run 'aah help command'.\n\n")
+		os.Exit(2)
 	}
 
 	// running command
@@ -119,16 +92,6 @@ func main() {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
-
-func abortm(err error, msg string) {
-	log.Errorf("%v: %v\n", msg, err)
-	os.Exit(1)
-}
-
-func abort(err error) {
-	log.Errorf("%v\n", err)
-	os.Exit(1)
-}
 
 func printHeader() {
 	if !isWindows {
@@ -143,9 +106,10 @@ func init() {
 
 	// Adding list of commands. The order here is the order in
 	// which commands are printed by 'aah help'.
-	cliCommands = commands{
-		cmdNew,
-		cmdRun,
-		cmdVersion,
+	subCmds = commands{
+		newCmd,
+		runCmd,
+		versionCmd,
+		helpCmd,
 	}
 }
