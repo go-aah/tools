@@ -18,7 +18,7 @@ import (
 var (
 	runCmdFlags       = flag.NewFlagSet("run", flag.ExitOnError)
 	runImportPathFlag = runCmdFlags.String("importPath", "", "Import path of aah application")
-	runConfigFlag     = runCmdFlags.String("config", "", "External config for overriding app.conf")
+	runConfigFlag     = runCmdFlags.String("config", "", "External config for overriding aah.conf")
 	runCmd            = &command{
 		Name:      "run",
 		UsageLine: "aah run [importPath] [config]",
@@ -74,20 +74,15 @@ func runRun(args []string) {
 
 	// REVIEW ...
 	aah.Init(importPath)
-	_ = log.SetPattern("%level:-5 %message")
 
 	if externalCfg != nil {
 		log.Infof("Applying config: %s", configPath)
 		aah.MergeAppConfig(externalCfg)
 	}
 
-	// _ = log.SetPattern("%level:-5 %message")
-	// if err = buildApp(); err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	_ = log.SetPattern(log.DefaultPattern)
-	aah.Start()
+	if err = buildApp(); err != nil {
+		log.Fatal(err)
+	}
 
 	// TODO further implementation
 

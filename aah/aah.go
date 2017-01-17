@@ -16,6 +16,9 @@ import (
 	"aahframework.org/log"
 )
 
+// Version no. of aah CLI tool
+const Version = "0.1"
+
 const (
 	header = `–––––––––––––––––––––––––––––––––––––––––––––––
    aah framework -  https://aahframework.org
@@ -26,9 +29,6 @@ const (
 )
 
 var (
-	// Version no. of aah CLI tool
-	Version = "0.1"
-
 	gopath   string
 	gocmd    string
 	gosrcDir string
@@ -102,8 +102,6 @@ func printHeader() {
 }
 
 func init() {
-	_ = log.SetPattern("%level:-5 %message")
-
 	// Adding list of commands. The order here is the order in
 	// which commands are printed by 'aah help'.
 	subCmds = commands{

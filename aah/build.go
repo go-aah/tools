@@ -49,6 +49,9 @@ func buildApp() error {
 		log.Fatalf("aah project file error: %s", err)
 	}
 
+	appName := buildCfg.StringDefault("name", aah.AppName())
+	log.Infof("Starting build for '%s' [%s]", appName, appImportPath)
+
 	// excludes for Go AST processing
 	excludes, _ := buildCfg.StringList("build.ast_excludes")
 
@@ -133,6 +136,7 @@ func buildApp() error {
 		"AppImportPaths": appImportPaths,
 	})
 
+	// getting project dependencies if not exists in $GOPATH
 	if err = checkAndGetAppDeps(appImportPath, buildCfg); err != nil {
 		log.Fatal(err)
 	}
@@ -142,7 +146,7 @@ func buildApp() error {
 		log.Fatal(err)
 	}
 
-	log.Infof("'%s' application build successful.", aah.AppName())
+	log.Infof("'%s' application build successful.", appName)
 
 	return nil
 }
@@ -166,10 +170,11 @@ func generateSource(dir, filename, templateSource string, templateArgs map[strin
 // checkAndGetAppDeps method project dependencies is present otherwise
 // it tries to get it if any issues it will return error. It internally uses
 // go list command.
-// 		go list -f '{{ join .Imports "\n" }}' aah-app/import/path
+// 		go list -f '{{ join .Imports "\n" }}' aah-app/import/path/app/...
 //
 func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
-	args := []string{"list", "-f", "{{.Imports}}", appImportPath}
+	importPath := path.Join(appImportPath, "app", "...")
+	args := []string{"list", "-f", "{{.Imports}}", importPath}
 
 	output, err := execCmd(gocmd, args)
 	if err != nil {
@@ -177,26 +182,29 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 		return nil
 	}
 
-	output = strings.Replace(strings.Replace(output, "]", "", -1), "[", "", -1)
-	output = strings.Replace(strings.Replace(output, "\r", "", -1), "\n", "", -1)
-	if ess.IsStrEmpty(output) {
-		// all dependencies is available
-		return nil
-	}
-
-	notExistsPkgs := []string{}
-	for _, pkg := range strings.Split(output, " ") {
-		if !ess.IsImportPathExists(pkg) {
-			notExistsPkgs = append(notExistsPkgs, pkg)
+	lines := strings.Split(strings.TrimSpace(output), "\r\n")
+	for _, line := range lines {
+		line = strings.Replace(strings.Replace(line, "]", "", -1), "[", "", -1)
+		line = strings.Replace(strings.Replace(line, "\r", " ", -1), "\n", " ", -1)
+		if ess.IsStrEmpty(line) {
+			// all dependencies is available
+			return nil
 		}
-	}
 
-	if cfg.BoolDefault("build.go_get", true) && len(notExistsPkgs) > 0 {
-		log.Info("Getting application dependencies ...")
-		for _, pkg := range notExistsPkgs {
-			args := []string{"get", pkg}
-			if _, err := execCmd(gocmd, args); err != nil {
-				return err
+		notExistsPkgs := []string{}
+		for _, pkg := range strings.Split(line, " ") {
+			if !ess.IsImportPathExists(pkg) {
+				notExistsPkgs = append(notExistsPkgs, pkg)
+			}
+		}
+
+		if cfg.BoolDefault("build.go_get", true) && len(notExistsPkgs) > 0 {
+			log.Info("Getting application dependencies ...")
+			for _, pkg := range notExistsPkgs {
+				args := []string{"get", pkg}
+				if _, err := execCmd(gocmd, args); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -231,7 +239,6 @@ func getAppVersion(appBaseDir string, cfg *config.Config) string {
 		gitArgs := []string{fmt.Sprintf("--git-dir=%s", appGitDir), "describe", "--always", "--dirty"}
 		output, err := execCmd(gitcmd, gitArgs)
 		if err != nil {
-			fmt.Println(err)
 			return version
 		}
 
@@ -299,9 +306,10 @@ import (
 )
 
 var (
-	appBinaryName = "{{.AppBinaryName}}"
-	appVersion = "{{.AppVersion}}"
-	appBuildDate = "{{.AppBuildDate}}"
+	AppBinaryName = "{{.AppBinaryName}}"
+	AppVersion = "{{.AppVersion}}"
+	AppBuildDate = "{{.AppBuildDate}}"
+	_ = reflect.Invalid
 )
 
 func main() {
@@ -312,13 +320,13 @@ func main() {
 
 	// display application information
 	if *version {
-		fmt.Printf("%-12s: %s\n", "Binary Name", appBinaryName)
-		fmt.Printf("%-12s: %s\n", "Version", appVersion)
-		fmt.Printf("%-12s: %s\n", "Build Date", appBuildDate)
+		fmt.Printf("%-12s: %s\n", "Binary Name", AppBinaryName)
+		fmt.Printf("%-12s: %s\n", "Version", AppVersion)
+		fmt.Printf("%-12s: %s\n", "Build Date", AppBuildDate)
 		return
 	}
 
-  aah.Init("{{.AppImportPath}}")
+	aah.Init("{{.AppImportPath}}")
 
 	// Loading externally supplied config file
 	if !ess.IsStrEmpty(*configPath) {
@@ -330,20 +338,20 @@ func main() {
 		aah.MergeAppConfig(externalConfig)
 	}
 
-  // Adding all the controllers which refers 'aah.Controller' directly
-  // or indirectly from app/controllers/** {{range $i, $c := .AppControllers}}
-  aah.AddController((*{{index $.AppImportPaths .ImportPath}}.{{.Name}})(nil),
-    []*aah.MethodInfo{
-      {{range .Methods}}&aah.MethodInfo{
-        Name: "{{.Name}}",
-        Parameters: []*aah.ParameterInfo{ {{range .Parameters}}
-          &aah.ParameterInfo{Name: "{{.Name}}", Type: reflect.TypeOf((*{{.Type.Name}})(nil))},{{end}}
-        },
-      },
-      {{end}}
-    })
-  {{end}}
+	// Adding all the controllers which refers 'aah.Controller' directly
+	// or indirectly from app/controllers/** {{range $i, $c := .AppControllers}}
+	aah.AddController((*{{index $.AppImportPaths .ImportPath}}.{{.Name}})(nil),
+	  []*aah.MethodInfo{
+	    {{range .Methods}}&aah.MethodInfo{
+	      Name: "{{.Name}}",
+	      Parameters: []*aah.ParameterInfo{ {{range .Parameters}}
+	        &aah.ParameterInfo{Name: "{{.Name}}", Type: reflect.TypeOf((*{{.Type.Name}})(nil))},{{end}}
+	      },
+	    },
+	    {{end}}
+	  })
+	{{end}}
 
-  // aah.Start()
+  aah.Start()
 }
 `
