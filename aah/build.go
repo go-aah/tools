@@ -270,7 +270,7 @@ func execCmd(cmdName string, args []string) (string, error) {
 
 	bytes, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("\n%s\n%s", string(bytes), err)
 	}
 
 	return string(bytes), nil
