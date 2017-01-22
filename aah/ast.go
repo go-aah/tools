@@ -479,21 +479,16 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 		cmethods map[string]uint8
 	)
 
-	// if contoller is not configured in routes.conf, no need to process
 	controllerName := getName(fn.Recv.List[0].Type)
-	if cmethods, found = routeMethods[controllerName]; !found {
-		return
-	}
-
-	// if action is not configured in routes.conf, no need to process
 	actionName := fn.Name.Name
-	if _, found = cmethods[actionName]; !found {
-		return
-	}
-
-	// processed so set to level 2, used for errors later on
-	routeMethods[controllerName][actionName] = 2
 	method := &methodInfo{Name: actionName, StructName: controllerName, Parameters: []*parameterInfo{}}
+
+	// processed so set to level 2, used to display unimplemented action details
+	if cmethods, found = routeMethods[controllerName]; found {
+		if _, found = cmethods[actionName]; found {
+			cmethods[actionName] = 2
+		}
+	}
 
 	// processing method parameters
 	for _, field := range fn.Type.Params.List {
