@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/tools source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -85,7 +85,7 @@ func buildApp() error {
 			strings.Join(missingActions, "\n\t"))
 	}
 
-	// get all the types info refered aah framework controller
+	// get all the types info referred aah framework controller
 	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Controller", aahImportPath))
 	appImportPaths := prg.CreateImportPaths(appControllers)
 
@@ -121,12 +121,12 @@ func buildApp() error {
 	buildArgs = append(buildArgs, path.Join(appImportPath, "app"))
 
 	// clean previous main.go and binary file up before we start the build
-	appMainGoFile := filepath.Join(appCodeDir, "main.go")
+	appMainGoFile := filepath.Join(appCodeDir, "aah.go")
 	log.Infof("Cleaning %s", appMainGoFile)
 	log.Infof("Cleaning %s", appBinary)
 	ess.DeleteFiles(appMainGoFile, appBinary)
 
-	generateSource(appCodeDir, "main.go", aahMainTemplate, map[string]interface{}{
+	generateSource(appCodeDir, "aah.go", aahMainTemplate, map[string]interface{}{
 		"AahVersion":     aah.Version,
 		"AppImportPath":  appImportPath,
 		"AppVersion":     appVersion,
@@ -292,7 +292,7 @@ func renderTmpl(w io.Writer, text string, data interface{}) {
 //___________________________________
 
 const aahMainTemplate = `// aah framework v{{.AahVersion}} - https://aahframework.org
-// FILE: main.go
+// FILE: aah.go
 // GENERATED CODE - DO NOT EDIT
 
 package main
@@ -305,8 +305,8 @@ import (
 	"aahframework.org/aah"
 	"aahframework.org/config"
 	"aahframework.org/essentials"
-	"aahframework.org/log"{{range $k, $v := $.AppImportPaths}}
-	{{$v}} "{{$k}}"{{end}}
+	"aahframework.org/log"{{ range $k, $v := $.AppImportPaths }}
+	{{$v}} "{{$k}}"{{ end }}
 )
 
 var (
@@ -343,18 +343,18 @@ func main() {
 	}
 
 	// Adding all the controllers which refers 'aah.Controller' directly
-	// or indirectly from app/controllers/** {{range $i, $c := .AppControllers}}
+	// or indirectly from app/controllers/** {{ range $i, $c := .AppControllers }}
 	aah.AddController((*{{index $.AppImportPaths .ImportPath}}.{{.Name}})(nil),
 	  []*aah.MethodInfo{
-	    {{range .Methods}}&aah.MethodInfo{
+	    {{ range .Methods }}&aah.MethodInfo{
 	      Name: "{{.Name}}",
-	      Parameters: []*aah.ParameterInfo{ {{range .Parameters}}
-	        &aah.ParameterInfo{Name: "{{.Name}}", Type: reflect.TypeOf((*{{.Type.Name}})(nil))},{{end}}
+	      Parameters: []*aah.ParameterInfo{ {{ range .Parameters }}
+	        &aah.ParameterInfo{Name: "{{.Name}}", Type: reflect.TypeOf((*{{.Type.Name}})(nil))},{{ end }}
 	      },
 	    },
-	    {{end}}
+	    {{ end }}
 	  })
-	{{end}}
+	{{ end }}
 
   aah.Start()
 }

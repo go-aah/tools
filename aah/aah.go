@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/tools source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -12,11 +12,13 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"aahframework.org/aah/aruntime"
+	"aahframework.org/config"
 	"aahframework.org/essentials"
 	"aahframework.org/log"
 )
 
-// Version no. of aah CLI tool
+// Version no. of aah framework CLI tool
 const Version = "0.1"
 
 const (
@@ -40,10 +42,10 @@ func main() {
 	// if panic happens, recover and abort nicely :)
 	defer func() {
 		if r := recover(); r != nil {
-			if err, ok := r.(error); ok {
-				log.Fatalf("this is unexpected!!! | %s", err)
-			}
-			log.Fatal(r)
+			cfg, _ := config.ParseString(``)
+			strace := aruntime.NewStacktrace(r, cfg)
+			strace.Print(os.Stdout)
+			os.Exit(2)
 		}
 	}()
 
@@ -80,8 +82,7 @@ func main() {
 
 	// Validate command arguments count
 	if len(args)-1 > cmd.ArgsCount {
-		log.Errorf("Too many arguments given. Run 'aah help command'.\n\n")
-		os.Exit(2)
+		log.Fatal("Too many arguments given. Run 'aah help command'.\n\n")
 	}
 
 	// running command

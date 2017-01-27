@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/tools source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -42,7 +42,9 @@ Example(s):
 )
 
 func newRun(args []string) {
-	newCmdFlags.Parse(args)
+	if err := newCmdFlags.Parse(args); err != nil {
+		log.Fatal(err)
+	}
 
 	if ess.IsStrEmpty(*newImportPathFlag) {
 		newCmd.Usage()

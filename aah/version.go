@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/tools source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -13,6 +13,7 @@ import (
 	"aahframework.org/config"
 	"aahframework.org/essentials"
 	"aahframework.org/log"
+	"aahframework.org/pool"
 	"aahframework.org/test"
 )
 
@@ -37,15 +38,19 @@ var (
 )
 
 func versionRun(args []string) {
-	versionCmdFlags.Parse(args)
+	if err := versionCmdFlags.Parse(args); err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Printf("Version Info:\n")
 	printVersion("aah framework", aah.Version)
+	printVersion("aah cli tool", Version)
 
 	if *allFlag {
 		printVersion("config", config.Version)
 		printVersion("log", log.Version)
 		printVersion("essentials", ess.Version)
+		printVersion("pool", pool.Version)
 		printVersion("test", test.Version)
 	}
 

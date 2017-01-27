@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/tools source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -40,7 +40,9 @@ Default aah application profile is 'dev'.`,
 )
 
 func runRun(args []string) {
-	runCmdFlags.Parse(args)
+	if err := runCmdFlags.Parse(args); err != nil {
+		log.Fatal(err)
+	}
 
 	var (
 		err         error
