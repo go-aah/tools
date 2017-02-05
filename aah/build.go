@@ -30,24 +30,12 @@ import (
 
 // buildApp method calls Go ast parser, generates main.go and builds aah
 // application binary at Go bin directory
-func buildApp() error {
+func buildApp(buildCfg *config.Config) error {
 	// app variables
 	appBaseDir := aah.AppBaseDir()
 	appImportPath := aah.AppImportPath()
 	appCodeDir := filepath.Join(appBaseDir, "app")
 	appControllersPath := filepath.Join(appCodeDir, "controllers")
-
-	// read build config from 'aah.project'
-	aahProjectFile := filepath.Join(appBaseDir, "aah.project")
-	if !ess.IsFileExists(aahProjectFile) {
-		log.Fatal("Missing 'aah.project' file, not a valid aah application.")
-	}
-
-	log.Infof("Reading aah project file: %s", aahProjectFile)
-	buildCfg, err := config.LoadFile(aahProjectFile)
-	if err != nil {
-		log.Fatalf("aah project file error: %s", err)
-	}
 
 	appName := buildCfg.StringDefault("name", aah.AppName())
 	log.Infof("Starting build for '%s' [%s]", appName, appImportPath)
@@ -107,14 +95,8 @@ func buildApp() error {
 		buildArgs = append(buildArgs, "-tags", tags)
 	}
 
-	// binary name creation
-	name := strings.Replace(buildCfg.StringDefault("name", aah.AppName()), " ", "_", -1)
-	appBinaryName := buildCfg.StringDefault("build.binary_name", name)
-	if isWindows {
-		appBinaryName += ".exe"
-	}
-
-	appBinary := filepath.Join(gopath, "bin", "aah.d", appImportPath, appBinaryName)
+	appBinary := createAppBinaryName(buildCfg)
+	appBinaryName := filepath.Base(appBinary)
 	buildArgs = append(buildArgs, "-o", appBinary)
 
 	// main.go location e.g. path/to/import/app
@@ -137,16 +119,16 @@ func buildApp() error {
 	})
 
 	// getting project dependencies if not exists in $GOPATH
-	if err = checkAndGetAppDeps(appImportPath, buildCfg); err != nil {
+	if err := checkAndGetAppDeps(appImportPath, buildCfg); err != nil {
 		log.Fatal(err)
 	}
 
 	// execute aah applictaion build
-	if _, err = execCmd(gocmd, buildArgs); err != nil {
+	if _, err := execCmd(gocmd, buildArgs); err != nil {
 		log.Fatal(err)
 	}
 
-	log.Infof("'%s' application build successful.", appName)
+	log.Infof("Build successful for '%s' [%s].", appName, appImportPath)
 
 	return nil
 }
@@ -285,6 +267,17 @@ func renderTmpl(w io.Writer, text string, data interface{}) {
 	if err := tmpl.Execute(w, data); err != nil {
 		log.Fatalf("Unable to render template text: %s", err)
 	}
+}
+
+// createAppBinaryName method binary name creation
+func createAppBinaryName(buildCfg *config.Config) string {
+	name := strings.Replace(buildCfg.StringDefault("name", aah.AppName()), " ", "_", -1)
+	appBinaryName := buildCfg.StringDefault("build.binary_name", name)
+	if isWindows {
+		appBinaryName += ".exe"
+	}
+
+	return filepath.Join(gopath, "bin", "aah.d", aah.AppImportPath(), appBinaryName)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

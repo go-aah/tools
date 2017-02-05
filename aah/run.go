@@ -82,7 +82,19 @@ func runRun(args []string) {
 		aah.MergeAppConfig(externalCfg)
 	}
 
-	if err = buildApp(); err != nil {
+	// read build config from 'aah.project'
+	aahProjectFile := filepath.Join(aah.AppBaseDir(), "aah.project")
+	if !ess.IsFileExists(aahProjectFile) {
+		log.Fatal("Missing 'aah.project' file, not a valid aah application.")
+	}
+
+	log.Infof("Reading aah project file: %s", aahProjectFile)
+	buildCfg, err := config.LoadFile(aahProjectFile)
+	if err != nil {
+		log.Fatalf("aah project file error: %s", err)
+	}
+
+	if err = buildApp(buildCfg); err != nil {
 		log.Fatal(err)
 	}
 

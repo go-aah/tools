@@ -108,6 +108,7 @@ func init() {
 	subCmds = commands{
 		newCmd,
 		runCmd,
+		pkgCmd,
 		versionCmd,
 		helpCmd,
 	}
