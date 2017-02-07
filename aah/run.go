@@ -22,7 +22,7 @@ var (
 	runConfigShortFlag     = runCmdFlags.String("c", "", "External config for overriding aah.conf")
 	runCmd                 = &command{
 		Name:      "run",
-		UsageLine: "aah run [importPath] [config]",
+		UsageLine: "aah run [-importPath | -p] [-config | -c]",
 		ArgsCount: 2,
 		Short:     "run aah framework application",
 		Long: `

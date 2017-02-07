@@ -24,7 +24,7 @@ var (
 	newProfileFlag    = newCmdFlags.String("profile", profileWeb, "web or api, defalut is web")
 	newCmd            = &command{
 		Name:      "new",
-		UsageLine: "aah new importPath [profile]",
+		UsageLine: "aah new -importPath [profile]",
 		Flags:     newCmdFlags,
 		ArgsCount: 2,
 		Short:     "create new aah 'web' or 'api' application",
