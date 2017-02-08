@@ -27,7 +27,12 @@ func importPathRelwd() string {
 }
 
 func getNonEmptyAbsPath(patha, pathb string) string {
-	configPath, err := filepath.Abs(firstNonEmpty(patha, pathb))
+	v := firstNonEmpty(patha, pathb)
+	if ess.IsStrEmpty(v) {
+		return v
+	}
+
+	configPath, err := filepath.Abs(v)
 	if err != nil {
 		log.Fatal(err)
 	}
