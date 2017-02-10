@@ -1,0 +1,23 @@
+# ---------------------------------
+# Production Configuration Section
+# ---------------------------------
+
+prod {
+
+  # --------------------
+  # Logger configuration
+  # --------------------
+  log {
+    receiver = "file"
+    file = "example-curd.log"
+  }
+
+  # -------------------------
+  # Render/View configuration
+  # -------------------------
+  render {
+    # pretty is only applicable to JSON & XML rendering
+    pretty = false
+  }
+
+}

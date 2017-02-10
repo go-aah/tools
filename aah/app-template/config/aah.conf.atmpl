@@ -1,0 +1,111 @@
+###################################################
+# {{.AppName}} - aah framework application
+#
+# Complete configuration reference: TODO
+###################################################
+
+# ----------------------------------------------------------
+# Application name (non-whitespace) and Friendly description
+# ----------------------------------------------------------
+name = "{{.AppName}}"
+description = "aah framework {{.AppMode}} application"
+
+# aah application process ID aka PID
+# Default location: <app-base-dir>/appname.pid
+pidfile = "{{.AppName}}.pid"
+
+# ------------------------------
+# Application mode configuration
+# e.g.: web or api
+# ------------------------------
+mode = "{{.AppMode}}"
+
+# -------------------------
+# HTTP server configuration
+# -------------------------
+http {
+  # for unix socket: unix:/tmp/{{.AppName}}.sock
+  address = ""
+
+  port = 8000
+
+  # Valid time units are "s = seconds", "m = minutes"
+  timeout {
+    read = "90s"
+    write = "90s"
+  }
+
+  ssl {
+    enable = false
+    #cert = ""
+    #key = ""
+  }
+}
+
+# ------------------
+# i18n configuration
+# ------------------
+i18n {
+  default = "en"
+}
+
+# --------------------
+# Format configuration
+# --------------------
+format {
+  date = "2006-01-02"
+  datetime = "2006-01-02 15:04:05"
+}
+
+runtime {
+  debug {
+    # Choose appropriate buffer size to collect all goroutines stack trace
+    # based on your use case. Default is 2mb.
+    stack_buffer_size = "2mb"
+
+    # default is false
+    #all_goroutines = true
+  }
+}
+
+# -------------------------
+# Render configuration
+# -------------------------
+render {
+  default = "html"
+
+  multipart {
+    enable = true
+    size = "32mb"
+  }
+}
+
+# 'template' section is not applicable, if you have custom template engine.
+# Custom implementation should take care. Framework simply calls the methods
+# as per interface 'TODO'
+template {
+  ext = ".html"
+
+  # Default is false
+  # "/views/pages/app/login.tmpl" == "/views/pages/App/Login.tmpl"
+  case_sensitive = false
+
+  delimiters = "{{.TmplDemils}}"
+}
+
+# ------------------------------------------
+# Environment Profiles e.g.: dev, prod, etc.
+# ------------------------------------------
+env {
+  active = "dev"
+
+  # ---------------------------------
+  # Development Configuration Section
+  # ---------------------------------
+  include "dev.conf"
+
+  # --------------------------------
+  # Production Configuration Section
+  # --------------------------------
+  include "prod.conf"
+}

@@ -1,0 +1,22 @@
+# ---------------------------------
+# Development Configuration Section
+# ---------------------------------
+
+dev {
+
+  # --------------------
+  # Logger configuration
+  # --------------------
+  log {
+    receiver = "console"
+  }
+
+  # -------------------------
+  # Render/View configuration
+  # -------------------------
+  render {
+    # pretty is only applicable to JSON & XML rendering
+    pretty = true
+  }
+
+}

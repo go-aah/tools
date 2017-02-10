@@ -1,0 +1,108 @@
+###################################################
+# {{.AppName}} - Application Routes Configuration
+#
+# Complete configuration reference: TODO
+###################################################
+
+#------------------------------------------------
+# All domains or sub-domains goes as section
+# To understand routes configuration, refer: TODO
+#------------------------------------------------
+domains {
+
+  # Domain name/ip address with port no, basically unique name
+  localhost_8000 {
+    name = "{{.AppName}} routes"
+    host = "localhost"
+    port = "8000"
+
+    #---------------------------------------------------------
+    # 'global' section is optional one.
+    # If not configured, default values applies.
+    #---------------------------------------------------------
+    global {
+      # Refer: TODO
+      method_not_allowed = true
+
+      # Refer: TODO
+      redirect_trailing_slash = true
+
+      # aah framework automatically replies to 'OPTIONS' requests.
+      # User defined 'OPTIONS' routes take priority over this automatic replies.
+      auto_options = true
+
+      # Optional one, default takes place if not present
+      # Refer: TODO
+      #not_found {
+      #  controller = "App"
+      #  action = "NotFound"
+      #}
+    }
+
+    {{ if eq .AppMode "web" -}}
+    #-----------------------------------------------------------------
+    # To serve Static files. It can be directory or individual file.
+    # 'static' section is optional, if you don't have static files.
+    # e.g.: REST API
+    # Refer: TODO
+    #-----------------------------------------------------------------
+    static {
+
+      #-------------------------------------
+      # Static route name, pick a unique one
+      # sample of serving directory
+      #-------------------------------------
+      public_assets {
+        # URL 'path' for serving directory
+        # Below definition means '/static/**'
+        path = "/static"
+
+        # Relative to application base directory or an absolute path
+        dir = "static"
+
+        # list directory, default is 'false'
+        list = true
+      }
+
+      # sample of serving file
+      favicon {
+        path = "/favicon.png"
+
+        # Path with direct file mapping
+        # It can be relative to application base directory or an absolute path
+        # If it's relative path '/static/' prefixed automatically
+        file = "img/favicon.png"
+      }
+    }
+    {{- end }}
+
+    #----------------------------------------------
+    # Application routes, to know more.
+    # Refer: TODO
+    #----------------------------------------------
+    routes {
+
+      #------------------------------------------------------
+      # namespace or group or route name, pick an unique name
+      # This name is used for reverse route.
+      #------------------------------------------------------
+      index {
+        # path is used to access URL
+        path = "/"
+
+        # Optional, default value is GET, it can be lowercase or uppercase
+        method = "GET"
+
+        controller = "App"
+
+        # Optional, if want to go with defaults 'Action' names
+        # Default action value for GET is 'Index',
+        # Refer: TODO
+        #action = "Index"
+      }
+
+    } # end - routes
+
+  } # end - localhost_8000
+
+} # end - domains
