@@ -139,7 +139,7 @@ func generateSource(dir, filename, templateSource string, templateArgs map[strin
 	buf := &bytes.Buffer{}
 	renderTmpl(buf, templateSource, templateArgs)
 
-	if err := ioutil.WriteFile(file, buf.Bytes(), 0755); err != nil {
+	if err := ioutil.WriteFile(file, buf.Bytes(), permRWXRXRX); err != nil {
 		log.Fatalf("aah '%s' file write error: %s", filename, err)
 	}
 }

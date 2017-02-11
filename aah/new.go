@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -18,8 +19,9 @@ import (
 )
 
 const (
-	modeWeb = "web"
-	modeAPI = "api"
+	modeWeb    = "web"
+	modeAPI    = "api"
+	aahTmplExt = ".atmpl"
 )
 
 var (
@@ -73,7 +75,7 @@ func newRun(args []string) {
 		log.Fatal(err)
 	}
 
-	log.Infof("Your aah application '%s' created successfully at '%s'", appName, appDir)
+	log.Infof("Your aah %s application '%s' created successfully at '%s'", mode, appName, appDir)
 	log.Infof("You shall run your application: 'aah run -p=%s'\n", importPath)
 }
 
@@ -85,44 +87,78 @@ func createAahApp(appDir, importPath, mode, appName string) error {
 
 	appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
 	data := map[string]interface{}{
-		"AppName":    appName,
-		"AppMode":    mode,
-		"TmplDemils": "{{.}}",
+		"AppName":       appName,
+		"AppMode":       mode,
+		"AppImportPath": importPath,
+		"TmplDemils":    "{{.}}",
 	}
 
 	// app directory creation
-	if err := ess.MkDirAll(appDir, 0755); err != nil {
+	if err := ess.MkDirAll(appDir, permRWXRXRX); err != nil {
 		log.Fatal(err)
 	}
 
+	// aah.project
+	processFile(appDir, appTemplatePath, filepath.Join(appTemplatePath, "aah.project.atmpl"), data)
+
+	// gitignore
+	processFile(appDir, appTemplatePath, filepath.Join(appTemplatePath, ".gitignore"), data)
+
+	// source
+	processSection(appDir, appTemplatePath, "app", data)
+
 	// config
 	processSection(appDir, appTemplatePath, "config", data)
+
+	// i18n
+	processSection(appDir, appTemplatePath, "i18n", data)
+
+	if mode == modeWeb {
+		// static
+		processSection(appDir, appTemplatePath, "static", data)
+
+		// views
+		processSection(appDir, appTemplatePath, "views", data)
+	}
 
 	return nil
 }
 
 func processSection(destDir, srcDir, dir string, data map[string]interface{}) {
 	files, _ := ess.FilesPath(filepath.Join(srcDir, dir))
-	_ = ess.MkDirAll(filepath.Join(destDir, dir), 0755)
 	for _, v := range files {
-		dfPath := filepath.Join(destDir, dir, filenameFromPath(v))
-		sf, _ := os.Open(v)
-		df, _ := os.Create(dfPath)
-
-		if strings.HasSuffix(v, ".atmpl") {
-			sfbytes, _ := ioutil.ReadAll(sf)
-			renderTmpl(df, string(sfbytes), data)
-		} else {
-			_, _ = io.Copy(df, sf)
-		}
-		_ = ess.ApplyFileMode(dfPath, 0766)
-		ess.CloseQuietly(sf, df)
+		processFile(destDir, srcDir, v, data)
 	}
 }
 
-func filenameFromPath(path string) string {
-	name := filepath.Base(path)
-	return name[:len(name)-len(".atmpl")]
+func processFile(destDir, srcDir, f string, data map[string]interface{}) {
+	dfPath := getDestPath(destDir, srcDir, f)
+	dfDir := path.Dir(dfPath)
+	if !ess.IsFileExists(dfDir) {
+		_ = ess.MkDirAll(dfDir, permRWXRXRX)
+	}
+
+	sf, _ := os.Open(f)
+	df, _ := os.Create(dfPath)
+
+	if strings.HasSuffix(f, aahTmplExt) {
+		sfbytes, _ := ioutil.ReadAll(sf)
+		renderTmpl(df, string(sfbytes), data)
+	} else {
+		_, _ = io.Copy(df, sf)
+	}
+
+	_ = ess.ApplyFileMode(dfPath, permRWRWRW)
+	ess.CloseQuietly(sf, df)
+}
+
+func getDestPath(destDir, srcDir, v string) string {
+	dpath := v[len(srcDir):]
+	dpath = filepath.Join(destDir, dpath)
+	if strings.HasSuffix(v, aahTmplExt) {
+		dpath = dpath[:len(dpath)-len(aahTmplExt)]
+	}
+	return dpath
 }
 
 func init() {

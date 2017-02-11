@@ -86,12 +86,13 @@ domains {
       # namespace or group or route name, pick an unique name
       # This name is used for reverse route.
       #------------------------------------------------------
+      {{ if eq .AppMode "web" -}}
       index {
         # path is used to access URL
         path = "/"
 
         # Optional, default value is GET, it can be lowercase or uppercase
-        method = "GET"
+        #method = "GET"
 
         controller = "App"
 
@@ -100,6 +101,22 @@ domains {
         # Refer: TODO
         #action = "Index"
       }
+      {{ else }}
+      welcome {
+        # path is used to access URL
+        path = "/welcome"
+
+        # Optional, default value is GET, it can be lowercase or uppercase
+        #method = "GET"
+
+        controller = "App"
+
+        # Optional, if want to go with defaults 'Action' names
+        # Default action value for GET is 'Index',
+        # Refer: TODO
+        action = "Welcome"
+      }
+      {{- end }}
 
     } # end - routes
 

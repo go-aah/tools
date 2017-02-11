@@ -108,17 +108,17 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir string) (string, 
 
 	pkgBaseDir := filepath.Join(tmpDir, appBinaryName)
 	ess.DeleteFiles(pkgBaseDir)
-	if err = ess.MkDirAll(pkgBaseDir, 0755); err != nil {
+	if err = ess.MkDirAll(pkgBaseDir, permRWXRXRX); err != nil {
 		return "", err
 	}
 
 	// Binary file
 	binDir := filepath.Join(pkgBaseDir, "bin")
-	_ = ess.MkDirAll(binDir, 0755)
+	_ = ess.MkDirAll(binDir, permRWXRXRX)
 	_, _ = ess.CopyFile(binDir, appBinary)
 
 	// apply executable file mode
-	if err = ess.ApplyFileMode(filepath.Join(binDir, appBinaryName), 0755); err != nil {
+	if err = ess.ApplyFileMode(filepath.Join(binDir, appBinaryName), permRWXRXRX); err != nil {
 		log.Error(err)
 	}
 
@@ -147,7 +147,7 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir string) (string, 
 	}
 
 	// views
-	viewsPath := filepath.Join(appBaseDir, "app", "views")
+	viewsPath := filepath.Join(appBaseDir, "views")
 	if ess.IsFileExists(viewsPath) {
 		if err = ess.CopyDir(pkgBaseDir, viewsPath, excludes); err != nil {
 			return "", err
@@ -158,13 +158,13 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir string) (string, 
 	data := map[string]string{"AppName": appBinaryName}
 	var buf bytes.Buffer
 	renderTmpl(&buf, aahBashStartupTemplate, data)
-	if err = ioutil.WriteFile(filepath.Join(pkgBaseDir, "aah"), buf.Bytes(), 0755); err != nil {
+	if err = ioutil.WriteFile(filepath.Join(pkgBaseDir, "aah"), buf.Bytes(), permRWXRXRX); err != nil {
 		return "", err
 	}
 
 	buf.Reset()
 	renderTmpl(&buf, aahCmdStartupTemplate, data)
-	err = ioutil.WriteFile(filepath.Join(pkgBaseDir, "aah.cmd"), buf.Bytes(), 0755)
+	err = ioutil.WriteFile(filepath.Join(pkgBaseDir, "aah.cmd"), buf.Bytes(), permRWXRXRX)
 
 	return pkgBaseDir, err
 }

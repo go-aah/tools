@@ -28,6 +28,8 @@ const (
 `
 	isWindows     = (runtime.GOOS == "windows")
 	aahImportPath = "aahframework.org/aah"
+	permRWXRXRX   = 0755
+	permRWRWRW    = 0666
 )
 
 var (
