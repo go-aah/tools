@@ -4,13 +4,9 @@
 
 {{ define "body" -}}
   <div class="container">
-    <div class="row text-center">
-      framework logo
-    </div>
-    <div class="row text-center">
-      <div class="jumbotron">
+    <div class="row text-center welcome-msg">
+        <img src="/static/img/aah-framework-logo.png" alt="aah framework logo"/>
         <h1>{{ .Greet.Message }}</h1>
-      </div>
     </div>
   </div>
 {{- end }}
