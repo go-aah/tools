@@ -19,7 +19,7 @@ import (
 )
 
 // Version no. of aah framework CLI tool
-const Version = "0.1"
+const Version = "0.2"
 
 const (
 	header = `–––––––––––––––––––––––––––––––––––––––––––––––
