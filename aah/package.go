@@ -79,7 +79,8 @@ func pkgRun(args []string) {
 	appName := buildCfg.StringDefault("name", aah.AppName())
 	log.Infof("Starting package for '%s' [%s]", appName, aah.AppImportPath())
 
-	if err = buildApp(buildCfg); err != nil {
+	_, err = buildApp(buildCfg)
+	if err != nil {
 		log.Fatal(err)
 	}
 

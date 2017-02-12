@@ -92,12 +92,15 @@ func runRun(args []string) {
 		log.Fatalf("aah project file error: %s", err)
 	}
 
-	if err = buildApp(buildCfg); err != nil {
+	appBinary, err := buildApp(buildCfg)
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	// TODO further implementation
-
+	_, err = execCmd(appBinary, []string{})
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func init() {

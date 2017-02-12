@@ -25,7 +25,7 @@ import (
 
 // buildApp method calls Go ast parser, generates main.go and builds aah
 // application binary at Go bin directory
-func buildApp(buildCfg *config.Config) error {
+func buildApp(buildCfg *config.Config) (string, error) {
 	// app variables
 	appBaseDir := aah.AppBaseDir()
 	appImportPath := aah.AppImportPath()
@@ -125,7 +125,7 @@ func buildApp(buildCfg *config.Config) error {
 
 	log.Infof("Build successful for '%s' [%s].", appName, appImportPath)
 
-	return nil
+	return appBinary, nil
 }
 
 func generateSource(dir, filename, templateSource string, templateArgs map[string]interface{}) {
