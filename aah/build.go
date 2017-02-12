@@ -170,7 +170,7 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 
 		notExistsPkgs := []string{}
 		for _, pkg := range strings.Split(line, " ") {
-			if !ess.IsImportPathExists(pkg) {
+			if !ess.IsStrEmpty(pkg) && !ess.IsImportPathExists(pkg) {
 				notExistsPkgs = append(notExistsPkgs, pkg)
 			}
 		}
