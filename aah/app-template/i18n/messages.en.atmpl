@@ -1,0 +1,15 @@
+#############################################
+# i18n messages for {{.AppName}} application
+#
+# Complete configuration reference: TODO
+#############################################
+
+label {
+  pages {
+    app {
+      index {
+        title = "aah framework application - Home"
+      }
+    }
+  }
+}

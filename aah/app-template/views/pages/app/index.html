@@ -1,0 +1,20 @@
+{{ define "title" -}}
+<title>{{ i18n . "label.pages.app.index.title" }}</title>
+{{- end }}
+
+{{ define "body" -}}
+  <div class="container">
+    <div class="row text-center">
+      framework logo
+    </div>
+    <div class="row text-center">
+      <div class="jumbotron">
+        <h1>{{ .Greet.Message }}</h1>
+      </div>
+    </div>
+  </div>
+{{- end }}
+
+{{ define "footer_scripts" -}}
+<script src="/static/js/aah.js"></script>
+{{- end}}

@@ -1,0 +1,4 @@
+# aah framework application - git ignore
+
+aah.go
+tmp/

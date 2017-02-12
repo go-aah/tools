@@ -1,0 +1,29 @@
+package controllers
+
+import (
+	"aahframework.org/aah"{{ if eq .AppMode "web" }}
+	"aahframework.org/aah/render"{{- end }}
+	"{{.AppImportPath}}/app/models"
+)
+
+// App struct application controller
+type App struct {
+	*aah.Controller
+}
+
+{{ if eq .AppMode "web" -}}
+func (a *App) Index() {
+	data := render.Data{
+		"Greet": models.Greet{
+			Message: "Welcome to aah framework - Web Application",
+		},
+	}
+	a.Reply().Ok().HTML(data)
+}
+{{ else }}
+func (a *App) Welcome() {
+	a.Reply().JSON(models.Greet{
+		Message: "Welcome to aah framework - API application",
+	})
+}
+{{- end }}

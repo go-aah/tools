@@ -1,0 +1,29 @@
+######################################
+# {{.AppName}} - aah framework project
+######################################
+# Note: Add it to version control
+
+# name of the project
+# Note: Whitespace is not recommend in the 'name' field. If present whitespace
+# will be replaced with '_'.
+name = "{{.AppName}}"
+
+version = "0.0.1"
+
+# build config read from here during a command 'aah package' and 'aah run'
+build {
+  # Not supplied or empty then 'name' attribute is used for binary
+  #binary_name = ""
+
+  # if any dependencies is missing during a build, aah cli will do 'go get <package>'
+  go_get = true
+
+  flags = ["-i"]
+
+  ldflags = ""
+
+  tags = ""
+
+  # Valid exclude patterns refer: https://golang.org/pkg/path/filepath/#Match
+  ast_excludes = ["*_test.go", ".*", "*.bak", "*.tmp", "vendor"]
+}
