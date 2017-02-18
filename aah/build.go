@@ -119,7 +119,7 @@ func buildApp(buildCfg *config.Config) (string, error) {
 	}
 
 	// execute aah applictaion build
-	if _, err := execCmd(gocmd, buildArgs); err != nil {
+	if _, err := execCmd(gocmd, buildArgs, false); err != nil {
 		log.Fatal(err)
 	}
 
@@ -153,7 +153,7 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 	importPath := path.Join(appImportPath, "app", "...")
 	args := []string{"list", "-f", "{{.Imports}}", importPath}
 
-	output, err := execCmd(gocmd, args)
+	output, err := execCmd(gocmd, args, false)
 	if err != nil {
 		log.Errorf("unable to get application dependencies: %s", err)
 		return nil
@@ -179,7 +179,7 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 			log.Info("Getting application dependencies ...")
 			for _, pkg := range notExistsPkgs {
 				args := []string{"get", pkg}
-				if _, err := execCmd(gocmd, args); err != nil {
+				if _, err := execCmd(gocmd, args, false); err != nil {
 					return err
 				}
 			}

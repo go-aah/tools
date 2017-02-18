@@ -97,7 +97,7 @@ func runRun(args []string) {
 		log.Fatal(err)
 	}
 
-	_, err = execCmd(appBinary, []string{})
+	_, err = execCmd(appBinary, []string{}, true)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -73,7 +73,7 @@ func getAppVersion(appBaseDir string, cfg *config.Config) string {
 		}
 
 		gitArgs := []string{fmt.Sprintf("--git-dir=%s", appGitDir), "describe", "--always", "--dirty"}
-		output, err := execCmd(gitcmd, gitArgs)
+		output, err := execCmd(gitcmd, gitArgs, false)
 		if err != nil {
 			return version
 		}
@@ -100,16 +100,27 @@ func getBuildDate() string {
 	return time.Now().Format(time.RFC3339)
 }
 
-func execCmd(cmdName string, args []string) (string, error) {
+func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 	cmd := exec.Command(cmdName, args...)
 	log.Info("Executing ", strings.Join(cmd.Args, " "))
 
-	bytes, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("\n%s\n%s", string(bytes), err)
+	if stdout {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return "", err
+		}
+		_ = cmd.Wait()
+	} else {
+		bytes, err := cmd.CombinedOutput()
+		if err != nil {
+			return "", fmt.Errorf("\n%s\n%s", string(bytes), err)
+		}
+
+		return string(bytes), nil
 	}
 
-	return string(bytes), nil
+	return "", nil
 }
 
 func renderTmpl(w io.Writer, text string, data interface{}) {
