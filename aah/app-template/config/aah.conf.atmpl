@@ -80,6 +80,7 @@ render {
   }
 }
 
+{{ if eq .AppMode "web" -}}
 # 'template' section is not applicable, if you have custom template engine.
 # Custom implementation should take care. Framework simply calls the methods
 # as per interface 'TODO'
@@ -92,6 +93,7 @@ template {
 
   delimiters = "{{.TmplDemils}}"
 }
+{{- end }}
 
 # ------------------------------------------
 # Environment Profiles e.g.: dev, prod, etc.
