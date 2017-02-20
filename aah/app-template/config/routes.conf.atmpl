@@ -14,6 +14,8 @@ domains {
   localhost_8000 {
     name = "{{.AppName}} routes"
     host = "localhost"
+
+    # For port 80, please assign 'port' field to empty string
     port = "8000"
 
     #---------------------------------------------------------

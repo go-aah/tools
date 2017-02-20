@@ -15,7 +15,7 @@ build {
   # Not supplied or empty then 'name' attribute is used for binary
   #binary_name = ""
 
-  # if any dependencies is missing during a build, aah cli will do 'go get <package>'
+  # if any dependencies is missing during a build, aah CLI will do 'go get <package>'
   go_get = true
 
   flags = ["-i"]

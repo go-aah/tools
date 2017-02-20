@@ -26,7 +26,6 @@ mode = "{{.AppMode}}"
 http {
   # for unix socket: unix:/tmp/{{.AppName}}.sock
   address = ""
-
   port = 8000
 
   # Valid time units are "s = seconds", "m = minutes"
@@ -85,6 +84,9 @@ render {
 # Custom implementation should take care. Framework simply calls the methods
 # as per interface 'TODO'
 template {
+  # default is Go template engine
+  # soon aah framework will support amber, pongo2, and Jade
+  engine = "go"
   ext = ".html"
 
   # Default is false
