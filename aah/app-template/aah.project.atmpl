@@ -26,4 +26,8 @@ build {
 
   # Valid exclude patterns refer: https://golang.org/pkg/path/filepath/#Match
   ast_excludes = ["*_test.go", ".*", "*.bak", "*.tmp", "vendor"]
+
+  # packing excludes following file/directory during aah application package
+  # Valid exclude patterns refer: https://golang.org/pkg/path/filepath/#Match
+  excludes = ["*.go", "*_test.go", ".*", "*.bak", "*.tmp", "vendor", "app"]
 }

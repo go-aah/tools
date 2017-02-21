@@ -125,7 +125,7 @@ func createAahApp(appDir, importPath, mode, appName string) error {
 }
 
 func processSection(destDir, srcDir, dir string, data map[string]interface{}) {
-	files, _ := ess.FilesPath(filepath.Join(srcDir, dir))
+	files, _ := ess.FilesPath(filepath.Join(srcDir, dir), true)
 	for _, v := range files {
 		processFile(destDir, srcDir, v, data)
 	}

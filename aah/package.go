@@ -123,48 +123,37 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir string) (string, 
 		log.Error(err)
 	}
 
-	cfgExcludes, _ := buildCfg.StringList("build.ast_excludes")
+	// package excludes fro
+	cfgExcludes, _ := buildCfg.StringList("build.excludes")
 	excludes := ess.Excludes(cfgExcludes)
-
-	// config
-	if err = ess.CopyDir(pkgBaseDir, filepath.Join(appBaseDir, "config"), excludes); err != nil {
-		return "", err
+	if err = excludes.Validate(); err != nil {
+		log.Fatal(err)
 	}
 
-	// i18n
-	i18nPath := filepath.Join(appBaseDir, "i18n")
-	if ess.IsFileExists(i18nPath) {
-		if err = ess.CopyDir(pkgBaseDir, i18nPath, excludes); err != nil {
-			return "", err
+	// aah application and custom directories
+	appDirs, _ := ess.DirsPath(appBaseDir, false)
+	for _, srcdir := range appDirs {
+		if excludes.Match(filepath.Base(srcdir)) {
+			continue
 		}
-	}
 
-	// static
-	staticPath := filepath.Join(appBaseDir, "static")
-	if ess.IsFileExists(staticPath) {
-		if err = ess.CopyDir(pkgBaseDir, staticPath, excludes); err != nil {
-			return "", err
-		}
-	}
-
-	// views
-	viewsPath := filepath.Join(appBaseDir, "views")
-	if ess.IsFileExists(viewsPath) {
-		if err = ess.CopyDir(pkgBaseDir, viewsPath, excludes); err != nil {
-			return "", err
+		if ess.IsFileExists(srcdir) {
+			if err = ess.CopyDir(pkgBaseDir, srcdir, excludes); err != nil {
+				return "", err
+			}
 		}
 	}
 
 	// startup files
 	data := map[string]string{"AppName": appBinaryName}
-	var buf bytes.Buffer
-	renderTmpl(&buf, aahBashStartupTemplate, data)
+	buf := &bytes.Buffer{}
+	renderTmpl(buf, aahBashStartupTemplate, data)
 	if err = ioutil.WriteFile(filepath.Join(pkgBaseDir, "aah"), buf.Bytes(), permRWXRXRX); err != nil {
 		return "", err
 	}
 
 	buf.Reset()
-	renderTmpl(&buf, aahCmdStartupTemplate, data)
+	renderTmpl(buf, aahCmdStartupTemplate, data)
 	err = ioutil.WriteFile(filepath.Join(pkgBaseDir, "aah.cmd"), buf.Bytes(), permRWXRXRX)
 
 	return pkgBaseDir, err
