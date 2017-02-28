@@ -26,7 +26,7 @@ mode = "{{.AppMode}}"
 http {
   # for unix socket: unix:/tmp/{{.AppName}}.sock
   address = ""
-  port = 8000
+  port = 8080
 
   # Valid time units are "s = seconds", "m = minutes"
   timeout {

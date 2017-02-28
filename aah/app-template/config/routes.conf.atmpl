@@ -11,12 +11,12 @@
 domains {
 
   # Domain name/ip address with port no, basically unique name
-  localhost_8000 {
+  localhost_8080 {
     name = "{{.AppName}} routes"
     host = "localhost"
 
-    # For port 80, please assign 'port' field to empty string
-    port = "8000"
+    # 'port' attribute is optional for port 80 and 443 or please assign empty string
+    port = "8080"
 
     #---------------------------------------------------------
     # 'global' section is optional one.
@@ -52,7 +52,7 @@ domains {
 
       #-------------------------------------
       # Static route name, pick a unique one
-      # sample of serving directory
+      # for serving directory
       #-------------------------------------
       public_assets {
         # URL 'path' for serving directory
@@ -66,7 +66,7 @@ domains {
         list = true
       }
 
-      # sample of serving file
+      # serving single file
       favicon {
         path = "/favicon.png"
 
@@ -105,6 +105,6 @@ domains {
 
     } # end - routes
 
-  } # end - localhost_8000
+  } # end - localhost_8080
 
 } # end - domains
