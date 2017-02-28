@@ -115,7 +115,7 @@ func buildApp(buildCfg *config.Config) (string, error) {
 
 	// getting project dependencies if not exists in $GOPATH
 	if err := checkAndGetAppDeps(appImportPath, buildCfg); err != nil {
-		log.Fatal(err)
+		log.Fatalf("unable to get application dependencies: %s", err)
 	}
 
 	// execute aah applictaion build
@@ -155,8 +155,7 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 
 	output, err := execCmd(gocmd, args, false)
 	if err != nil {
-		log.Errorf("unable to get application dependencies: %s", err)
-		return nil
+		return err
 	}
 
 	lines := strings.Split(strings.TrimSpace(output), "\r\n")
@@ -247,6 +246,12 @@ func main() {
 
 		aah.MergeAppConfig(externalConfig)
 	}
+
+	aah.SetAppBuildInfo(&aah.BuildInfo{
+		BinaryName: AppBinaryName,
+		Version:    AppVersion,
+		Date:       AppBuildDate,
+	})
 
 	// Adding all the controllers which refers 'aah.Controller' directly
 	// or indirectly from app/controllers/** {{ range $i, $c := .AppControllers }}
