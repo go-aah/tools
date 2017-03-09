@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
-	"aahframework.org/aah"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframework.org/aah.v0"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 )
 
 func importPathRelwd() string {

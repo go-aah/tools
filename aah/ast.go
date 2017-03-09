@@ -16,8 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 )
 
 var (
@@ -331,7 +331,7 @@ func (p *packageInfo) processTypes(decl *ast.GenDecl, imports map[string]string)
 			} else {
 				var found bool
 				if eTypeImportPath, found = imports[fPkgName]; !found {
-					log.Errorf("Unable to find import path for %s.%s", fPkgName, fTypeName)
+					log.Errorf("AST: Unable to find import path for %s.%s", fPkgName, fTypeName)
 					continue
 				}
 			}
@@ -363,7 +363,7 @@ func (p *packageInfo) processImports(decl *ast.GenDecl) map[string]string {
 			} else { // build cache
 				pkg, err := build.Import(importPath, p.FilePath, 0)
 				if err != nil {
-					log.Errorf("Unable to find import path: %s", importPath)
+					log.Errorf("AST: Unable to find import path: %s", importPath)
 					continue
 				}
 				pkgAlias = pkg.Name
@@ -474,13 +474,17 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 		return
 	}
 
+	actionName := fn.Name.Name
+	if isInterceptorActioName(actionName) {
+		return
+	}
+
 	var (
 		found    bool
 		cmethods map[string]uint8
 	)
 
 	controllerName := getName(fn.Recv.List[0].Type)
-	actionName := fn.Name.Name
 	method := &methodInfo{Name: actionName, StructName: controllerName, Parameters: []*parameterInfo{}}
 
 	// processed so set to level 2, used to display unimplemented action details
@@ -495,7 +499,7 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 		for _, fieldName := range field.Names {
 			te, err := parseParamFieldExpr(pkg.Name(), field.Type)
 			if err != nil {
-				log.Errorf("Unable to parse parameter '%s' on action '%s.%s', ignoring it", fieldName.Name, controllerName, actionName)
+				log.Errorf("AST: Unable to parse parameter '%s' on action '%s.%s', ignoring it", fieldName.Name, controllerName, actionName)
 				return
 			}
 
@@ -515,10 +519,18 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 		}
 	}
 
-	ty := pkg.Types[controllerName]
-	ty.Methods = append(ty.Methods, method)
+	if ty := pkg.Types[controllerName]; ty == nil {
+		log.Errorf("AST: Type[%s] not found in package: %s", controllerName, pkg.ImportPath)
+	} else {
+		ty.Methods = append(ty.Methods, method)
+	}
 
 	return
+}
+
+func isInterceptorActioName(actionName string) bool {
+	return (strings.HasPrefix(actionName, "Before") || strings.HasPrefix(actionName, "After") ||
+		strings.HasPrefix(actionName, "Panic") || strings.HasPrefix(actionName, "Finally"))
 }
 
 func getName(expr ast.Expr) string {

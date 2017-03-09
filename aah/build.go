@@ -12,11 +12,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/aah"
-	"aahframework.org/aah/router"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframework.org/aah.v0"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
+	"aahframework.org/router.v0"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -39,7 +39,7 @@ func buildApp(buildCfg *config.Config) (string, error) {
 	excludes, _ := buildCfg.StringList("build.ast_excludes")
 
 	// get all configured Controllers with action info
-	registeredActions := router.RegisteredActions()
+	registeredActions := aah.AppRouter().RegisteredActions()
 
 	// Go AST processing for Controllers
 	prg, errs := loadProgram(appControllersPath, ess.Excludes(excludes), registeredActions)
@@ -169,9 +169,10 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 
 		notExistsPkgs := []string{}
 		for _, pkg := range strings.Split(line, " ") {
-			if !ess.IsStrEmpty(pkg) && !ess.IsImportPathExists(pkg) {
-				notExistsPkgs = append(notExistsPkgs, pkg)
+			if ess.IsStrEmpty(pkg) || ess.IsImportPathExists(pkg) {
+				continue
 			}
+			notExistsPkgs = append(notExistsPkgs, pkg)
 		}
 
 		if cfg.BoolDefault("build.go_get", true) && len(notExistsPkgs) > 0 {
@@ -207,10 +208,10 @@ import (
 	"fmt"
 	"reflect"
 
-	"aahframework.org/aah"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"{{ range $k, $v := $.AppImportPaths }}
+	"aahframework.org/aah.v0"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"{{ range $k, $v := $.AppImportPaths }}
 	{{$v}} "{{$k}}"{{ end }}
 )
 

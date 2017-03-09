@@ -14,8 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 )
 
 const (

@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"aahframework.org/log"
+	"aahframework.org/log.v0"
 )
 
 type (

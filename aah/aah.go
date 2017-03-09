@@ -12,10 +12,10 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"aahframework.org/aah/aruntime"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframework.org/aruntime.v0"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 )
 
 // Version no. of aah framework CLI tool
@@ -27,7 +27,7 @@ const (
 –––––––––––––––––––––––––––––––––––––––––––––––
 `
 	isWindows     = (runtime.GOOS == "windows")
-	aahImportPath = "aahframework.org/aah"
+	aahImportPath = "aahframework.org/aah.v0"
 	permRWXRXRX   = 0755
 	permRWRWRW    = 0666
 )

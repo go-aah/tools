@@ -9,12 +9,17 @@ import (
 	"fmt"
 	"runtime"
 
-	"aahframework.org/aah"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
-	"aahframework.org/pool"
-	"aahframework.org/test"
+	"aahframework.org/aah.v0"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/aruntime.v0"
+	"aahframework.org/atemplate.v0"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/i18n.v0"
+	"aahframework.org/log.v0"
+	"aahframework.org/pool.v0"
+	"aahframework.org/router.v0"
+	"aahframework.org/test.v0"
 )
 
 var (
@@ -47,6 +52,12 @@ func versionRun(args []string) {
 	printVersion("aah cli tool", Version)
 
 	if *allFlag {
+		printVersion("ahttp", ahttp.Version)
+		printVersion("atemplate", atemplate.Version)
+		printVersion("aruntime", aruntime.Version)
+		printVersion("router", router.Version)
+		printVersion("i18n", i18n.Version)
+		printVersion("config", config.Version)
 		printVersion("config", config.Version)
 		printVersion("log", log.Version)
 		printVersion("essentials", ess.Version)
