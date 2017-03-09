@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"

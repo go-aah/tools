@@ -479,18 +479,16 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 		return
 	}
 
-	var (
-		found    bool
-		cmethods map[string]uint8
-	)
-
 	controllerName := getName(fn.Recv.List[0].Type)
 	method := &methodInfo{Name: actionName, StructName: controllerName, Parameters: []*parameterInfo{}}
 
 	// processed so set to level 2, used to display unimplemented action details
-	if cmethods, found = routeMethods[controllerName]; found {
-		if _, found = cmethods[actionName]; found {
-			cmethods[actionName] = 2
+	for k, v := range routeMethods {
+		if strings.HasSuffix(k, "."+controllerName) {
+			if _, found := v[actionName]; found {
+				v[actionName] = 2
+				break
+			}
 		}
 	}
 

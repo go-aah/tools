@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -208,7 +208,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"{{ range $k, $v := $.AppImportPaths }}

@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"{{.AppImportPath}}/app/models"
 )
 
