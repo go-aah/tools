@@ -484,10 +484,9 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 
 	// processed so set to level 2, used to display unimplemented action details
 	for k, v := range routeMethods {
-		if strings.HasSuffix(k, "."+controllerName) {
+		if strings.HasSuffix(k, controllerName) {
 			if _, found := v[actionName]; found {
 				v[actionName] = 2
-				break
 			}
 		}
 	}

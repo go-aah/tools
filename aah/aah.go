@@ -26,10 +26,11 @@ const (
    aah framework -  https://aahframework.org
 –––––––––––––––––––––––––––––––––––––––––––––––
 `
-	isWindows     = (runtime.GOOS == "windows")
-	aahImportPath = "aahframework.org/aah.v0-unstable"
-	permRWXRXRX   = 0755
-	permRWRWRW    = 0666
+	isWindows        = (runtime.GOOS == "windows")
+	aahImportPath    = "aahframework.org/aah.v0-unstable"
+	aahCLIImportPath = "aahframework.org/tools.v0/aah"
+	permRWXRXRX      = 0755
+	permRWRWRW       = 0666
 )
 
 var (
