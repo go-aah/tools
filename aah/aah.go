@@ -27,7 +27,7 @@ const (
 –––––––––––––––––––––––––––––––––––––––––––––––
 `
 	isWindows        = (runtime.GOOS == "windows")
-	aahImportPath    = "aahframework.org/aah.v0-unstable"
+	aahImportPath    = "aahframework.org/aah.v0"
 	aahCLIImportPath = "aahframework.org/tools.v0/aah"
 	permRWXRXRX      = 0755
 	permRWRWRW       = 0666

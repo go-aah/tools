@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"aahframework.org/aah.v0-unstable"
+	"aahframework.org/aah.v0"
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/atemplate.v0"
