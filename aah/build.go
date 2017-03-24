@@ -68,8 +68,8 @@ func buildApp(buildCfg *config.Config) (string, error) {
 			strings.Join(missingActions, "\n\t"))
 	}
 
-	// get all the types info referred aah framework controller
-	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Controller", aahImportPath))
+	// get all the types info referred aah framework context embedded
+	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", aahImportPath))
 	appImportPaths := prg.CreateImportPaths(appControllers)
 
 	// prepare aah application version and build date
@@ -216,9 +216,6 @@ import (
 )
 
 var (
-	AppBinaryName = "{{.AppBinaryName}}"
-	AppVersion = "{{.AppVersion}}"
-	AppBuildDate = "{{.AppBuildDate}}"
 	_ = reflect.Invalid
 )
 
@@ -228,11 +225,17 @@ func main() {
 	configPath := flag.String("config", "", "Absolute path of external config file.")
 	flag.Parse()
 
+	aah.SetAppBuildInfo(&aah.BuildInfo{
+		BinaryName: "{{.AppBinaryName}}",
+		Version:    "{{.AppVersion}}",
+		Date:       "{{.AppBuildDate}}",
+	})
+
 	// display application information
 	if *version {
-		fmt.Printf("%-12s: %s\n", "Binary Name", AppBinaryName)
-		fmt.Printf("%-12s: %s\n", "Version", AppVersion)
-		fmt.Printf("%-12s: %s\n", "Build Date", AppBuildDate)
+		fmt.Printf("%-12s: %s\n", "Binary Name", aah.AppBuildInfo().BinaryName)
+		fmt.Printf("%-12s: %s\n", "Version", aah.AppBuildInfo().Version)
+		fmt.Printf("%-12s: %s\n", "Build Date", aah.AppBuildInfo().Date)
 		return
 	}
 
@@ -247,12 +250,6 @@ func main() {
 
 		aah.MergeAppConfig(externalConfig)
 	}
-
-	aah.SetAppBuildInfo(&aah.BuildInfo{
-		BinaryName: AppBinaryName,
-		Version:    AppVersion,
-		Date:       AppBuildDate,
-	})
 
 	// Adding all the controllers which refers 'aah.Controller' directly
 	// or indirectly from app/controllers/** {{ range $i, $c := .AppControllers }}

@@ -80,7 +80,7 @@ func newRun(args []string) {
 }
 
 func createAahApp(appDir, importPath, mode, appName string) error {
-	aahToolsPath, err := build.Import("aahframework.org/tools/aah", "", build.FindOnly)
+	aahToolsPath, err := build.Import(aahCLIImportPath, "", build.FindOnly)
 	if err != nil {
 		log.Fatal(err)
 	}

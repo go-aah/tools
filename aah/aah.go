@@ -19,17 +19,18 @@ import (
 )
 
 // Version no. of aah framework CLI tool
-const Version = "0.2"
+const Version = "0.3"
 
 const (
 	header = `–––––––––––––––––––––––––––––––––––––––––––––––
    aah framework -  https://aahframework.org
 –––––––––––––––––––––––––––––––––––––––––––––––
 `
-	isWindows     = (runtime.GOOS == "windows")
-	aahImportPath = "aahframework.org/aah.v0"
-	permRWXRXRX   = 0755
-	permRWRWRW    = 0666
+	isWindows        = (runtime.GOOS == "windows")
+	aahImportPath    = "aahframework.org/aah.v0"
+	aahCLIImportPath = "aahframework.org/tools.v0/aah"
+	permRWXRXRX      = 0755
+	permRWRWRW       = 0666
 )
 
 var (
