@@ -8,37 +8,60 @@
 # Application name (non-whitespace) and Friendly description
 # ----------------------------------------------------------
 name = "{{.AppName}}"
-description = "aah framework {{.AppMode}} application"
+description = "aah framework {{.AppType}} application"
 
 # aah application process ID aka PID
 # Default location: <app-base-dir>/appname.pid
 pidfile = "{{.AppName}}.pid"
 
-# ------------------------------
-# Application mode configuration
-# e.g.: web or api
-# ------------------------------
-mode = "{{.AppMode}}"
-
-# -------------------------
-# HTTP server configuration
-# -------------------------
-http {
+# ---------------------------
+# Server configuration - HTTP
+# ---------------------------
+server {
   # for unix socket: unix:/tmp/{{.AppName}}.sock
   address = ""
   port = 8080
 
   # Valid time units are "s = seconds", "m = minutes"
   timeout {
+    # mapped to `http.Server.ReadTimeout`
     read = "90s"
+
+    # mapped to `http.Server.WriteTimeout`
     write = "90s"
   }
+
+  # mapped to `http.Server.MaxHeaderBytes` default value is `1mb`
+  max_header_bytes = "1mb"
+
+  # http server keep alive option default value is true
+  keep_alive = true
 
   ssl {
     enable = false
     #cert = ""
     #key = ""
   }
+}
+
+# ---------------------
+# Request configuration
+# ---------------------
+request {
+
+  # aah framework encourages to have unique `Request Id` for each incoming
+  # request, it helps in tracebility. If request has already `X-Request-Id`
+  # HTTP header for then it does not generate one.
+  id {
+    # Default value is false
+    enable = false
+
+    # Default value is `X-Request-Id`, change it as per your need.
+    #header = "X-Request-Id"
+  }
+
+  # default value is 32mb, choose your value based on your use case
+  multipart_size = "32mb"
 }
 
 # ------------------
@@ -56,40 +79,68 @@ format {
   datetime = "2006-01-02 15:04:05"
 }
 
+# ---------------------
+# Runtime configuration
+# ---------------------
 runtime {
   debug {
     # Choose appropriate buffer size to collect all goroutines stack trace
-    # based on your use case. Default is 2mb.
+    # based on your use case. Default value is 2mb.
     stack_buffer_size = "2mb"
 
-    # default is false
+    # default value is false
     #all_goroutines = true
+  }
+
+  # Tune this value based on your use case. Pool doesn't create object unless needed.
+  # Below numbers are produces good results.
+  # TODO results reference
+  pooling {
+    # used for `aah.Context` and `ahttp.Request`
+    # Default value is 0
+    context = 150
+
+    # used for `bytes.Buffer`
+    # Default value is 0
+    buffer = 60
+
+    # used for template `import` func
+    # Default value is 0
+    import = 50
   }
 }
 
-# -------------------------
+# --------------------
 # Render configuration
-# -------------------------
+# --------------------
 render {
   default = "html"
 
-  multipart {
+  gzip {
+    # Default value is true, however aah framework ensures HTTP client accepts
+    # Gzip response otherwise it won't use Gzip response.
+    #
+    # if you have nginx or apache web server enabled with gzip in-front of
+    # aah server then set this to false.
     enable = true
-    size = "32mb"
+
+    # default value is gzip.BestSpeed=1, valid levels are 1 to 9
+    level = 1
   }
 }
 
-{{ if eq .AppMode "web" -}}
-# 'template' section is not applicable, if you have custom template engine.
-# Custom implementation should take care. Framework simply calls the methods
-# as per interface 'TODO'
-template {
+{{ if eq .AppType "web" -}}
+# ------------------
+# View configuration
+# Docs 'TODO'
+# ------------------
+view {
   # default is Go template engine
   # soon aah framework will support amber, pongo2, and Jade
   engine = "go"
   ext = ".html"
 
-  # Default is false
+  # Default value is false
   # "/views/pages/app/login.tmpl" == "/views/pages/App/Login.tmpl"
   case_sensitive = false
 
@@ -103,13 +154,8 @@ template {
 env {
   active = "dev"
 
-  # ---------------------------------
-  # Development Configuration Section
-  # ---------------------------------
-  include "dev.conf"
-
-  # --------------------------------
-  # Production Configuration Section
-  # --------------------------------
-  include "prod.conf"
+  # ----------------------------------
+  # Environment Profile configurations
+  # ----------------------------------
+  include "./env/*.conf"
 }
