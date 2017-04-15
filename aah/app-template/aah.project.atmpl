@@ -1,22 +1,34 @@
 ######################################
 # {{.AppName}} - aah framework project
-######################################
+#
 # Note: Add it to version control
+######################################
 
-# name of the project
+# Name of the project, it is used for binary name if `build.binary_name` is not present.
+#
 # Note: Whitespace is not recommend in the 'name' field. If present whitespace
 # will be replaced with '_'.
+#
+# Default value is base directory name from application import path
 name = "{{.AppName}}"
 
+# Used as fallback if git versioning or `AAH_APP_VERSION` environment value is
+# not available.
 version = "0.0.1"
 
-# build config read from here during a command 'aah package' and 'aah run'
+# Build section is used during aah application compile and build command.
 build {
-  # Not supplied or empty then 'name' attribute is used for binary
+  # If not supplied or empty then 'name' attribute is used for binary name.
   #binary_name = ""
 
-  # if any dependencies is missing during a build, aah CLI will do 'go get <package>'
-  go_get = true
+  # If application is missing any dependencies during a compile and build,
+  # aah CLI will do 'go get <package>'.
+  # Default value is `true`
+  #go_get = true
+
+  # Log level is used for aah CLI tool logging.
+  # Default value is `info`
+  #log_level = "info"
 
   flags = ["-i"]
 
@@ -24,10 +36,13 @@ build {
 
   tags = ""
 
-  # Valid exclude patterns refer: https://golang.org/pkg/path/filepath/#Match
+  # AST excludes is used for `aah.Context` inspection and generating aah
+  # application main Go file. Valid exclude patterns
+  # refer: https://golang.org/pkg/path/filepath/#Match
   ast_excludes = ["*_test.go", ".*", "*.bak", "*.tmp", "vendor"]
 
-  # packing excludes following file/directory during aah application package
-  # Valid exclude patterns refer: https://golang.org/pkg/path/filepath/#Match
+  # Packing excludes is used to exclude file/directory during aah application
+  # build archive. Valid exclude patterns
+  # refer: https://golang.org/pkg/path/filepath/#Match
   excludes = ["*.go", "*_test.go", ".*", "*.bak", "*.tmp", "vendor", "app"]
 }

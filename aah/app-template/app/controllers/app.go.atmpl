@@ -1,28 +1,28 @@
 package controllers
 
 import (
-	"aahframework.org/aah.v0"
-	"{{.AppImportPath}}/app/models"
+  "aahframework.org/aah.v0"
+  "{{.AppImportPath}}/app/models"
 )
 
 // App struct application controller
 type App struct {
-	*aah.Context
+  *aah.Context
 }
 
 // Index method is application {{ if eq .AppType "web" -}}home page.{{ else }}root API endpoint.{{- end }}
 func (a *App) Index() {
-	{{ if eq .AppType "web" -}}
-	data := aah.Data{
-		"Greet": models.Greet{
-			Message: "Welcome to aah framework - Web Application",
-		},
-	}
+{{ if eq .AppType "web" -}}
+  data := aah.Data{
+    "Greet": models.Greet{
+      Message: "Welcome to aah framework - Web Application",
+    },
+  }
 
-	a.Reply().Ok().HTML(data)
-	{{ else }}
-	a.Reply().Ok().JSON(models.Greet{
-		Message: "Welcome to aah framework - API application",
-	})
-	{{- end }}
+  a.Reply().Ok().HTML(data)
+{{ else }}
+  a.Reply().Ok().JSON(models.Greet{
+    Message: "Welcome to aah framework - API application",
+  })
+{{- end }}
 }

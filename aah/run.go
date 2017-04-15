@@ -6,10 +6,8 @@ package main
 
 import (
 	"flag"
-	"path/filepath"
 
 	"aahframework.org/aah.v0"
-	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
@@ -17,30 +15,36 @@ import (
 var (
 	runCmdFlags            = flag.NewFlagSet("run", flag.ExitOnError)
 	runImportPathFlag      = runCmdFlags.String("importPath", "", "Import path of aah application")
-	runImportPathShortFlag = runCmdFlags.String("p", "", "Import path of aah application")
+	runImportPathShortFlag = runCmdFlags.String("ip", "", "Import path of aah application")
 	runConfigFlag          = runCmdFlags.String("config", "", "External config for overriding aah.conf")
 	runConfigShortFlag     = runCmdFlags.String("c", "", "External config for overriding aah.conf")
+	runProfileFlag         = runCmdFlags.String("profile", "", "Environment profile name to activate. e.g: dev, qa, prod")
+	runProfileShortFlag    = runCmdFlags.String("p", "", "Environment profile name to activate. e.g: dev, qa, prod")
 	runCmd                 = &command{
 		Name:      "run",
-		UsageLine: "aah run [-importPath | -p] [-config | -c]",
-		ArgsCount: 2,
+		UsageLine: "aah run [-ip | -importPath] [-c | -config] [-p | -profile]",
+		ArgsCount: 3,
 		Short:     "run aah framework application",
 		Long: `
-Run the aah web/api application.
+Run the aah framework web/api application.
 
-Example(s):
-
+Example(s) short and long flag:
     aah run
+		aah run -p=qa
+
+		aah run -ip=github.com/user/appname
+		aah run -ip=github.com/user/appname -p=qa
+		aah run -ip=github.com/user/appname -c=/path/to/config/external.conf -p=qa
 
     aah run -importPath=github.com/username/name
+		aah run -importPath=github.com/username/name -profile=qa
+		aah run -importPath=github.com/username/name -config=/path/to/config/external.conf -profile=qa
 
-		aah run -p=github.com/user/appname
+Default aah application environment profile is 'dev'.
 
-    aah run -importPath=github.com/username/name -config=/path/to/config/external.conf
-
-		aah run -p=github.com/user/appname -c=/path/to/config/external.conf
-
-Default aah application profile is 'dev'.`,
+Note: It is recommended to use build and deploy approach instead of
+using 'aah run' for production use.
+`,
 	}
 )
 
@@ -48,11 +52,6 @@ func runRun(args []string) {
 	if err := runCmdFlags.Parse(args); err != nil {
 		log.Fatal(err)
 	}
-
-	var (
-		err         error
-		externalCfg *config.Config
-	)
 
 	importPath := firstNonEmpty(*runImportPathFlag, *runImportPathShortFlag)
 	if ess.IsStrEmpty(importPath) {
@@ -63,42 +62,33 @@ func runRun(args []string) {
 		log.Fatalf("Given import path '%s' does not exists", importPath)
 	}
 
+	appStartArgs := []string{}
 	configPath := getNonEmptyAbsPath(*runConfigFlag, *runConfigShortFlag)
 	if !ess.IsStrEmpty(configPath) {
-		externalCfg, err = config.LoadFile(configPath)
-		if err != nil {
-			log.Errorf("Unable to load external config: %s", err)
-			log.Info("Move on with configuration from application")
-		}
+		appStartArgs = append(appStartArgs, "-config", configPath)
 	}
 
-	// REVIEW ...
+	envProfile := firstNonEmpty(*runProfileFlag, *runProfileShortFlag)
+	if !ess.IsStrEmpty(envProfile) {
+		appStartArgs = append(appStartArgs, "-profile", envProfile)
+	}
+
 	aah.Init(importPath)
 
-	if externalCfg != nil {
-		log.Infof("Applying config: %s", configPath)
-		aah.MergeAppConfig(externalCfg)
-	}
-
-	// read build config from 'aah.project'
-	aahProjectFile := filepath.Join(aah.AppBaseDir(), "aah.project")
-	if !ess.IsFileExists(aahProjectFile) {
-		log.Fatal("Missing 'aah.project' file, not a valid aah application.")
-	}
-
-	log.Infof("Reading aah project file: %s", aahProjectFile)
-	buildCfg, err := config.LoadFile(aahProjectFile)
+	buildCfg, err := loadAahProjectFile(aah.AppBaseDir())
 	if err != nil {
 		log.Fatalf("aah project file error: %s", err)
 	}
 
-	appBinary, err := buildApp(buildCfg)
+	logLevel := buildCfg.StringDefault("build.log_level", "info")
+	log.SetLevel(toLogLevel(logLevel))
+
+	appBinary, err := compileApp(buildCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	_, err = execCmd(appBinary, []string{}, true)
-	if err != nil {
+	if _, err := execCmd(appBinary, appStartArgs, true); err != nil {
 		log.Fatal(err)
 	}
 }

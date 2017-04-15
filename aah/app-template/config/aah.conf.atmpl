@@ -1,7 +1,8 @@
 ###################################################
 # {{.AppName}} - aah framework application
 #
-# Complete configuration reference: TODO
+# Complete configuration reference:
+#   https://docs.aahframework.org/app-config.html
 ###################################################
 
 # ----------------------------------------------------------
@@ -14,148 +15,206 @@ description = "aah framework {{.AppType}} application"
 # Default location: <app-base-dir>/appname.pid
 pidfile = "{{.AppName}}.pid"
 
-# ---------------------------
+# -----------------------------------------------------------------
 # Server configuration - HTTP
-# ---------------------------
+# Doc: https://docs.aahframework.org/app-config.html#section-server
+# -----------------------------------------------------------------
 server {
-  # for unix socket: unix:/tmp/{{.AppName}}.sock
-  address = ""
-  port = 8080
+  # For unix socket: unix:/tmp/aahframework.sock
+  # Default value is `empty` string.
+  #address = ""
+
+  # For port `80`, put empty string or `80` as a value
+  # Default value is 8080.
+  #port = ""
 
   # Valid time units are "s = seconds", "m = minutes"
   timeout {
-    # mapped to `http.Server.ReadTimeout`
-    read = "90s"
+    # mapped to `http.Server.ReadTimeout`.
+    # Default value is `90s`.
+    #read = "90s"
 
     # mapped to `http.Server.WriteTimeout`
-    write = "90s"
+    # Default value is `90s`.
+    #write = "90s"
+
+    # aah sever graceful shutdown timeout
+    # Note: applicable only to go1.8 and above
+    # Default value is `60s`.
+    #grace_shutdown = "60s"
   }
 
-  # mapped to `http.Server.MaxHeaderBytes` default value is `1mb`
-  max_header_bytes = "1mb"
+  # Mapped to `http.Server.MaxHeaderBytes`.
+  # Default value is `1mb`.
+  #max_header_bytes = "1mb"
 
-  # http server keep alive option default value is true
-  keep_alive = true
+  # HTTP server keep alive option.
+  # Default value is `true`.
+  #keep_alive = true
 
   ssl {
-    enable = false
+    # Default value is `false`.
+    #enable = false
+
+    # Default value is `empty` string.
     #cert = ""
+
+    # Default value is `empty` string.
     #key = ""
   }
 }
 
-# ---------------------
+# ------------------------------------------------------------------
 # Request configuration
-# ---------------------
+# Doc: https://docs.aahframework.org/app-config.html#section-request
+# ------------------------------------------------------------------
 request {
 
   # aah framework encourages to have unique `Request Id` for each incoming
   # request, it helps in tracebility. If request has already `X-Request-Id`
-  # HTTP header for then it does not generate one.
+  # HTTP header then it does not generate one.
   id {
-    # Default value is false
-    enable = false
+    # Default value is `true`.
+    #enable = true
 
-    # Default value is `X-Request-Id`, change it as per your need.
+    # Default value is `X-Request-Id`, change it if you have different one.
     #header = "X-Request-Id"
   }
 
-  # default value is 32mb, choose your value based on your use case
-  multipart_size = "32mb"
+  # Default value is `32mb`, choose your value based on your use case
+  #multipart_size = "32mb"
 }
 
-# ------------------
+# ---------------------------------------------------------------
 # i18n configuration
-# ------------------
+# Doc: https://docs.aahframework.org/app-config.html#section-i18n
+# ---------------------------------------------------------------
 i18n {
-  default = "en"
+  # It is used as fallback if framework is unable to determine the
+  # locale from HTTP Request.
+  # Default value is `en`.
+  #default = "en"
 }
 
-# --------------------
+# -----------------------------------------------------------------
 # Format configuration
-# --------------------
+# Doc: https://docs.aahframework.org/app-config.html#section-format
+# -----------------------------------------------------------------
 format {
-  date = "2006-01-02"
-  datetime = "2006-01-02 15:04:05"
+  # Default value is `2006-01-02`.
+  #date = "2006-01-02"
+
+  # Default value is `2006-01-02 15:04:05`.
+  #datetime = "2006-01-02 15:04:05"
 }
 
-# ---------------------
+# ------------------------------------------------------------------
 # Runtime configuration
-# ---------------------
+# Doc: https://docs.aahframework.org/app-config.html#section-runtime
+# ------------------------------------------------------------------
 runtime {
   debug {
-    # Choose appropriate buffer size to collect all goroutines stack trace
-    # based on your use case. Default value is 2mb.
-    stack_buffer_size = "2mb"
+    # Choose an appropriate buffer size for collecting all goroutines stack trace
+    # dump based on your case.
+    # Default value is `2mb`.
+    #stack_buffer_size = "2mb"
 
-    # default value is false
+    # Whether to collect all the Go routines details or not.
+    # Default value is `false`.
     #all_goroutines = true
   }
 
-  # Tune this value based on your use case. Pool doesn't create object unless needed.
-  # Below numbers are produces good results.
-  # TODO results reference
+  # Pooling configuration is used to reduce GC overhead from framework.
+  # Tune these value based on your use case. Pool doesn't create object
+  # unless it's needed.
   pooling {
-    # used for `aah.Context` and `ahttp.Request`
-    # Default value is 0
-    context = 150
+    # Used for `aah.Context`, `ahttp.Request`, `session.Session`
+    # Default value is `0`.
+    global = 150
 
-    # used for `bytes.Buffer`
-    # Default value is 0
+    # Used for `bytes.Buffer`
+    # Default value is `0`.
     buffer = 60
-
-    # used for template `import` func
-    # Default value is 0
-    import = 50
   }
 }
 
-# --------------------
+# -----------------------------------------------------------------
 # Render configuration
-# --------------------
+# Doc: https://docs.aahframework.org/app-config.html#section-render
+# -----------------------------------------------------------------
 render {
+  # aah framework chooses the `Content-Type` value automatically based on
+  # configuration if `aah.Reply()` builder value is not set. It selects in
+  # the order of:
+  #  - Based on URL file extension, supported `.html`, `.htm`, `.json`, `.js`, `.xml` and `.txt`
+  #  - Request Accept Header - Most Qualified one as per RFC7321
+  #  - Based `render.default` value supported types are `html`, `json`, `xml` and `text`
+  #  - Finally aah framework uses `http.DetectContentType` API
+  # Default value is `empty` string.
   default = "html"
 
-  gzip {
-    # Default value is true, however aah framework ensures HTTP client accepts
-    # Gzip response otherwise it won't use Gzip response.
-    #
-    # if you have nginx or apache web server enabled with gzip in-front of
-    # aah server then set this to false.
-    enable = true
+  # Pretty print option is helpful in `dev` environment profile.
+  # It is only applicable to JSON and XML.
+  # Default value is `false`.
+  #pretty = true
 
-    # default value is gzip.BestSpeed=1, valid levels are 1 to 9
-    level = 1
+  # Gzip compression configuration for HTTP response.
+  gzip {
+    # By default Gzip compression is enabled in aah framework, however
+    # framework ensures HTTP client accepts Gzip response otherwise
+    # it won't use Gzip compression.
+    #
+    # Tips: If you have nginx or apache web server enabled with gzip in-front
+    # of aah server the set this value to `false`.
+    #
+    # Default value is `true`.
+    #enable = true
+
+    # Used to control Gzip compression levels. Valid levels are
+    # 1 = BestSpeed to 9 = BestCompression.
+    # Default value is `1`.
+    #level = 1
   }
 }
 
 {{ if eq .AppType "web" -}}
-# ------------------
+# ---------------------------------------------------------------
 # View configuration
-# Docs 'TODO'
-# ------------------
+# Doc: https://docs.aahframework.org/app-config.html#section-view
+# ---------------------------------------------------------------
 view {
-  # default is Go template engine
-  # soon aah framework will support amber, pongo2, and Jade
-  engine = "go"
-  ext = ".html"
+  # Choosing view engine for application. In the upcoming release framework
+  # will provide support to amber, pongo2, and jade. However you can implement
+  # on your own with simple `view.Enginer` interface.
+  # Default value is `go`. Currently only `go` is supported.
+  #engine = "go"
 
-  # Default value is false
-  # "/views/pages/app/login.tmpl" == "/views/pages/App/Login.tmpl"
-  case_sensitive = false
+  # Choosing your own view file extension.
+  # Default value is `.html`.
+  #ext = ".html"
 
-  delimiters = "{{.TmplDemils}}"
+  # Whether you need a case sensitive view file resolve or not.
+  # For e.g.: "/views/pages/app/login.tmpl" == "/views/pages/App/Login.tmpl"
+  # Default value is `false`.
+  #case_sensitive = false
+
+  # To use custom Go template delimiters for view files.
+  # Default value is `{{.TmplDemils}}`.
+  #delimiters = "{{.TmplDemils}}"
 }
 {{- end }}
 
-# ------------------------------------------
-# Environment Profiles e.g.: dev, prod, etc.
-# ------------------------------------------
+# --------------------------------------------------------------
+# Environment Profiles e.g.: dev, qa, prod
+# Doc: https://docs.aahframework.org/app-config.html#section-env
+# --------------------------------------------------------------
 env {
-  active = "dev"
+  # Indicates active profile name for application configuration.
+  # Default value is `dev`.
+  #active = "dev"
 
   # ----------------------------------
-  # Environment Profile configurations
+  # Environment profile configurations
   # ----------------------------------
   include "./env/*.conf"
 }

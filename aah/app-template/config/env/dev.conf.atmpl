@@ -4,31 +4,17 @@
 
 dev {
 
-  # --------------------
-  # Logger configuration
-  # Refer TODO for log customization
-  # --------------------
+  # --------------------------------------------------
+  # Log Configuration
+  # Doc: https://docs.aahframework.org/log-config.html
+  # --------------------------------------------------
   log {
-    # Currently supported receivers are CONSOLE and FILE
     receiver = "console"
-
-    # Supported log levels are ERROR, WARN, INFO, DEBUG an TRACE
-    # standard log package methods are supported.
     level = "info"
-
-    # Customize it as per your need, know more about format flags
-    # refer https://godoc.org/aahframework.org/log#pkg-variables
-    #pattern = "%time:2006-01-02 15:04:05.000 %level:-5 %custom:- %message"
-
-    # Available modes are 'daily', 'lines' and 'size'.
-    # Default rotation mode is 'daily'.
-    #rotate {
-    #	mode = "daily"
-    #}
   }
 
   # -------------------------
-  # Render/View configuration
+  # Render configuration
   # -------------------------
   render {
     # pretty is only applicable to JSON & XML rendering

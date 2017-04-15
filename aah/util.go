@@ -20,10 +20,37 @@ import (
 	"aahframework.org/log.v0"
 )
 
+var levelNameToLevel = map[string]log.Level{
+	"ERROR": log.LevelError,
+	"WARN":  log.LevelWarn,
+	"INFO":  log.LevelInfo,
+	"DEBUG": log.LevelDebug,
+	"TRACE": log.LevelTrace,
+}
+
+func toLogLevel(l string) log.Level {
+	if level, found := levelNameToLevel[strings.ToUpper(l)]; found {
+		return level
+	}
+	return log.LevelInfo
+}
+
 func importPathRelwd() string {
 	pwd, _ := os.Getwd()
 	importPath, _ := filepath.Rel(gosrcDir, pwd)
 	return filepath.ToSlash(importPath)
+}
+
+// loadAahProjectFile method loads build config from 'aah.project'
+func loadAahProjectFile(baseDir string) (*config.Config, error) {
+	// read build config from 'aah.project'
+	aahProjectFile := filepath.Join(baseDir, "aah.project")
+	if !ess.IsFileExists(aahProjectFile) {
+		log.Fatal("Missing 'aah.project' file, not a valid aah framework application.")
+	}
+
+	log.Infof("Loading aah project file: %s", aahProjectFile)
+	return config.LoadFile(aahProjectFile)
 }
 
 func getNonEmptyAbsPath(patha, pathb string) string {
@@ -40,12 +67,13 @@ func getNonEmptyAbsPath(patha, pathb string) string {
 	return configPath
 }
 
-func firstNonEmpty(a, b string) string {
-	r := a
-	if !ess.IsStrEmpty(b) {
-		r = b
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if !ess.IsStrEmpty(v) {
+			return v
+		}
 	}
-	return r
+	return ""
 }
 
 // getAppVersion method returns the aah application version, which used to display
@@ -102,7 +130,7 @@ func getBuildDate() string {
 
 func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 	cmd := exec.Command(cmdName, args...)
-	log.Info("Executing ", strings.Join(cmd.Args, " "))
+	log.Debug("Executing ", strings.Join(cmd.Args, " "))
 
 	if stdout {
 		cmd.Stdout = os.Stdout

@@ -6,265 +6,211 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io/ioutil"
-	"path"
 	"path/filepath"
-	"strings"
 
 	"aahframework.org/aah.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
-)
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
-
-// buildApp method calls Go ast parser, generates main.go and builds aah
-// application binary at Go bin directory
-func buildApp(buildCfg *config.Config) (string, error) {
-	// app variables
-	appBaseDir := aah.AppBaseDir()
-	appImportPath := aah.AppImportPath()
-	appCodeDir := filepath.Join(appBaseDir, "app")
-	appControllersPath := filepath.Join(appCodeDir, "controllers")
-
-	appName := buildCfg.StringDefault("name", aah.AppName())
-	log.Infof("Starting build for '%s' [%s]", appName, appImportPath)
-
-	// excludes for Go AST processing
-	excludes, _ := buildCfg.StringList("build.ast_excludes")
-
-	// get all configured Controllers with action info
-	registeredActions := aah.AppRouter().RegisteredActions()
-
-	// Go AST processing for Controllers
-	prg, errs := loadProgram(appControllersPath, ess.Excludes(excludes), registeredActions)
-	if len(errs) > 0 {
-		errMsgs := []string{}
-		for _, e := range errs {
-			errMsgs = append(errMsgs, e.Error())
-		}
-		log.Fatal(strings.Join(errMsgs, "\n"))
-	}
-
-	// call the process
-	prg.Process()
-
-	// Print router configuration missing/error details
-	missingActions := []string{}
-	for c, m := range prg.RegisteredActions {
-		for a, v := range m {
-			if v == 1 && !router.IsDefaultAction(a) {
-				missingActions = append(missingActions, fmt.Sprintf("%s.%s", c, a))
-			}
-		}
-	}
-	if len(missingActions) > 0 {
-		log.Error("Following actions are configured in 'routes.conf', however not implemented in Controller:\n\t",
-			strings.Join(missingActions, "\n\t"))
-	}
-
-	// get all the types info referred aah framework context embedded
-	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", aahImportPath))
-	appImportPaths := prg.CreateImportPaths(appControllers)
-
-	// prepare aah application version and build date
-	appVersion := getAppVersion(appBaseDir, buildCfg)
-	appBuildDate := getBuildDate()
-
-	// create go build arguments
-	buildArgs := []string{"build"}
-
-	flags, _ := buildCfg.StringList("build.flags")
-	buildArgs = append(buildArgs, flags...)
-
-	if ldflags := buildCfg.StringDefault("build.ldflags", ""); !ess.IsStrEmpty(ldflags) {
-		buildArgs = append(buildArgs, "-ldflags", ldflags)
-	}
-
-	if tags := buildCfg.StringDefault("build.tags", ""); !ess.IsStrEmpty(tags) {
-		buildArgs = append(buildArgs, "-tags", tags)
-	}
-
-	appBinary := createAppBinaryName(buildCfg)
-	appBinaryName := filepath.Base(appBinary)
-	buildArgs = append(buildArgs, "-o", appBinary)
-
-	// main.go location e.g. path/to/import/app
-	buildArgs = append(buildArgs, path.Join(appImportPath, "app"))
-
-	// clean previous main.go and binary file up before we start the build
-	appMainGoFile := filepath.Join(appCodeDir, "aah.go")
-	log.Infof("Cleaning %s", appMainGoFile)
-	log.Infof("Cleaning %s", appBinary)
-	ess.DeleteFiles(appMainGoFile, appBinary)
-
-	generateSource(appCodeDir, "aah.go", aahMainTemplate, map[string]interface{}{
-		"AahVersion":     aah.Version,
-		"AppImportPath":  appImportPath,
-		"AppVersion":     appVersion,
-		"AppBuildDate":   appBuildDate,
-		"AppBinaryName":  appBinaryName,
-		"AppControllers": appControllers,
-		"AppImportPaths": appImportPaths,
-	})
-
-	// getting project dependencies if not exists in $GOPATH
-	if err := checkAndGetAppDeps(appImportPath, buildCfg); err != nil {
-		log.Fatalf("unable to get application dependencies: %s", err)
-	}
-
-	// execute aah applictaion build
-	if _, err := execCmd(gocmd, buildArgs, false); err != nil {
-		log.Fatal(err)
-	}
-
-	log.Infof("Build successful for '%s' [%s].", appName, appImportPath)
-
-	return appBinary, nil
-}
-
-func generateSource(dir, filename, templateSource string, templateArgs map[string]interface{}) {
-	if !ess.IsFileExists(dir) {
-		if err := ess.MkDirAll(dir, 0644); err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	file := filepath.Join(dir, filename)
-	buf := &bytes.Buffer{}
-	renderTmpl(buf, templateSource, templateArgs)
-
-	if err := ioutil.WriteFile(file, buf.Bytes(), permRWXRXRX); err != nil {
-		log.Fatalf("aah '%s' file write error: %s", filename, err)
-	}
-}
-
-// checkAndGetAppDeps method project dependencies is present otherwise
-// it tries to get it if any issues it will return error. It internally uses
-// go list command.
-// 		go list -f '{{ join .Imports "\n" }}' aah-app/import/path/app/...
-//
-func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
-	importPath := path.Join(appImportPath, "app", "...")
-	args := []string{"list", "-f", "{{.Imports}}", importPath}
-
-	output, err := execCmd(gocmd, args, false)
-	if err != nil {
-		return err
-	}
-
-	lines := strings.Split(strings.TrimSpace(output), "\r\n")
-	for _, line := range lines {
-		line = strings.Replace(strings.Replace(line, "]", "", -1), "[", "", -1)
-		line = strings.Replace(strings.Replace(line, "\r", " ", -1), "\n", " ", -1)
-		if ess.IsStrEmpty(line) {
-			// all dependencies is available
-			return nil
-		}
-
-		notExistsPkgs := []string{}
-		for _, pkg := range strings.Split(line, " ") {
-			if ess.IsStrEmpty(pkg) || ess.IsImportPathExists(pkg) {
-				continue
-			}
-			notExistsPkgs = append(notExistsPkgs, pkg)
-		}
-
-		if cfg.BoolDefault("build.go_get", true) && len(notExistsPkgs) > 0 {
-			log.Info("Getting application dependencies ...")
-			for _, pkg := range notExistsPkgs {
-				args := []string{"get", pkg}
-				if _, err := execCmd(gocmd, args, false); err != nil {
-					return err
-				}
-			}
-		} else if len(notExistsPkgs) > 0 {
-			log.Error("Below application dependencies are not exists, " +
-				"enable 'build.go_get=true' in 'aah.project' for auto fetch")
-			log.Fatal("\n", strings.Join(notExistsPkgs, "\n"))
-		}
-	}
-
-	return nil
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Generate Templates
-//___________________________________
-
-const aahMainTemplate = `// aah framework v{{.AahVersion}} - https://aahframework.org
-// FILE: aah.go
-// GENERATED CODE - DO NOT EDIT
-
-package main
-
-import (
-	"flag"
-	"fmt"
-	"reflect"
-
-	"aahframework.org/aah.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"{{ range $k, $v := $.AppImportPaths }}
-	{{$v}} "{{$k}}"{{ end }}
 )
 
 var (
-	_ = reflect.Invalid
+	buildCmdFlags              = flag.NewFlagSet("build", flag.ExitOnError)
+	buildImportPathFlag        = buildCmdFlags.String("importPath", "", "Import path of aah application")
+	buildImportPathShortFlag   = buildCmdFlags.String("ip", "", "Import path of aah application")
+	buildArtifactPathFlag      = buildCmdFlags.String("artifactPath", "", "Output location application build artifact. Default location is <app-base>/aah-build")
+	buildArtifactPathShortFlag = buildCmdFlags.String("ap", "", "Output location application build artifact. Default location is <app-base>/aah-build")
+	buildCmd                   = &command{
+		Name:      "build",
+		UsageLine: "aah build [-ip | -importPath] [-ap | -artifactPath]",
+		Flags:     buildCmdFlags,
+		ArgsCount: 1,
+		Short:     "build aah application for deployment",
+		Long: `
+Build the aah web/api application by importPath.
+
+To know more CLI tool - https://docs.aahframework.org/doc=aah_cli
+
+Example(s) short and long flag:
+    aah build
+
+    aah build -ip=github.com/user/appname -ap=/Users/jeeva
+
+    aah build -importPath=github.com/user/appname -artifactPath=/Users/jeeva
+`,
+	}
 )
 
-func main() {
-	// Defining flags
-	version := flag.Bool("version", false, "Display application version and build date.")
-	configPath := flag.String("config", "", "Absolute path of external config file.")
-	flag.Parse()
-
-	aah.SetAppBuildInfo(&aah.BuildInfo{
-		BinaryName: "{{.AppBinaryName}}",
-		Version:    "{{.AppVersion}}",
-		Date:       "{{.AppBuildDate}}",
-	})
-
-	// display application information
-	if *version {
-		fmt.Printf("%-12s: %s\n", "Binary Name", aah.AppBuildInfo().BinaryName)
-		fmt.Printf("%-12s: %s\n", "Version", aah.AppBuildInfo().Version)
-		fmt.Printf("%-12s: %s\n", "Build Date", aah.AppBuildInfo().Date)
-		return
+func buildRun(args []string) {
+	if err := buildCmdFlags.Parse(args); err != nil {
+		log.Fatal(err)
 	}
 
-	aah.Init("{{.AppImportPath}}")
+	var (
+		err        error
+		importPath string
+	)
 
-	// Loading externally supplied config file
-	if !ess.IsStrEmpty(*configPath) {
-		externalConfig, err := config.LoadFile(*configPath)
-		if err != nil {
-			log.Fatalf("Unable to load external config: %s", *configPath)
+	importPath = firstNonEmpty(*buildImportPathFlag, *buildImportPathShortFlag)
+	if ess.IsStrEmpty(importPath) {
+		importPath = importPathRelwd()
+	}
+
+	if !ess.IsImportPathExists(importPath) {
+		log.Fatalf("Given import path '%s' does not exists", importPath)
+	}
+
+	aah.Init(importPath)
+	appBaseDir := aah.AppBaseDir()
+
+	buildCfg, err := loadAahProjectFile(appBaseDir)
+	if err != nil {
+		log.Fatalf("aah project file error: %s", err)
+	}
+
+	logLevel := buildCfg.StringDefault("build.log_level", "info")
+	log.SetLevel(toLogLevel(logLevel))
+
+	appName := buildCfg.StringDefault("name", aah.AppName())
+	log.Infof("Build starts for '%s' [%s]", appName, aah.AppImportPath())
+
+	if _, err = compileApp(buildCfg); err != nil {
+		log.Fatal(err)
+	}
+
+	buildBaseDir, err := copyFilesToWorkingDir(buildCfg, appBaseDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	appName = filepath.Base(buildBaseDir)
+	archiveName := appName + "_" + getAppVersion(appBaseDir, buildCfg) + ".zip"
+	defaultOutDir := filepath.Join(appBaseDir, "aah-build")
+	destArchiveDir := firstNonEmpty(*buildArtifactPathFlag, *buildArtifactPathShortFlag, defaultOutDir)
+
+	if ess.IsStrEmpty(*buildArtifactPathFlag) && ess.IsStrEmpty(*buildArtifactPathShortFlag) {
+		_ = ess.DeleteFiles(defaultOutDir)
+	}
+
+	if err := createZipArchive(buildBaseDir, destArchiveDir, archiveName); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("Build successful for '%s' [%s]", appName, aah.AppImportPath())
+	log.Infof("Your application artifact is here: %s", filepath.Join(destArchiveDir, archiveName))
+}
+
+func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir string) (string, error) {
+	appBinary := createAppBinaryName(buildCfg)
+	appBinaryName := filepath.Base(appBinary)
+
+	tmpDir, err := ioutil.TempDir("", appBinaryName)
+	if err != nil {
+		return "", fmt.Errorf("unable to get temp directory: %s", err)
+	}
+
+	buildBaseDir := filepath.Join(tmpDir, appBinaryName)
+	ess.DeleteFiles(buildBaseDir)
+	if err = ess.MkDirAll(buildBaseDir, permRWXRXRX); err != nil {
+		return "", err
+	}
+
+	// binary file
+	binDir := filepath.Join(buildBaseDir, "bin")
+	_ = ess.MkDirAll(binDir, permRWXRXRX)
+	_, _ = ess.CopyFile(binDir, appBinary)
+
+	// apply executable file mode
+	if err = ess.ApplyFileMode(filepath.Join(binDir, appBinaryName), permRWXRXRX); err != nil {
+		log.Error(err)
+	}
+
+	// build package excludes
+	cfgExcludes, _ := buildCfg.StringList("build.excludes")
+	excludes := ess.Excludes(cfgExcludes)
+	if err = excludes.Validate(); err != nil {
+		log.Fatal(err)
+	}
+
+	// aah application and custom directories
+	appDirs, _ := ess.DirsPath(appBaseDir, false)
+	for _, srcdir := range appDirs {
+		if excludes.Match(filepath.Base(srcdir)) {
+			continue
 		}
 
-		aah.MergeAppConfig(externalConfig)
+		if ess.IsFileExists(srcdir) {
+			if err = ess.CopyDir(buildBaseDir, srcdir, excludes); err != nil {
+				return "", err
+			}
+		}
 	}
 
-	// Adding all the controllers which refers 'aah.Controller' directly
-	// or indirectly from app/controllers/** {{ range $i, $c := .AppControllers }}
-	aah.AddController((*{{index $.AppImportPaths .ImportPath}}.{{.Name}})(nil),
-	  []*aah.MethodInfo{
-	    {{ range .Methods }}&aah.MethodInfo{
-	      Name: "{{.Name}}",
-	      Parameters: []*aah.ParameterInfo{ {{ range .Parameters }}
-	        &aah.ParameterInfo{Name: "{{.Name}}", Type: reflect.TypeOf((*{{.Type.Name}})(nil))},{{ end }}
-	      },
-	    },
-	    {{ end }}
-	  })
-	{{ end }}
+	// startup files
+	data := map[string]string{"AppName": appBinaryName}
+	buf := &bytes.Buffer{}
+	renderTmpl(buf, aahBashStartupTemplate, data)
+	if err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah"), buf.Bytes(), permRWXRXRX); err != nil {
+		return "", err
+	}
 
-  aah.Start()
+	buf.Reset()
+	renderTmpl(buf, aahCmdStartupTemplate, data)
+	err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah.cmd"), buf.Bytes(), permRWXRXRX)
+
+	return buildBaseDir, err
 }
+
+func createZipArchive(buildBaseDir, archiveBaseDir, archiveName string) error {
+	destZip := filepath.Join(archiveBaseDir, archiveName)
+	_ = ess.DeleteFiles(destZip)
+	if err := ess.MkDirAll(archiveBaseDir, permRWXRXRX); err != nil {
+		log.Fatal(err)
+	}
+	return ess.Zip(destZip, buildBaseDir)
+}
+
+const aahBashStartupTemplate = `#!/usr/bin/env bash
+
+###########################################
+# aah application start up script for *NIX
+###########################################
+
+APP_NAME="{{.AppName}}"
+
+# attempt to set APP_PATH
+PRG="$0"
+APP_PATH=$(cd "$(dirname $PRG)"; pwd)
+APP_BIN_PATH="${APP_PATH}/bin"
+
+# go to application path
+cd "${APP_PATH}"
+
+# start the application
+exec "${APP_BIN_PATH}/${APP_NAME}"
 `
+
+const aahCmdStartupTemplate = `TITLE {{.AppName}}
+@ECHO OFF
+
+REM aah application start up script for Windows
+
+SET APP_NAME={{.AppName}}
+
+REM attempt to set APP_PATH
+SET APP_PATH=%~dp0
+SET APP_BIN_PATH=%APP_PATH%\bin
+
+REM go to application path
+cd %APP_PATH%
+
+REM start the application
+start %APP_BIN_PATH%\%APP_NAME%
+`
+
+func init() {
+	buildCmd.Run = buildRun
+}

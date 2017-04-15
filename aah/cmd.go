@@ -73,9 +73,6 @@ func displayUsage() {
 	fmt.Fprintf(os.Stderr, "Usage: aah command [arguments]\n\n")
 	fmt.Fprintf(os.Stderr, "Available commands:\n")
 	for _, cmd := range subCmds {
-		if cmd.Name == "help" {
-			continue
-		}
 		fmt.Fprintf(os.Stderr, "\t%-12s %s\n", cmd.Name, cmd.Short)
 	}
 	fmt.Fprintf(os.Stderr, "\nUse \"aah help [command]\" for more information about a command.\n\n")

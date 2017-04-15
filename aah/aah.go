@@ -19,7 +19,7 @@ import (
 )
 
 // Version no. of aah framework CLI tool
-const Version = "0.3"
+const Version = "0.4"
 
 const (
 	header = `–––––––––––––––––––––––––––––––––––––––––––––––
@@ -111,7 +111,7 @@ func init() {
 	subCmds = commands{
 		newCmd,
 		runCmd,
-		pkgCmd,
+		buildCmd,
 		versionCmd,
 		helpCmd,
 	}
