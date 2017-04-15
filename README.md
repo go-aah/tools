@@ -5,12 +5,12 @@ Home of all aah framework CLI tools.
 ## aah
  [![Go Report Card](https://goreportcard.com/badge/github.com/go-aah/tools/aah)](https://goreportcard.com/report/github.com/go-aah/tools/aah)
  [![Powered by Go](https://img.shields.io/badge/powered_by-go-blue.svg)](https://golang.org)
- [![Version](https://img.shields.io/badge/version-0.3-blue.svg)](https://github.com/go-aah/tools/releases/latest)
+ [![Version](https://img.shields.io/badge/version-0.4-blue.svg)](https://github.com/go-aah/tools/releases/latest)
  [![License](https://img.shields.io/github/license/go-aah/tools.svg)](LICENSE)
 
-***v0.3 [pre-release](https://github.com/go-aah/tools/releases/latest) and tagged on Mar 24, 2017***
+***v0.4 [pre-release](https://github.com/go-aah/tools/releases/latest) and tagged on Apr 14, 2017***
 
-Actively working towards better and extensible web framework for Go. Working on website and documentation of aah framework.
+aah - A scalable, performant, rapid development Web framework for Go. Working on website and documentation of aah framework. However you can give it try and share your feedback.
 
 
 **Stay tuned on -**
@@ -19,7 +19,7 @@ Actively working towards better and extensible web framework for Go. Working on 
 
 
 # Installation aah framework
-#### Stable Version
+#### Version (pre-release)
 ```bash
 # install the aah framework
 # it installs framework and aah CLI tool
