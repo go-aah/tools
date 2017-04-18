@@ -24,7 +24,7 @@ server {
   # Default value is `empty` string.
   #address = ""
 
-  # For port `80`, put empty string or `80` as a value
+  # For port `80` and `443`, put empty string or a value
   # Default value is 8080.
   #port = ""
 
@@ -61,6 +61,43 @@ server {
 
     # Default value is `empty` string.
     #key = ""
+
+    lets_encrypt {
+      # To get SSL certificate from Let's Encrypt CA, enable it.
+      # Don't forget to enable `server.ssl.enable=true`
+      # Default value is `false`.
+      #enable = false
+
+      # Host policy controls which domains the autocert will attempt
+      # to retrieve new certificates for. It does not affect cached certs.
+      # It is required, no default value.
+      #host_policy = ["example.org", "docs.example.org"]
+
+      # Renew before optionally specifies how early certificates should
+      # be renewed before they expire.
+      # Default value is `10` days.
+      #renew_before = 10
+
+      # Email optionally specifies a contact email address. This is used by CAs,
+      # such as Let's Encrypt, to notify about problems with issued certificates.
+      # If the Client's account key is already registered, Email is not used.
+      #email = "jeeva@myjeeva.com"
+
+      # Force RSA makes the autocert generate certificates with 2048-bit RSA keys.
+      # If false, a default is used. Currently the default is
+      # EC-based keys using the P-256 curve.
+      #force_rsa = false
+
+      # Cache optionally stores and retrieves previously-obtained certificates
+      # autocert manager. By default certs will only be cached for the lifetime
+      # of the autocert manager.
+      #
+      # autocert manager passes the Cache certificates data encoded in PEM,
+      # with private/public parts combined in a single Cache.Put call,
+      # private key first.
+      # Default value is `empty` string
+      #cache_dir = "/Users/jeeva/autocert"
+    }
   }
 }
 
@@ -71,7 +108,7 @@ server {
 request {
 
   # aah framework encourages to have unique `Request Id` for each incoming
-  # request, it helps in tracebility. If request has already `X-Request-Id`
+  # request, it helps in traceability. If request has already `X-Request-Id`
   # HTTP header then it does not generate one.
   id {
     # Default value is `true`.
