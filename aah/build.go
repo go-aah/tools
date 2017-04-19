@@ -11,7 +11,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -32,7 +32,7 @@ var (
 		Long: `
 Build the aah web/api application by importPath.
 
-To know more CLI tool - https://docs.aahframework.org/doc=aah_cli
+To know more CLI tool - https://docs.aahframework.org/aah-cli-tool.html
 
 Example(s) short and long flag:
     aah build
@@ -49,12 +49,8 @@ func buildRun(args []string) {
 		log.Fatal(err)
 	}
 
-	var (
-		err        error
-		importPath string
-	)
-
-	importPath = firstNonEmpty(*buildImportPathFlag, *buildImportPathShortFlag)
+	var err error
+	importPath := firstNonEmpty(*buildImportPathFlag, *buildImportPathShortFlag)
 	if ess.IsStrEmpty(importPath) {
 		importPath = importPathRelwd()
 	}
@@ -74,45 +70,41 @@ func buildRun(args []string) {
 	logLevel := buildCfg.StringDefault("build.log_level", "info")
 	log.SetLevel(toLogLevel(logLevel))
 
-	appName := buildCfg.StringDefault("name", aah.AppName())
-	log.Infof("Build starts for '%s' [%s]", appName, aah.AppImportPath())
+	log.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 
-	if _, err = compileApp(buildCfg); err != nil {
-		log.Fatal(err)
-	}
-
-	buildBaseDir, err := copyFilesToWorkingDir(buildCfg, appBaseDir)
+	appBinay, err := compileApp(buildCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	appName = filepath.Base(buildBaseDir)
-	archiveName := appName + "_" + getAppVersion(appBaseDir, buildCfg) + ".zip"
-	defaultOutDir := filepath.Join(appBaseDir, "aah-build")
-	destArchiveDir := firstNonEmpty(*buildArtifactPathFlag, *buildArtifactPathShortFlag, defaultOutDir)
-
-	if ess.IsStrEmpty(*buildArtifactPathFlag) && ess.IsStrEmpty(*buildArtifactPathShortFlag) {
-		_ = ess.DeleteFiles(defaultOutDir)
-	}
-
-	if err := createZipArchive(buildBaseDir, destArchiveDir, archiveName); err != nil {
+	buildBaseDir, err := copyFilesToWorkingDir(buildCfg, appBaseDir, appBinay)
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Infof("Build successful for '%s' [%s]", appName, aah.AppImportPath())
-	log.Infof("Your application artifact is here: %s", filepath.Join(destArchiveDir, archiveName))
+	archiveName := ess.StripExt(filepath.Base(appBinay)) + "-" + getAppVersion(appBaseDir, buildCfg)
+	archiveName = addTargetBuildInfo(archiveName)
+	appBuildDir := filepath.Join(appBaseDir, "build")
+	destArchiveDir := firstNonEmpty(*buildArtifactPathFlag, *buildArtifactPathShortFlag, appBuildDir)
+
+	// Creating app archive
+	destZip, err := createZipArchive(buildBaseDir, destArchiveDir, archiveName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	log.Infof("Your application artifact is here: %s", destZip)
 }
 
-func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir string) (string, error) {
-	appBinary := createAppBinaryName(buildCfg)
+func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary string) (string, error) {
 	appBinaryName := filepath.Base(appBinary)
-
 	tmpDir, err := ioutil.TempDir("", appBinaryName)
 	if err != nil {
 		return "", fmt.Errorf("unable to get temp directory: %s", err)
 	}
 
-	buildBaseDir := filepath.Join(tmpDir, appBinaryName)
+	buildBaseDir := filepath.Join(tmpDir, ess.StripExt(appBinaryName))
 	ess.DeleteFiles(buildBaseDir)
 	if err = ess.MkDirAll(buildBaseDir, permRWXRXRX); err != nil {
 		return "", err
@@ -150,7 +142,10 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir string) (string, 
 	}
 
 	// startup files
-	data := map[string]string{"AppName": appBinaryName}
+	data := map[string]string{
+		"AppName":  ess.StripExt(appBinaryName),
+		"Backtick": "`",
+	}
 	buf := &bytes.Buffer{}
 	renderTmpl(buf, aahBashStartupTemplate, data)
 	if err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah"), buf.Bytes(), permRWXRXRX); err != nil {
@@ -164,51 +159,219 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir string) (string, 
 	return buildBaseDir, err
 }
 
-func createZipArchive(buildBaseDir, archiveBaseDir, archiveName string) error {
-	destZip := filepath.Join(archiveBaseDir, archiveName)
-	_ = ess.DeleteFiles(destZip)
+func createZipArchive(buildBaseDir, archiveBaseDir, archiveName string) (string, error) {
+	destZip := filepath.Join(archiveBaseDir, archiveName) + ".zip"
+
+	files, _ := filepath.Glob(filepath.Join(archiveBaseDir, archiveName+"*.*"))
+	ess.DeleteFiles(files...)
+
 	if err := ess.MkDirAll(archiveBaseDir, permRWXRXRX); err != nil {
 		log.Fatal(err)
 	}
-	return ess.Zip(destZip, buildBaseDir)
+	return destZip, ess.Zip(destZip, buildBaseDir)
 }
 
 const aahBashStartupTemplate = `#!/usr/bin/env bash
 
+# The MIT License (MIT)
+#
+# Copyright (c) Jeevanandam M., https://myjeeva.com <jeeva@myjeeva.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 ###########################################
-# aah application start up script for *NIX
+# Start and Stop script for aah application
 ###########################################
 
-APP_NAME="{{.AppName}}"
+APP_NAME="{{ .AppName }}"
+APP_ENV_PROFILE="prod"
 
-# attempt to set APP_PATH
+# resolve links - $0 may be a softlink
 PRG="$0"
-APP_PATH=$(cd "$(dirname $PRG)"; pwd)
-APP_BIN_PATH="${APP_PATH}/bin"
+while [ -h "$PRG" ] ; do
+  ls={{ .Backtick }}ls -ld "$PRG"{{ .Backtick }}
+  link={{ .Backtick }}expr "$ls" : '.*-> \(.*\)$'{{ .Backtick }}
+  if expr "$link" : '/.*' > /dev/null; then
+    PRG="$link"
+  else
+    PRG={{ .Backtick }}dirname "$PRG"{{ .Backtick }}/"$link"
+  fi
+done
 
-# go to application path
-cd "${APP_PATH}"
+# resolve APP_DIR and set executable
+APP_DIR=$(cd "$(dirname $PRG)"; pwd)
+APP_EXECUTABLE="$APP_DIR"/bin/"$APP_NAME"
+APP_PID="$APP_DIR"/"$APP_NAME".pid
 
-# start the application
-exec "${APP_BIN_PATH}/${APP_NAME}"
+if [ ! -x "$APP_EXECUTABLE" ]; then
+  echo "Cannot find aah application executable: $APP_EXECUTABLE"
+  exit 1
+fi
+
+# go to application base directory
+cd "$APP_DIR"
+
+start() {
+  if [ ! -z "$APP_PID" ]; then # not empty
+    if [ -f "$APP_PID" ]; then # exists and regular file
+      if [ -s "$APP_PID" ]; then # not-empty
+        echo "Existing PID file found during start."
+        if [ -r "$APP_PID" ]; then
+          PID={{ .Backtick }}cat "$APP_PID"{{ .Backtick }}
+          ps -p $PID >/dev/null 2>&1
+          if [ $? -eq 0 ] ; then
+            echo "$APP_NAME appears to still be running with PID $PID. Start aborted."
+            ps -f -p $PID
+            exit 1
+          fi
+        fi
+      fi
+    fi
+  fi
+
+  exec "$APP_EXECUTABLE" -profile="$APP_ENV_PROFILE" &
+  echo "$APP_NAME started."
+}
+
+stop() {
+  if [ ! -z "$APP_PID" ]; then # not empty
+    if [ -f "$APP_PID" ]; then # exists and regular file
+      if [ -s "$APP_PID" ]; then # not-empty
+				PID={{ .Backtick }}cat "$APP_PID"{{ .Backtick }}
+        echo "$APP_NAME PID was $PID"
+        kill -15 "$PID" >/dev/null 2>&1
+        if [ $? -gt 0 ]; then
+          echo "$APP_PID file found but no matching process was found. Stop aborted."
+          exit 1
+        else
+          rm -f "$APP_PID" >/dev/null 2>&1
+          echo "$APP_NAME stopped."
+        fi
+      else
+        echo "$APP_PID file is empty and has been ignored."
+      fi
+    else
+      echo "$APP_PID file does not exists. Stop aborted."
+      exit 1
+    fi
+  fi
+}
+
+version() {
+  "$APP_EXECUTABLE" -version
+  echo ""
+}
+
+case "$1" in
+start)
+  start
+  ;;
+stop)
+  stop
+  ;;
+restart)
+  stop
+  sleep 2
+  start
+  ;;
+version)
+  version
+  ;;
+*)
+  echo "Usage: $0 {start|stop|restart|version}"
+	echo ""
+  exit 1
+esac
+
+exit 0
 `
 
-const aahCmdStartupTemplate = `TITLE {{.AppName}}
+const aahCmdStartupTemplate = `TITLE {{ .AppName }}
 @ECHO OFF
 
-REM aah application start up script for Windows
+REM The MIT License (MIT)
+REM
+REM Copyright (c) Jeevanandam M., https://myjeeva.com <jeeva@myjeeva.com>
+REM
+REM Permission is hereby granted, free of charge, to any person obtaining a copy
+REM of this software and associated documentation files (the "Software"), to deal
+REM in the Software without restriction, including without limitation the rights
+REM to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+REM copies of the Software, and to permit persons to whom the Software is
+REM furnished to do so, subject to the following conditions:
+REM
+REM The above copyright notice and this permission notice shall be included in all
+REM copies or substantial portions of the Software.
+REM
+REM THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+REM IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+REM FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+REM AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+REM LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+REM OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+REM SOFTWARE.
 
-SET APP_NAME={{.AppName}}
+REM ##########################################
+REM Start and Stop script for aah application
+REM ##########################################
 
-REM attempt to set APP_PATH
-SET APP_PATH=%~dp0
-SET APP_BIN_PATH=%APP_PATH%\bin
+SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 
-REM go to application path
-cd %APP_PATH%
+SET APP_NAME={{ .AppName }}
+SET APP_ENV_PROFILE=prod
 
-REM start the application
-start %APP_BIN_PATH%\%APP_NAME%
+REM resolve APP_DIR and set executable
+SET APP_DIR=%~dp0
+SET APP_EXECUTABLE=%APP_DIR%\bin\%APP_NAME%
+SET APP_PID=%APP_DIR%\%$APP_NAME%.pid
+
+REM change directory
+cd %APP_DIR%
+
+if ""%1"" == ""start"" GOTO :doStart
+if ""%1"" == ""stop"" GOTO :doStop
+if ""%1"" == ""version"" GOTO :doVersion
+
+:doStart
+REM check app is running already
+tasklist /FI "IMAGENAME eq %APP_NAME%.exe" 2>NUL | find /I /N "%APP_NAME%.exe">NUL
+IF "%ERRORLEVEL%" == "0" (
+  ECHO %APP_NAME% appears to still be running. Start aborted.
+  GOTO :end
+)
+
+START "" /B "%APP_EXECUTABLE%" -profile %APP_ENV_PROFILE%
+GOTO :end
+
+:doStop
+SET /P PID= < %APP_PID%
+IF NOT %PID% == "" (
+  taskkill /pid %PID% /f
+)
+GOTO :end
+
+:doVersion
+%APP_EXECUTABLE% -version
+GOTO :end
+
+:end
+ENDLOCAL
 `
 
 func init() {

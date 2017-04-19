@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
@@ -19,16 +18,15 @@ import (
 )
 
 // Version no. of aah framework CLI tool
-const Version = "0.4"
+const Version = "0.5"
 
 const (
 	header = `–––––––––––––––––––––––––––––––––––––––––––––––
    aah framework -  https://aahframework.org
 –––––––––––––––––––––––––––––––––––––––––––––––
 `
-	isWindows        = (runtime.GOOS == "windows")
-	aahImportPath    = "aahframework.org/aah.v0"
-	aahCLIImportPath = "aahframework.org/tools.v0/aah"
+	aahImportPath    = "aahframework.org/aah.v0-unstable"
+	aahCLIImportPath = "aahframework.org/tools.v0-unstable/aah"
 	permRWXRXRX      = 0755
 	permRWRWRW       = 0666
 )
@@ -98,7 +96,7 @@ func main() {
 //___________________________________
 
 func printHeader() {
-	if !isWindows {
+	if !isWindowsOS() {
 		fmt.Fprintf(os.Stdout, fmt.Sprintf("\033[1;32m%v\033[0m\n", header))
 		return
 	}

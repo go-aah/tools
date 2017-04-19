@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -158,13 +158,27 @@ func renderTmpl(w io.Writer, text string, data interface{}) {
 	}
 }
 
-// createAppBinaryName method binary name creation
-func createAppBinaryName(buildCfg *config.Config) string {
-	name := strings.Replace(buildCfg.StringDefault("name", aah.AppName()), " ", "_", -1)
-	appBinaryName := buildCfg.StringDefault("build.binary_name", name)
-	if isWindows {
+// appBinaryFile method binary file path creation
+func appBinaryFile(buildCfg *config.Config, appBuildDir string) string {
+	appName := strings.Replace(aah.AppName(), " ", "_", -1)
+	appBinaryName := buildCfg.StringDefault("build.binary_name", appName)
+	if isWindowsOS() {
 		appBinaryName += ".exe"
 	}
 
-	return filepath.Join(gopath, "bin", "aah.d", aah.AppImportPath(), appBinaryName)
+	return filepath.Join(appBuildDir, "bin", appBinaryName)
+}
+
+func addTargetBuildInfo(name string) string {
+	if goos := os.Getenv("GOOS"); !ess.IsStrEmpty(goos) {
+		name += "-" + strings.ToLower(goos)
+	}
+	if goarch := os.Getenv("GOARCH"); !ess.IsStrEmpty(goarch) {
+		name += "-" + strings.ToLower(goarch)
+	}
+	return name
+}
+
+func isWindowsOS() bool {
+	return os.Getenv("GOOS") == "windows"
 }

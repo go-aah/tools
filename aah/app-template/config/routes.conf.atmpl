@@ -1,5 +1,5 @@
 ####################################################
-# {{.AppName}} - Application Routes Configuration
+# {{ .AppName }} - Application Routes Configuration
 #
 # Complete routes configuration reference:
 #   https://docs.aahframework.org/routes-config.html
@@ -14,7 +14,7 @@ domains {
   # in the routes configuration.
   # For e.g.: Domain name/ip address with port no
   localhost_8080 {
-    name = "{{.AppName}} routes"
+    name = "{{ .AppName }} routes"
 
     # aah supports multi-domain routes configuration out-of-the-box.
     # `host` used to determine domain routes for the incoming request.

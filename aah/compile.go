@@ -6,13 +6,14 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"path"
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -31,6 +32,7 @@ func compileApp(buildCfg *config.Config) (string, error) {
 	appImportPath := aah.AppImportPath()
 	appCodeDir := filepath.Join(appBaseDir, "app")
 	appControllersPath := filepath.Join(appCodeDir, "controllers")
+	appBuildDir := filepath.Join(appBaseDir, "build")
 
 	appName := buildCfg.StringDefault("name", aah.AppName())
 	log.Infof("Compile starts for '%s' [%s]", appName, appImportPath)
@@ -48,7 +50,7 @@ func compileApp(buildCfg *config.Config) (string, error) {
 		for _, e := range errs {
 			errMsgs = append(errMsgs, e.Error())
 		}
-		log.Fatal(strings.Join(errMsgs, "\n"))
+		return "", errors.New(strings.Join(errMsgs, "\n"))
 	}
 
 	// call the process
@@ -90,7 +92,7 @@ func compileApp(buildCfg *config.Config) (string, error) {
 		buildArgs = append(buildArgs, "-tags", tags)
 	}
 
-	appBinary := createAppBinaryName(buildCfg)
+	appBinary := appBinaryFile(buildCfg, appBuildDir)
 	appBinaryName := filepath.Base(appBinary)
 	buildArgs = append(buildArgs, "-o", appBinary)
 
@@ -100,8 +102,8 @@ func compileApp(buildCfg *config.Config) (string, error) {
 	// clean previous main.go and binary file up before we start the build
 	appMainGoFile := filepath.Join(appCodeDir, "aah.go")
 	log.Debugf("Cleaning %s", appMainGoFile)
-	log.Debugf("Cleaning %s", appBinary)
-	ess.DeleteFiles(appMainGoFile, appBinary)
+	log.Debugf("Cleaning build directory %s", appBuildDir)
+	ess.DeleteFiles(appMainGoFile, appBuildDir)
 
 	generateSource(appCodeDir, "aah.go", aahMainTemplate, map[string]interface{}{
 		"AahVersion":     aah.Version,
@@ -115,12 +117,12 @@ func compileApp(buildCfg *config.Config) (string, error) {
 
 	// getting project dependencies if not exists in $GOPATH
 	if err := checkAndGetAppDeps(appImportPath, buildCfg); err != nil {
-		log.Fatalf("unable to get application dependencies: %s", err)
+		return "", fmt.Errorf("unable to get application dependencies: %s", err)
 	}
 
 	// execute aah applictaion build
 	if _, err := execCmd(gocmd, buildArgs, false); err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 
 	log.Infof("Compile successful for '%s' [%s]", appName, appImportPath)
@@ -210,7 +212,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"{{ range $k, $v := $.AppImportPaths }}

@@ -1,5 +1,5 @@
 ######################################################
-# {{.AppName}} - Application Security Configuration
+# {{ .AppName }} - Application Security Configuration
 #
 # Complete routes configuration reference:
 #   https://docs.aahframework.org/security-config.html
