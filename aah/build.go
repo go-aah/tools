@@ -147,13 +147,17 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary string
 		"Backtick": "`",
 	}
 	buf := &bytes.Buffer{}
-	renderTmpl(buf, aahBashStartupTemplate, data)
+	if err = renderTmpl(buf, aahBashStartupTemplate, data); err != nil {
+		log.Fatal(err)
+	}
 	if err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah"), buf.Bytes(), permRWXRXRX); err != nil {
 		return "", err
 	}
 
 	buf.Reset()
-	renderTmpl(buf, aahCmdStartupTemplate, data)
+	if err = renderTmpl(buf, aahCmdStartupTemplate, data); err != nil {
+		log.Fatal(err)
+	}
 	err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah.cmd"), buf.Bytes(), permRWXRXRX)
 
 	return buildBaseDir, err
@@ -245,7 +249,7 @@ start() {
     fi
   fi
 
-  exec "$APP_EXECUTABLE" -profile="$APP_ENV_PROFILE" &
+  nohup "$APP_EXECUTABLE" -profile="$APP_ENV_PROFILE" > appstart.log 2>&1 &
   echo "$APP_NAME started."
 }
 
@@ -254,7 +258,6 @@ stop() {
     if [ -f "$APP_PID" ]; then # exists and regular file
       if [ -s "$APP_PID" ]; then # not-empty
 				PID={{ .Backtick }}cat "$APP_PID"{{ .Backtick }}
-        echo "$APP_NAME PID was $PID"
         kill -15 "$PID" >/dev/null 2>&1
         if [ $? -gt 0 ]; then
           echo "$APP_PID file found but no matching process was found. Stop aborted."

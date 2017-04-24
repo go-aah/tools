@@ -11,7 +11,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -45,7 +44,7 @@ Go to https://docs.aahframework.org to learn more and customize your aah applica
 
 func newRun(args []string) {
 	_ = log.SetPattern("%message")
-	log.Info("Welcome to interactive way to create your aah application, press ^C to exit :)")
+	log.Info("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
 	log.Info()
 	log.Info("Based on your inputs, aah CLI tool generates the aah application structure")
 	log.Info("for you.")
@@ -211,7 +210,7 @@ func processSection(destDir, srcDir, dir string, data map[string]interface{}) {
 
 func processFile(destDir, srcDir, f string, data map[string]interface{}) {
 	dfPath := getDestPath(destDir, srcDir, f)
-	dfDir := path.Dir(dfPath)
+	dfDir := filepath.Dir(dfPath)
 	if !ess.IsFileExists(dfDir) {
 		_ = ess.MkDirAll(dfDir, permRWXRXRX)
 	}
@@ -221,7 +220,9 @@ func processFile(destDir, srcDir, f string, data map[string]interface{}) {
 
 	if strings.HasSuffix(f, aahTmplExt) {
 		sfbytes, _ := ioutil.ReadAll(sf)
-		renderTmpl(df, string(sfbytes), data)
+		if err := renderTmpl(df, string(sfbytes), data); err != nil {
+			log.Fatalf("Unable to process file '%s': %s", dfPath, err)
+		}
 	} else {
 		_, _ = io.Copy(df, sf)
 	}

@@ -139,7 +139,9 @@ func generateSource(dir, filename, templateSource string, templateArgs map[strin
 
 	file := filepath.Join(dir, filename)
 	buf := &bytes.Buffer{}
-	renderTmpl(buf, templateSource, templateArgs)
+	if err := renderTmpl(buf, templateSource, templateArgs); err != nil {
+		log.Fatal(err)
+	}
 
 	if err := ioutil.WriteFile(file, buf.Bytes(), permRWXRXRX); err != nil {
 		log.Fatalf("aah '%s' file write error: %s", filename, err)
@@ -216,7 +218,7 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"{{ range $k, $v := $.AppImportPaths }}
-	{{$v}} "{{$k}}"{{ end }}
+	{{ $v }} "{{ $k }}"{{ end }}
 )
 
 var _ = reflect.Invalid
@@ -229,9 +231,9 @@ func main() {
 	flag.Parse()
 
 	aah.SetAppBuildInfo(&aah.BuildInfo{
-		BinaryName: "{{.AppBinaryName}}",
-		Version:    "{{.AppVersion}}",
-		Date:       "{{.AppBuildDate}}",
+		BinaryName: "{{ .AppBinaryName }}",
+		Version:    "{{ .AppVersion }}",
+		Date:       "{{ .AppBuildDate }}",
 	})
 
 	// display application information
@@ -264,21 +266,21 @@ func main() {
 	  })
 	}
 
-	aah.Init("{{.AppImportPath}}")
+	aah.Init("{{ .AppImportPath }}")
 
 	// Adding all the controllers which refers 'aah.Context' directly
 	// or indirectly from app/controllers/** {{ range $i, $c := .AppControllers }}
-	aah.AddController((*{{index $.AppImportPaths .ImportPath}}.{{.Name}})(nil),
+	aah.AddController(
+		(*{{ index $.AppImportPaths .ImportPath }}.{{ .Name }})(nil),
 	  []*aah.MethodInfo{
 	    {{ range .Methods }}&aah.MethodInfo{
-	      Name: "{{.Name}}",
-	      Parameters: []*aah.ParameterInfo{ {{ range .Parameters }}
-	        &aah.ParameterInfo{Name: "{{.Name}}", Type: reflect.TypeOf((*{{.Type.Name}})(nil))},{{ end }}
+	      Name: "{{ .Name }}",
+	      Parameters: []*aah.ParameterInfo{ {{ range .Parameters -}}
+	        &aah.ParameterInfo{Name: "{{ .Name }}", Type: reflect.TypeOf((*{{ .Type.Name }})(nil))},{{- end }}
 	      },
-	    },
-	    {{ end }}
-	  })
-	{{ end }}
+	    },{{ end }}
+		},
+	){{- end }}
 
   aah.Start()
 }

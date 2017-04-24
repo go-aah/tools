@@ -272,7 +272,8 @@ func (prg *program) FindTypeByEmbeddedType(qualifiedTypeName string) []*typeInfo
 func (prg *program) CreateImportPaths(types []*typeInfo) map[string]string {
 	importPaths := map[string]string{}
 	for _, t := range types {
-		if _, found := importPaths[t.ImportPath]; !found {
+		importPath := filepath.ToSlash(t.ImportPath)
+		if _, found := importPaths[importPath]; !found {
 			cnt := 0
 			pkgAlias := t.PackageName()
 
@@ -281,7 +282,7 @@ func (prg *program) CreateImportPaths(types []*typeInfo) map[string]string {
 				cnt++
 			}
 
-			importPaths[t.ImportPath] = pkgAlias
+			importPaths[importPath] = pkgAlias
 		}
 	}
 
@@ -302,7 +303,7 @@ func (p *packageInfo) processTypes(decl *ast.GenDecl, imports map[string]string)
 	typeName := spec.Name.Name
 	ty := &typeInfo{
 		Name:          typeName,
-		ImportPath:    p.ImportPath,
+		ImportPath:    filepath.ToSlash(p.ImportPath),
 		Methods:       []*methodInfo{},
 		EmbeddedTypes: []*typeInfo{},
 	}

@@ -100,6 +100,7 @@ func getAppVersion(appBaseDir string, cfg *config.Config) string {
 			return version
 		}
 
+		_ = os.Chdir(appBaseDir)
 		gitArgs := []string{fmt.Sprintf("--git-dir=%s", appGitDir), "describe", "--always", "--dirty"}
 		output, err := execCmd(gitcmd, gitArgs, false)
 		if err != nil {
@@ -151,11 +152,9 @@ func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 	return "", nil
 }
 
-func renderTmpl(w io.Writer, text string, data interface{}) {
+func renderTmpl(w io.Writer, text string, data interface{}) error {
 	tmpl := template.Must(template.New("").Parse(text))
-	if err := tmpl.Execute(w, data); err != nil {
-		log.Fatalf("Unable to render template text: %s", err)
-	}
+	return tmpl.Execute(w, data)
 }
 
 // appBinaryFile method binary file path creation
