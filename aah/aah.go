@@ -25,8 +25,8 @@ const (
    aah framework -  https://aahframework.org
 –––––––––––––––––––––––––––––––––––––––––––––––
 `
-	aahImportPath    = "aahframework.org/aah.v0-unstable"
-	aahCLIImportPath = "aahframework.org/tools.v0-unstable/aah"
+	aahImportPath    = "aahframework.org/aah.v0"
+	aahCLIImportPath = "aahframework.org/tools.v0/aah"
 	permRWXRXRX      = 0755
 	permRWRWRW       = 0666
 )
