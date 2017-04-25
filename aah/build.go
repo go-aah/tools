@@ -305,8 +305,7 @@ esac
 exit 0
 `
 
-const aahCmdStartupTemplate = `TITLE {{ .AppName }}
-@ECHO OFF
+const aahCmdStartupTemplate = `@ECHO OFF
 
 REM The MIT License (MIT)
 REM
@@ -341,12 +340,13 @@ SET APP_ENV_PROFILE=prod
 
 REM resolve APP_DIR and set executable
 SET APP_DIR=%~dp0
-SET APP_EXECUTABLE=%APP_DIR%\bin\%APP_NAME%
-SET APP_PID=%APP_DIR%\%$APP_NAME%.pid
+SET APP_EXECUTABLE=%APP_DIR%bin\%APP_NAME%.exe
+SET APP_PID=%APP_DIR%%APP_NAME%.pid
 
 REM change directory
 cd %APP_DIR%
 
+if ""%1"" == """" GOTO :cmdUsage
 if ""%1"" == ""start"" GOTO :doStart
 if ""%1"" == ""stop"" GOTO :doStop
 if ""%1"" == ""version"" GOTO :doVersion
@@ -359,18 +359,24 @@ IF "%ERRORLEVEL%" == "0" (
   GOTO :end
 )
 
-START "" /B "%APP_EXECUTABLE%" -profile %APP_ENV_PROFILE%
+START "" /B "%APP_EXECUTABLE%" -profile %APP_ENV_PROFILE% > appstart.log 2>&1
+ECHO {{ .AppName }} started.
 GOTO :end
 
 :doStop
 SET /P PID= < %APP_PID%
 IF NOT %PID% == "" (
   taskkill /pid %PID% /f
+	ECHO {{ .AppName }} stopped.
 )
 GOTO :end
 
 :doVersion
 %APP_EXECUTABLE% -version
+GOTO :end
+
+:cmdUsage
+echo Usage: %0 {start or stop or version}
 GOTO :end
 
 :end

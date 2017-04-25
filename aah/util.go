@@ -6,12 +6,13 @@ package main
 
 import (
 	"fmt"
-	"html/template"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"text/template"
 	"time"
 
 	"aahframework.org/aah.v0"
@@ -91,7 +92,7 @@ func getAppVersion(appBaseDir string, cfg *config.Config) string {
 	}
 
 	// fallback version number from file aah.project
-	version := cfg.StringDefault("version", "")
+	version := cfg.StringDefault("build.version", "")
 
 	// git describe
 	if gitcmd, err := exec.LookPath("git"); err == nil {
@@ -169,15 +170,31 @@ func appBinaryFile(buildCfg *config.Config, appBuildDir string) string {
 }
 
 func addTargetBuildInfo(name string) string {
-	if goos := os.Getenv("GOOS"); !ess.IsStrEmpty(goos) {
+	if goos := getGOOS(); !ess.IsStrEmpty(goos) {
 		name += "-" + strings.ToLower(goos)
 	}
-	if goarch := os.Getenv("GOARCH"); !ess.IsStrEmpty(goarch) {
+	if goarch := getGOARCH(); !ess.IsStrEmpty(goarch) {
 		name += "-" + strings.ToLower(goarch)
 	}
 	return name
 }
 
 func isWindowsOS() bool {
-	return os.Getenv("GOOS") == "windows"
+	return getGOOS() == "windows"
+}
+
+func getGOOS() string {
+	goos := os.Getenv("GOOS")
+	if ess.IsStrEmpty(goos) {
+		goos = runtime.GOOS
+	}
+	return goos
+}
+
+func getGOARCH() string {
+	goarch := os.Getenv("GOARCH")
+	if ess.IsStrEmpty(goarch) {
+		goarch = runtime.GOARCH
+	}
+	return goarch
 }

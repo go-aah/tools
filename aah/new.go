@@ -59,13 +59,14 @@ func newRun(args []string) {
 	// Process it
 	appDir := filepath.Join(gosrcDir, filepath.FromSlash(importPath))
 	appName := filepath.Base(appDir)
+	appSessionFilepath := filepath.ToSlash(filepath.Join(appDir, "sessions"))
 	data := map[string]interface{}{
 		"AppName":                 appName,
 		"AppType":                 appType,
 		"AppImportPath":           importPath,
 		"AppSessionScope":         sessionScope,
 		"AppSessionStore":         sessionStore,
-		"AppSessionFileStorePath": filepath.Join(appDir, "sessions"),
+		"AppSessionFileStorePath": appSessionFilepath,
 		"AppSessionSignKey":       ess.RandomString(64),
 		"AppSessionEncKey":        ess.RandomString(32),
 		"TmplDemils":              "{{.}}",
