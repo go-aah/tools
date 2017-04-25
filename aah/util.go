@@ -198,3 +198,14 @@ func getGOARCH() string {
 	}
 	return goarch
 }
+
+func excludeAndCreateSlice(arr []string, str string) []string {
+	var result []string
+	for _, v := range arr {
+		if str == v {
+			continue
+		}
+		result = append(result, v)
+	}
+	return result
+}

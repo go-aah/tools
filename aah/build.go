@@ -129,13 +129,14 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary string
 
 	// aah application and custom directories
 	appDirs, _ := ess.DirsPath(appBaseDir, false)
+	subTreeExcludes := ess.Excludes(excludeAndCreateSlice(cfgExcludes, "app"))
 	for _, srcdir := range appDirs {
 		if excludes.Match(filepath.Base(srcdir)) {
 			continue
 		}
 
 		if ess.IsFileExists(srcdir) {
-			if err = ess.CopyDir(buildBaseDir, srcdir, excludes); err != nil {
+			if err = ess.CopyDir(buildBaseDir, srcdir, subTreeExcludes); err != nil {
 				return "", err
 			}
 		}
