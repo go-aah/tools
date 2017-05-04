@@ -122,7 +122,7 @@ domains {
 
         # The action/method name in the controller to be called for mapped URL path.
         # Default values are mapped based on `HTTP` method. Refer doc for more info.
-        # Default action value for GET is 'Index',
+        # Default action value for GET is 'Index'.
         #action = "Index"
       }
 

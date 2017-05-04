@@ -59,7 +59,7 @@ server {
     # Default value is `empty` string.
     #key = ""
 
-    # Disabling HTTP/2 set it true
+    # Disabling HTTP/2 set it true.
     # Default value is `false`.
     #disable_http2 = true
 

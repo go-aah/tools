@@ -172,14 +172,14 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 		}
 
 		notExistsPkgs := []string{}
-		for _, pkg := range strings.Split(line, " ") {
+		for _, pkg := range strings.Fields(line) {
 			if ess.IsStrEmpty(pkg) || ess.IsImportPathExists(pkg) {
 				continue
 			}
 			notExistsPkgs = append(notExistsPkgs, pkg)
 		}
 
-		if cfg.BoolDefault("build.go_get", true) && len(notExistsPkgs) > 0 {
+		if cfg.BoolDefault("build.dep_get", false) && len(notExistsPkgs) > 0 {
 			log.Info("Getting application dependencies ...")
 			for _, pkg := range notExistsPkgs {
 				args := []string{"get", pkg}
@@ -188,9 +188,9 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 				}
 			}
 		} else if len(notExistsPkgs) > 0 {
-			log.Error("Below application dependencies are not exists, " +
-				"enable 'build.go_get=true' in 'aah.project' for auto fetch")
-			log.Fatal("\n", strings.Join(notExistsPkgs, "\n"))
+			log.Fatal("Below application dependencies are not exists, "+
+				"enable 'build.dep_get=true' in 'aah.project' for auto fetch\n---> ",
+				strings.Join(notExistsPkgs, "\n---> "))
 		}
 	}
 
@@ -224,6 +224,8 @@ import (
 var _ = reflect.Invalid
 
 func main() {
+	log.Infof("aah framework v%s, requires ≥ go1.8", aah.Version)
+
 	// Defining flags
 	version := flag.Bool("version", false, "Display application name, version and build date.")
 	configPath := flag.String("config", "", "Absolute path of external config file.")
@@ -281,6 +283,8 @@ func main() {
 	    },{{ end }}
 		},
 	){{- end }}
+
+	log.Info("aah application initialized successfully")
 
   aah.Start()
 }

@@ -15,10 +15,11 @@ build {
   #   - `AAH_APP_VERSION` environment value is not available.
   version = "0.0.1"
 
-  # If application is missing any dependencies during a compile and build,
-  # aah CLI will do 'go get <package>'.
-  # Default value is `true`.
-  #go_get = true
+  # If application is missing any dependencies in `build import path`
+  # during a compile and build, aah CLI will try to get dependencies
+  # using 'go get <package>'.
+  # Default value is `false`.
+  #dep_get = true
 
   # Log level is used for aah CLI tool logging.
   # Default value is `info`.
