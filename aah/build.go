@@ -23,9 +23,11 @@ var (
 	buildImportPathShortFlag   = buildCmdFlags.String("ip", "", "Import path of aah application")
 	buildArtifactPathFlag      = buildCmdFlags.String("artifactPath", "", "Output location application build artifact. Default location is <app-base>/aah-build")
 	buildArtifactPathShortFlag = buildCmdFlags.String("ap", "", "Output location application build artifact. Default location is <app-base>/aah-build")
+	buildProfileFlag           = buildCmdFlags.String("profile", "", "Environment profile name to activate. e.g: dev, qa, prod")
+	buildProfileShortFlag      = buildCmdFlags.String("p", "", "Environment profile name to activate. e.g: dev, qa, prod")
 	buildCmd                   = &command{
 		Name:      "build",
-		UsageLine: "aah build [-ip | -importPath] [-ap | -artifactPath]",
+		UsageLine: "aah build [-ip | -importPath] [-ap | -artifactPath] [-p | -profile]",
 		Flags:     buildCmdFlags,
 		ArgsCount: 1,
 		Short:     "build aah application for deployment",
@@ -37,9 +39,11 @@ To know more CLI tool - https://docs.aahframework.org/aah-cli-tool.html
 Example(s) short and long flag:
     aah build
 
-    aah build -ip=github.com/user/appname -ap=/Users/jeeva
+    aah build -p=dev
 
-    aah build -importPath=github.com/user/appname -artifactPath=/Users/jeeva
+    aah build -ip=github.com/user/appname -ap=/Users/jeeva -p=qa
+
+    aah build -importPath=github.com/user/appname -artifactPath=/Users/jeeva -profile=qa
 `,
 	}
 )
@@ -77,7 +81,8 @@ func buildRun(args []string) {
 		log.Fatal(err)
 	}
 
-	buildBaseDir, err := copyFilesToWorkingDir(buildCfg, appBaseDir, appBinay)
+	appProfile := firstNonEmpty(*buildProfileFlag, *buildProfileShortFlag, "prod")
+	buildBaseDir, err := copyFilesToWorkingDir(buildCfg, appBaseDir, appBinay, appProfile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -97,7 +102,7 @@ func buildRun(args []string) {
 	log.Infof("Your application artifact is here: %s", destZip)
 }
 
-func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary string) (string, error) {
+func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appProfile string) (string, error) {
 	appBinaryName := filepath.Base(appBinary)
 	tmpDir, err := ioutil.TempDir("", appBinaryName)
 	if err != nil {
@@ -144,8 +149,9 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary string
 
 	// startup files
 	data := map[string]string{
-		"AppName":  ess.StripExt(appBinaryName),
-		"Backtick": "`",
+		"AppName":    ess.StripExt(appBinaryName),
+		"AppProfile": appProfile,
+		"Backtick":   "`",
 	}
 	buf := &bytes.Buffer{}
 	if err = renderTmpl(buf, aahBashStartupTemplate, data); err != nil {
@@ -205,7 +211,16 @@ const aahBashStartupTemplate = `#!/usr/bin/env bash
 ###########################################
 
 APP_NAME="{{ .AppName }}"
-APP_ENV_PROFILE="prod"
+APP_ENV_PROFILE="{{ .AppProfile }}"
+APP_EXT_CONFIG=""
+
+if [ ! -z "$2" ]; then
+  APP_ENV_PROFILE=$2
+fi
+
+if [ ! -z "$3" ]; then
+  APP_EXT_CONFIG="-config=$3"
+fi
 
 # resolve links - $0 may be a softlink
 PRG="$0"
@@ -250,7 +265,7 @@ start() {
     fi
   fi
 
-  nohup "$APP_EXECUTABLE" -profile="$APP_ENV_PROFILE" > appstart.log 2>&1 &
+  nohup "$APP_EXECUTABLE" -profile="$APP_ENV_PROFILE" "$APP_EXT_CONFIG" > appstart.log 2>&1 &
   echo "$APP_NAME started."
 }
 
@@ -337,7 +352,16 @@ REM ##########################################
 SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 
 SET APP_NAME={{ .AppName }}
-SET APP_ENV_PROFILE=prod
+SET APP_ENV_PROFILE={{ .AppProfile }}
+SET APP_EXT_CONFIG=""
+
+IF NOT "%2" == "" (
+	SET APP_ENV_PROFILE="%2"
+)
+
+IF NOT "%3" == "" (
+  SET APP_EXT_CONFIG="-config %3"
+)
 
 REM resolve APP_DIR and set executable
 SET APP_DIR=%~dp0
@@ -360,7 +384,7 @@ IF "%ERRORLEVEL%" == "0" (
   GOTO :end
 )
 
-START "" /B "%APP_EXECUTABLE%" -profile %APP_ENV_PROFILE% > appstart.log 2>&1
+START "" /B "%APP_EXECUTABLE%" -profile "%APP_ENV_PROFILE%" "%APP_EXT_CONFIG%" > appstart.log 2>&1
 ECHO {{ .AppName }} started.
 GOTO :end
 

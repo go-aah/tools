@@ -13,18 +13,13 @@ domains {
   # Pick your choice of an `unique keyname` to define your domain section
   # in the routes configuration.
   # For e.g.: Domain name/ip address with port no
-  localhost_8080 {
+  localhost {
     name = "{{ .AppName }} routes"
 
     # aah supports multi-domain routes configuration out-of-the-box.
     # `host` used to determine domain routes for the incoming request.
     # For e.g: example.org
     host = "localhost"
-
-    # `port` used to determine domain routes for the incoming request.
-    # For port `80`, 443, put empty string or a value
-    # Default value is 8080
-    #port = ""
 
     # Redirect trailing slash is to enable automatic redirection if the current
     # route can't be matched but a `route` for the path with (without)
@@ -128,6 +123,6 @@ domains {
 
     } # end - routes
 
-  } # end - localhost_8080
+  } # end - localhost
 
 } # end - domains
