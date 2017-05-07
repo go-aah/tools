@@ -210,8 +210,8 @@ render {
 
     # Used to control Gzip compression levels. Valid levels are
     # 1 = BestSpeed to 9 = BestCompression.
-    # Default value is `1`.
-    #level = 1
+    # Default value is `4`.
+    #level = 4
   }
 }
 

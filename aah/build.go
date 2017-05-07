@@ -157,7 +157,7 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appPr
 	if err = renderTmpl(buf, aahBashStartupTemplate, data); err != nil {
 		log.Fatal(err)
 	}
-	if err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah"), buf.Bytes(), permRWXRXRX); err != nil {
+	if err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah.sh"), buf.Bytes(), permRWXRXRX); err != nil {
 		return "", err
 	}
 
