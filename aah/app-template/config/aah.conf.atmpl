@@ -162,17 +162,17 @@ runtime {
     #all_goroutines = true
   }
 
-  # Pooling configuration is used to reduce GC overhead from framework.
+  # Pooling configuration is to reduce GC overhead from framework.
   # Tune these value based on your use case. Pool doesn't create object
   # unless it's needed.
+  # Doc: https://docs.aahframework.org/pooling.html
   pooling {
-    # Used for `aah.Context`, `ahttp.Request`, `session.Session`
-    # Default value is `0`.
-    global = 150
+    # Default value is `500`.
+    #global = 500
 
     # Used for `bytes.Buffer`
-    # Default value is `0`.
-    buffer = 60
+    # Default value is `200`.
+    #buffer = 200
   }
 }
 

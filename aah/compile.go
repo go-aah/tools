@@ -81,8 +81,9 @@ func compileApp(buildCfg *config.Config) (string, error) {
 	// create go build arguments
 	buildArgs := []string{"build"}
 
-	flags, _ := buildCfg.StringList("build.flags")
-	buildArgs = append(buildArgs, flags...)
+	if flags, found := buildCfg.StringList("build.flags"); found {
+		buildArgs = append(buildArgs, flags...)
+	}
 
 	if ldflags := buildCfg.StringDefault("build.ldflags", ""); !ess.IsStrEmpty(ldflags) {
 		buildArgs = append(buildArgs, "-ldflags", ldflags)
@@ -221,15 +222,32 @@ import (
 	{{ $v }} "{{ $k }}"{{ end }}
 )
 
-var _ = reflect.Invalid
+var (
+	// Defining flags
+	version    = flag.Bool("version", false, "Display application name, version and build date.")
+	configPath = flag.String("config", "", "Absolute path of external config file.")
+	profile    = flag.String("profile", "", "Environment profile name to activate. e.g: dev, qa, prod.")
+	_          = reflect.Invalid
+)
+
+func mergeExternalConfig(e *aah.Event) {
+	externalConfig, err := config.LoadFile(*configPath)
+	if err != nil {
+		log.Fatalf("Unable to load external config: %s", *configPath)
+	}
+
+	log.Debug("Merging external config into aah application config")
+	if err := aah.AppConfig().Merge(externalConfig); err != nil {
+		log.Errorf("Unable to merge external config into aah application[%s]: %s", aah.AppName(), err)
+	}
+}
+
+func setAppEnvProfile(e *aah.Event) {
+	aah.AppConfig().SetString("env.active", *profile)
+}
 
 func main() {
 	log.Infof("aah framework v%s, requires ≥ go1.8", aah.Version)
-
-	// Defining flags
-	version := flag.Bool("version", false, "Display application name, version and build date.")
-	configPath := flag.String("config", "", "Absolute path of external config file.")
-	profile := flag.String("profile", "", "Environment profile name to activate. e.g: dev, qa, prod.")
 	flag.Parse()
 
 	aah.SetAppBuildInfo(&aah.BuildInfo{
@@ -248,24 +266,12 @@ func main() {
 
 	// Apply supplied external config file
 	if !ess.IsStrEmpty(*configPath) {
-		aah.OnInit(func(e *aah.Event) {
-			externalConfig, err := config.LoadFile(*configPath)
-			if err != nil {
-				log.Fatalf("Unable to load external config: %s", *configPath)
-			}
-
-			log.Debug("Merging external config into aah application config")
-			if err := aah.AppConfig().Merge(externalConfig); err != nil {
-				log.Errorf("Unable to merge external config into aah application[%s]: %s", aah.AppName(), err)
-			}
-		})
+		aah.OnInit(mergeExternalConfig)
 	}
 
 	// Apply environment profile
 	if !ess.IsStrEmpty(*profile) {
-	  aah.OnInit(func(e *aah.Event) {
-	    aah.AppConfig().SetString("env.active", *profile)
-	  })
+		aah.OnInit(setAppEnvProfile)
 	}
 
 	aah.Init("{{ .AppImportPath }}")

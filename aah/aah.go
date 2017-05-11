@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"aahframework.org/aah.v0"
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
@@ -21,9 +22,9 @@ import (
 const Version = "0.5"
 
 const (
-	header = `–––––––––––––––––––––––––––––––––––––––––––––––
-   aah framework -  https://aahframework.org
-–––––––––––––––––––––––––––––––––––––––––––––––
+	header = `––––––––––––––––––––––––––––––––––––––––––––––––––––
+   aah framework v%s -  https://aahframework.org
+––––––––––––––––––––––––––––––––––––––––––––––––––––
 `
 	aahImportPath    = "aahframework.org/aah.v0"
 	aahCLIImportPath = "aahframework.org/tools.v0/aah"
@@ -97,10 +98,10 @@ func main() {
 
 func printHeader() {
 	if !isWindowsOS() {
-		fmt.Fprintf(os.Stdout, fmt.Sprintf("\033[1;32m%v\033[0m\n", header))
+		fmt.Fprintf(os.Stdout, fmt.Sprintf("\033[1;32m%v\033[0m\n", header), aah.Version)
 		return
 	}
-	fmt.Fprintf(os.Stdout, header)
+	fmt.Fprintf(os.Stdout, header, aah.Version)
 }
 
 func init() {
