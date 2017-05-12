@@ -16,7 +16,7 @@ security {
     # Session mode to choose whether HTTP session should be persisted or
     # destroyed at the end of the request. Supported values are `stateless`
     # and `stateful`.
-    # Default value is `stateless`.
+    # Default value is `stateless` for API and `stateful` for Web app.
     mode = "{{ .AppSessionScope }}"
 
     # Session store is to choose where session value should be persisted.

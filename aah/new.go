@@ -128,20 +128,10 @@ func getAppType(reader *bufio.Reader) string {
 func getSessionInfo(reader *bufio.Reader, appType string) (string, string) {
 	sessionScope := "stateless"
 	sessionStore := storeCookie
-	if appType != typeWeb {
+	if appType == typeWeb {
+		sessionScope = "stateful"
+	} else {
 		return sessionScope, sessionStore
-	}
-
-	// Session Scope
-	for {
-		sessionManagement := readInput(reader, "\nDo you want 'stateful' HTTP session management, default is 'stateless' (Y/n): ")
-		if sessionManagement == "Y" {
-			sessionScope = "stateful"
-			break
-		} else if sessionManagement == "n" {
-			sessionScope = "stateless"
-			break
-		}
 	}
 
 	if sessionScope == "stateful" {
