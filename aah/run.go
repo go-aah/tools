@@ -83,7 +83,7 @@ func runRun(args []string) {
 	logLevel := buildCfg.StringDefault("build.log_level", "info")
 	log.SetLevel(toLogLevel(logLevel))
 
-	appBinary, err := compileApp(buildCfg)
+	appBinary, err := compileApp(buildCfg, false)
 	if err != nil {
 		log.Fatal(err)
 	}

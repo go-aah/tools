@@ -26,7 +26,7 @@ import (
 
 // compileApp method calls Go ast parser, generates main.go and builds aah
 // application binary at Go bin directory
-func compileApp(buildCfg *config.Config) (string, error) {
+func compileApp(buildCfg *config.Config, appPack bool) (string, error) {
 	// app variables
 	appBaseDir := aah.AppBaseDir()
 	appImportPath := aah.AppImportPath()
@@ -114,6 +114,7 @@ func compileApp(buildCfg *config.Config) (string, error) {
 		"AppBinaryName":  appBinaryName,
 		"AppControllers": appControllers,
 		"AppImportPaths": appImportPaths,
+		"AppIsPackaged":  appPack,
 	})
 
 	// getting project dependencies if not exists in $GOPATH
@@ -255,6 +256,8 @@ func main() {
 		Version:    "{{ .AppVersion }}",
 		Date:       "{{ .AppBuildDate }}",
 	})
+
+	aah.SetAppPackaged({{ .AppIsPackaged }})
 
 	// display application information
 	if *version {

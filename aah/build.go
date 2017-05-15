@@ -29,7 +29,7 @@ var (
 		Name:      "build",
 		UsageLine: "aah build [-ip | -importPath] [-ap | -artifactPath] [-p | -profile]",
 		Flags:     buildCmdFlags,
-		ArgsCount: 1,
+		ArgsCount: 3,
 		Short:     "build aah application for deployment",
 		Long: `
 Build the aah web/api application by importPath.
@@ -76,7 +76,7 @@ func buildRun(args []string) {
 
 	log.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 
-	appBinay, err := compileApp(buildCfg)
+	appBinay, err := compileApp(buildCfg, true)
 	if err != nil {
 		log.Fatal(err)
 	}
