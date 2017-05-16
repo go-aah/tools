@@ -71,8 +71,7 @@ func buildRun(args []string) {
 		log.Fatalf("aah project file error: %s", err)
 	}
 
-	logLevel := buildCfg.StringDefault("build.log_level", "info")
-	log.SetLevel(toLogLevel(logLevel))
+	_ = log.SetLevel(buildCfg.StringDefault("build.log_level", "info"))
 
 	log.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 

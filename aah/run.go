@@ -80,8 +80,7 @@ func runRun(args []string) {
 		log.Fatalf("aah project file error: %s", err)
 	}
 
-	logLevel := buildCfg.StringDefault("build.log_level", "info")
-	log.SetLevel(toLogLevel(logLevel))
+	_ = log.SetLevel(buildCfg.StringDefault("build.log_level", "info"))
 
 	appBinary, err := compileApp(buildCfg, false)
 	if err != nil {

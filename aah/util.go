@@ -21,21 +21,6 @@ import (
 	"aahframework.org/log.v0"
 )
 
-var levelNameToLevel = map[string]log.Level{
-	"ERROR": log.LevelError,
-	"WARN":  log.LevelWarn,
-	"INFO":  log.LevelInfo,
-	"DEBUG": log.LevelDebug,
-	"TRACE": log.LevelTrace,
-}
-
-func toLogLevel(l string) log.Level {
-	if level, found := levelNameToLevel[strings.ToUpper(l)]; found {
-		return level
-	}
-	return log.LevelInfo
-}
-
 func importPathRelwd() string {
 	pwd, _ := os.Getwd()
 	importPath, _ := filepath.Rel(gosrcDir, pwd)
