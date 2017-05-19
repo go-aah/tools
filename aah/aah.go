@@ -10,8 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 
+	"aahframework.org/aah.v0"
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
@@ -19,14 +19,13 @@ import (
 )
 
 // Version no. of aah framework CLI tool
-const Version = "0.3"
+const Version = "0.5"
 
 const (
-	header = `–––––––––––––––––––––––––––––––––––––––––––––––
-   aah framework -  https://aahframework.org
-–––––––––––––––––––––––––––––––––––––––––––––––
+	header = `––––––––––––––––––––––––––––––––––––––––––––––––––––
+   aah framework v%s -  https://aahframework.org
+––––––––––––––––––––––––––––––––––––––––––––––––––––
 `
-	isWindows        = (runtime.GOOS == "windows")
 	aahImportPath    = "aahframework.org/aah.v0"
 	aahCLIImportPath = "aahframework.org/tools.v0/aah"
 	permRWXRXRX      = 0755
@@ -98,11 +97,11 @@ func main() {
 //___________________________________
 
 func printHeader() {
-	if !isWindows {
-		fmt.Fprintf(os.Stdout, fmt.Sprintf("\033[1;32m%v\033[0m\n", header))
+	if !isWindowsOS() {
+		fmt.Fprintf(os.Stdout, fmt.Sprintf("\033[1;32m%v\033[0m\n", header), aah.Version)
 		return
 	}
-	fmt.Fprintf(os.Stdout, header)
+	fmt.Fprintf(os.Stdout, header, aah.Version)
 }
 
 func init() {
@@ -111,7 +110,7 @@ func init() {
 	subCmds = commands{
 		newCmd,
 		runCmd,
-		pkgCmd,
+		buildCmd,
 		versionCmd,
 		helpCmd,
 	}

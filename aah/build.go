@@ -6,265 +6,407 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io/ioutil"
-	"path"
 	"path/filepath"
-	"strings"
 
 	"aahframework.org/aah.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
-)
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
-
-// buildApp method calls Go ast parser, generates main.go and builds aah
-// application binary at Go bin directory
-func buildApp(buildCfg *config.Config) (string, error) {
-	// app variables
-	appBaseDir := aah.AppBaseDir()
-	appImportPath := aah.AppImportPath()
-	appCodeDir := filepath.Join(appBaseDir, "app")
-	appControllersPath := filepath.Join(appCodeDir, "controllers")
-
-	appName := buildCfg.StringDefault("name", aah.AppName())
-	log.Infof("Starting build for '%s' [%s]", appName, appImportPath)
-
-	// excludes for Go AST processing
-	excludes, _ := buildCfg.StringList("build.ast_excludes")
-
-	// get all configured Controllers with action info
-	registeredActions := aah.AppRouter().RegisteredActions()
-
-	// Go AST processing for Controllers
-	prg, errs := loadProgram(appControllersPath, ess.Excludes(excludes), registeredActions)
-	if len(errs) > 0 {
-		errMsgs := []string{}
-		for _, e := range errs {
-			errMsgs = append(errMsgs, e.Error())
-		}
-		log.Fatal(strings.Join(errMsgs, "\n"))
-	}
-
-	// call the process
-	prg.Process()
-
-	// Print router configuration missing/error details
-	missingActions := []string{}
-	for c, m := range prg.RegisteredActions {
-		for a, v := range m {
-			if v == 1 && !router.IsDefaultAction(a) {
-				missingActions = append(missingActions, fmt.Sprintf("%s.%s", c, a))
-			}
-		}
-	}
-	if len(missingActions) > 0 {
-		log.Error("Following actions are configured in 'routes.conf', however not implemented in Controller:\n\t",
-			strings.Join(missingActions, "\n\t"))
-	}
-
-	// get all the types info referred aah framework context embedded
-	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", aahImportPath))
-	appImportPaths := prg.CreateImportPaths(appControllers)
-
-	// prepare aah application version and build date
-	appVersion := getAppVersion(appBaseDir, buildCfg)
-	appBuildDate := getBuildDate()
-
-	// create go build arguments
-	buildArgs := []string{"build"}
-
-	flags, _ := buildCfg.StringList("build.flags")
-	buildArgs = append(buildArgs, flags...)
-
-	if ldflags := buildCfg.StringDefault("build.ldflags", ""); !ess.IsStrEmpty(ldflags) {
-		buildArgs = append(buildArgs, "-ldflags", ldflags)
-	}
-
-	if tags := buildCfg.StringDefault("build.tags", ""); !ess.IsStrEmpty(tags) {
-		buildArgs = append(buildArgs, "-tags", tags)
-	}
-
-	appBinary := createAppBinaryName(buildCfg)
-	appBinaryName := filepath.Base(appBinary)
-	buildArgs = append(buildArgs, "-o", appBinary)
-
-	// main.go location e.g. path/to/import/app
-	buildArgs = append(buildArgs, path.Join(appImportPath, "app"))
-
-	// clean previous main.go and binary file up before we start the build
-	appMainGoFile := filepath.Join(appCodeDir, "aah.go")
-	log.Infof("Cleaning %s", appMainGoFile)
-	log.Infof("Cleaning %s", appBinary)
-	ess.DeleteFiles(appMainGoFile, appBinary)
-
-	generateSource(appCodeDir, "aah.go", aahMainTemplate, map[string]interface{}{
-		"AahVersion":     aah.Version,
-		"AppImportPath":  appImportPath,
-		"AppVersion":     appVersion,
-		"AppBuildDate":   appBuildDate,
-		"AppBinaryName":  appBinaryName,
-		"AppControllers": appControllers,
-		"AppImportPaths": appImportPaths,
-	})
-
-	// getting project dependencies if not exists in $GOPATH
-	if err := checkAndGetAppDeps(appImportPath, buildCfg); err != nil {
-		log.Fatalf("unable to get application dependencies: %s", err)
-	}
-
-	// execute aah applictaion build
-	if _, err := execCmd(gocmd, buildArgs, false); err != nil {
-		log.Fatal(err)
-	}
-
-	log.Infof("Build successful for '%s' [%s].", appName, appImportPath)
-
-	return appBinary, nil
-}
-
-func generateSource(dir, filename, templateSource string, templateArgs map[string]interface{}) {
-	if !ess.IsFileExists(dir) {
-		if err := ess.MkDirAll(dir, 0644); err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	file := filepath.Join(dir, filename)
-	buf := &bytes.Buffer{}
-	renderTmpl(buf, templateSource, templateArgs)
-
-	if err := ioutil.WriteFile(file, buf.Bytes(), permRWXRXRX); err != nil {
-		log.Fatalf("aah '%s' file write error: %s", filename, err)
-	}
-}
-
-// checkAndGetAppDeps method project dependencies is present otherwise
-// it tries to get it if any issues it will return error. It internally uses
-// go list command.
-// 		go list -f '{{ join .Imports "\n" }}' aah-app/import/path/app/...
-//
-func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
-	importPath := path.Join(appImportPath, "app", "...")
-	args := []string{"list", "-f", "{{.Imports}}", importPath}
-
-	output, err := execCmd(gocmd, args, false)
-	if err != nil {
-		return err
-	}
-
-	lines := strings.Split(strings.TrimSpace(output), "\r\n")
-	for _, line := range lines {
-		line = strings.Replace(strings.Replace(line, "]", "", -1), "[", "", -1)
-		line = strings.Replace(strings.Replace(line, "\r", " ", -1), "\n", " ", -1)
-		if ess.IsStrEmpty(line) {
-			// all dependencies is available
-			return nil
-		}
-
-		notExistsPkgs := []string{}
-		for _, pkg := range strings.Split(line, " ") {
-			if ess.IsStrEmpty(pkg) || ess.IsImportPathExists(pkg) {
-				continue
-			}
-			notExistsPkgs = append(notExistsPkgs, pkg)
-		}
-
-		if cfg.BoolDefault("build.go_get", true) && len(notExistsPkgs) > 0 {
-			log.Info("Getting application dependencies ...")
-			for _, pkg := range notExistsPkgs {
-				args := []string{"get", pkg}
-				if _, err := execCmd(gocmd, args, false); err != nil {
-					return err
-				}
-			}
-		} else if len(notExistsPkgs) > 0 {
-			log.Error("Below application dependencies are not exists, " +
-				"enable 'build.go_get=true' in 'aah.project' for auto fetch")
-			log.Fatal("\n", strings.Join(notExistsPkgs, "\n"))
-		}
-	}
-
-	return nil
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Generate Templates
-//___________________________________
-
-const aahMainTemplate = `// aah framework v{{.AahVersion}} - https://aahframework.org
-// FILE: aah.go
-// GENERATED CODE - DO NOT EDIT
-
-package main
-
-import (
-	"flag"
-	"fmt"
-	"reflect"
-
-	"aahframework.org/aah.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"{{ range $k, $v := $.AppImportPaths }}
-	{{$v}} "{{$k}}"{{ end }}
 )
 
 var (
-	_ = reflect.Invalid
+	buildCmdFlags              = flag.NewFlagSet("build", flag.ExitOnError)
+	buildImportPathFlag        = buildCmdFlags.String("importPath", "", "Import path of aah application")
+	buildImportPathShortFlag   = buildCmdFlags.String("ip", "", "Import path of aah application")
+	buildArtifactPathFlag      = buildCmdFlags.String("artifactPath", "", "Output location application build artifact. Default location is <app-base>/aah-build")
+	buildArtifactPathShortFlag = buildCmdFlags.String("ap", "", "Output location application build artifact. Default location is <app-base>/aah-build")
+	buildProfileFlag           = buildCmdFlags.String("profile", "", "Environment profile name to activate. e.g: dev, qa, prod")
+	buildProfileShortFlag      = buildCmdFlags.String("p", "", "Environment profile name to activate. e.g: dev, qa, prod")
+	buildCmd                   = &command{
+		Name:      "build",
+		UsageLine: "aah build [-ip | -importPath] [-ap | -artifactPath] [-p | -profile]",
+		Flags:     buildCmdFlags,
+		ArgsCount: 3,
+		Short:     "build aah application for deployment",
+		Long: `
+Build the aah web/api application by importPath.
+
+To know more CLI tool - https://docs.aahframework.org/aah-cli-tool.html
+
+Example(s) short and long flag:
+    aah build
+
+    aah build -p=dev
+
+    aah build -ip=github.com/user/appname -ap=/Users/jeeva -p=qa
+
+    aah build -importPath=github.com/user/appname -artifactPath=/Users/jeeva -profile=qa
+`,
+	}
 )
 
-func main() {
-	// Defining flags
-	version := flag.Bool("version", false, "Display application version and build date.")
-	configPath := flag.String("config", "", "Absolute path of external config file.")
-	flag.Parse()
-
-	aah.SetAppBuildInfo(&aah.BuildInfo{
-		BinaryName: "{{.AppBinaryName}}",
-		Version:    "{{.AppVersion}}",
-		Date:       "{{.AppBuildDate}}",
-	})
-
-	// display application information
-	if *version {
-		fmt.Printf("%-12s: %s\n", "Binary Name", aah.AppBuildInfo().BinaryName)
-		fmt.Printf("%-12s: %s\n", "Version", aah.AppBuildInfo().Version)
-		fmt.Printf("%-12s: %s\n", "Build Date", aah.AppBuildInfo().Date)
-		return
+func buildRun(args []string) {
+	if err := buildCmdFlags.Parse(args); err != nil {
+		log.Fatal(err)
 	}
 
-	aah.Init("{{.AppImportPath}}")
+	var err error
+	importPath := firstNonEmpty(*buildImportPathFlag, *buildImportPathShortFlag)
+	if ess.IsStrEmpty(importPath) {
+		importPath = importPathRelwd()
+	}
 
-	// Loading externally supplied config file
-	if !ess.IsStrEmpty(*configPath) {
-		externalConfig, err := config.LoadFile(*configPath)
-		if err != nil {
-			log.Fatalf("Unable to load external config: %s", *configPath)
+	if !ess.IsImportPathExists(importPath) {
+		log.Fatalf("Given import path '%s' does not exists", importPath)
+	}
+
+	aah.Init(importPath)
+	appBaseDir := aah.AppBaseDir()
+
+	buildCfg, err := loadAahProjectFile(appBaseDir)
+	if err != nil {
+		log.Fatalf("aah project file error: %s", err)
+	}
+
+	_ = log.SetLevel(buildCfg.StringDefault("build.log_level", "info"))
+
+	log.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+
+	appBinay, err := compileApp(buildCfg, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	appProfile := firstNonEmpty(*buildProfileFlag, *buildProfileShortFlag, "prod")
+	buildBaseDir, err := copyFilesToWorkingDir(buildCfg, appBaseDir, appBinay, appProfile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	archiveName := ess.StripExt(filepath.Base(appBinay)) + "-" + getAppVersion(appBaseDir, buildCfg)
+	archiveName = addTargetBuildInfo(archiveName)
+	appBuildDir := filepath.Join(appBaseDir, "build")
+	destArchiveDir := firstNonEmpty(*buildArtifactPathFlag, *buildArtifactPathShortFlag, appBuildDir)
+
+	// Creating app archive
+	destZip, err := createZipArchive(buildBaseDir, destArchiveDir, archiveName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	log.Infof("Your application artifact is here: %s", destZip)
+}
+
+func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appProfile string) (string, error) {
+	appBinaryName := filepath.Base(appBinary)
+	tmpDir, err := ioutil.TempDir("", appBinaryName)
+	if err != nil {
+		return "", fmt.Errorf("unable to get temp directory: %s", err)
+	}
+
+	buildBaseDir := filepath.Join(tmpDir, ess.StripExt(appBinaryName))
+	ess.DeleteFiles(buildBaseDir)
+	if err = ess.MkDirAll(buildBaseDir, permRWXRXRX); err != nil {
+		return "", err
+	}
+
+	// binary file
+	binDir := filepath.Join(buildBaseDir, "bin")
+	_ = ess.MkDirAll(binDir, permRWXRXRX)
+	_, _ = ess.CopyFile(binDir, appBinary)
+
+	// apply executable file mode
+	if err = ess.ApplyFileMode(filepath.Join(binDir, appBinaryName), permRWXRXRX); err != nil {
+		log.Error(err)
+	}
+
+	// build package excludes
+	cfgExcludes, _ := buildCfg.StringList("build.excludes")
+	excludes := ess.Excludes(cfgExcludes)
+	if err = excludes.Validate(); err != nil {
+		log.Fatal(err)
+	}
+
+	// aah application and custom directories
+	appDirs, _ := ess.DirsPath(appBaseDir, false)
+	subTreeExcludes := ess.Excludes(excludeAndCreateSlice(cfgExcludes, "app"))
+	for _, srcdir := range appDirs {
+		if excludes.Match(filepath.Base(srcdir)) {
+			continue
 		}
 
-		aah.MergeAppConfig(externalConfig)
+		if ess.IsFileExists(srcdir) {
+			if err = ess.CopyDir(buildBaseDir, srcdir, subTreeExcludes); err != nil {
+				return "", err
+			}
+		}
 	}
 
-	// Adding all the controllers which refers 'aah.Controller' directly
-	// or indirectly from app/controllers/** {{ range $i, $c := .AppControllers }}
-	aah.AddController((*{{index $.AppImportPaths .ImportPath}}.{{.Name}})(nil),
-	  []*aah.MethodInfo{
-	    {{ range .Methods }}&aah.MethodInfo{
-	      Name: "{{.Name}}",
-	      Parameters: []*aah.ParameterInfo{ {{ range .Parameters }}
-	        &aah.ParameterInfo{Name: "{{.Name}}", Type: reflect.TypeOf((*{{.Type.Name}})(nil))},{{ end }}
-	      },
-	    },
-	    {{ end }}
-	  })
-	{{ end }}
+	// startup files
+	data := map[string]string{
+		"AppName":    ess.StripExt(appBinaryName),
+		"AppProfile": appProfile,
+		"Backtick":   "`",
+	}
+	buf := &bytes.Buffer{}
+	if err = renderTmpl(buf, aahBashStartupTemplate, data); err != nil {
+		log.Fatal(err)
+	}
+	if err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah.sh"), buf.Bytes(), permRWXRXRX); err != nil {
+		return "", err
+	}
 
-  aah.Start()
+	buf.Reset()
+	if err = renderTmpl(buf, aahCmdStartupTemplate, data); err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah.cmd"), buf.Bytes(), permRWXRXRX)
+
+	return buildBaseDir, err
 }
+
+func createZipArchive(buildBaseDir, archiveBaseDir, archiveName string) (string, error) {
+	destZip := filepath.Join(archiveBaseDir, archiveName) + ".zip"
+
+	files, _ := filepath.Glob(filepath.Join(archiveBaseDir, archiveName+"*.*"))
+	ess.DeleteFiles(files...)
+
+	if err := ess.MkDirAll(archiveBaseDir, permRWXRXRX); err != nil {
+		log.Fatal(err)
+	}
+	return destZip, ess.Zip(destZip, buildBaseDir)
+}
+
+const aahBashStartupTemplate = `#!/usr/bin/env bash
+
+# The MIT License (MIT)
+#
+# Copyright (c) Jeevanandam M., https://myjeeva.com <jeeva@myjeeva.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+###########################################
+# Start and Stop script for aah application
+###########################################
+
+APP_NAME="{{ .AppName }}"
+APP_ENV_PROFILE="{{ .AppProfile }}"
+APP_EXT_CONFIG=""
+
+if [ ! -z "$2" ]; then
+  APP_ENV_PROFILE=$2
+fi
+
+if [ ! -z "$3" ]; then
+  APP_EXT_CONFIG="-config=$3"
+fi
+
+# resolve links - $0 may be a softlink
+PRG="$0"
+while [ -h "$PRG" ] ; do
+  ls={{ .Backtick }}ls -ld "$PRG"{{ .Backtick }}
+  link={{ .Backtick }}expr "$ls" : '.*-> \(.*\)$'{{ .Backtick }}
+  if expr "$link" : '/.*' > /dev/null; then
+    PRG="$link"
+  else
+    PRG={{ .Backtick }}dirname "$PRG"{{ .Backtick }}/"$link"
+  fi
+done
+
+# resolve APP_DIR and set executable
+APP_DIR=$(cd "$(dirname $PRG)"; pwd)
+APP_EXECUTABLE="$APP_DIR"/bin/"$APP_NAME"
+APP_PID="$APP_DIR"/"$APP_NAME".pid
+
+if [ ! -x "$APP_EXECUTABLE" ]; then
+  echo "Cannot find aah application executable: $APP_EXECUTABLE"
+  exit 1
+fi
+
+# go to application base directory
+cd "$APP_DIR"
+
+start() {
+  if [ ! -z "$APP_PID" ]; then # not empty
+    if [ -f "$APP_PID" ]; then # exists and regular file
+      if [ -s "$APP_PID" ]; then # not-empty
+        echo "Existing PID file found during start."
+        if [ -r "$APP_PID" ]; then
+          PID={{ .Backtick }}cat "$APP_PID"{{ .Backtick }}
+          ps -p $PID >/dev/null 2>&1
+          if [ $? -eq 0 ] ; then
+            echo "$APP_NAME appears to still be running with PID $PID. Start aborted."
+            ps -f -p $PID
+            exit 1
+          fi
+        fi
+      fi
+    fi
+  fi
+
+  nohup "$APP_EXECUTABLE" -profile="$APP_ENV_PROFILE" "$APP_EXT_CONFIG" > appstart.log 2>&1 &
+  echo "$APP_NAME started."
+}
+
+stop() {
+  if [ ! -z "$APP_PID" ]; then # not empty
+    if [ -f "$APP_PID" ]; then # exists and regular file
+      if [ -s "$APP_PID" ]; then # not-empty
+				PID={{ .Backtick }}cat "$APP_PID"{{ .Backtick }}
+        kill -15 "$PID" >/dev/null 2>&1
+        if [ $? -gt 0 ]; then
+          echo "$APP_PID file found but no matching process was found. Stop aborted."
+          exit 1
+        else
+          rm -f "$APP_PID" >/dev/null 2>&1
+          echo "$APP_NAME stopped."
+        fi
+      else
+        echo "$APP_PID file is empty and has been ignored."
+      fi
+    else
+      echo "$APP_PID file does not exists. Stop aborted."
+      exit 1
+    fi
+  fi
+}
+
+version() {
+  "$APP_EXECUTABLE" -version
+  echo ""
+}
+
+case "$1" in
+start)
+  start
+  ;;
+stop)
+  stop
+  ;;
+restart)
+  stop
+  sleep 2
+  start
+  ;;
+version)
+  version
+  ;;
+*)
+  echo "Usage: $0 {start|stop|restart|version}"
+	echo ""
+  exit 1
+esac
+
+exit 0
 `
+
+const aahCmdStartupTemplate = `@ECHO OFF
+
+REM The MIT License (MIT)
+REM
+REM Copyright (c) Jeevanandam M., https://myjeeva.com <jeeva@myjeeva.com>
+REM
+REM Permission is hereby granted, free of charge, to any person obtaining a copy
+REM of this software and associated documentation files (the "Software"), to deal
+REM in the Software without restriction, including without limitation the rights
+REM to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+REM copies of the Software, and to permit persons to whom the Software is
+REM furnished to do so, subject to the following conditions:
+REM
+REM The above copyright notice and this permission notice shall be included in all
+REM copies or substantial portions of the Software.
+REM
+REM THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+REM IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+REM FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+REM AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+REM LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+REM OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+REM SOFTWARE.
+
+REM ##########################################
+REM Start and Stop script for aah application
+REM ##########################################
+
+SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
+
+SET APP_NAME={{ .AppName }}
+SET APP_ENV_PROFILE={{ .AppProfile }}
+SET APP_EXT_CONFIG=""
+
+IF NOT "%2" == "" (
+	SET APP_ENV_PROFILE="%2"
+)
+
+IF NOT "%3" == "" (
+  SET APP_EXT_CONFIG="-config %3"
+)
+
+REM resolve APP_DIR and set executable
+SET APP_DIR=%~dp0
+SET APP_EXECUTABLE=%APP_DIR%bin\%APP_NAME%.exe
+SET APP_PID=%APP_DIR%%APP_NAME%.pid
+
+REM change directory
+cd %APP_DIR%
+
+if ""%1"" == """" GOTO :cmdUsage
+if ""%1"" == ""start"" GOTO :doStart
+if ""%1"" == ""stop"" GOTO :doStop
+if ""%1"" == ""version"" GOTO :doVersion
+
+:doStart
+REM check app is running already
+tasklist /FI "IMAGENAME eq %APP_NAME%.exe" 2>NUL | find /I /N "%APP_NAME%.exe">NUL
+IF "%ERRORLEVEL%" == "0" (
+  ECHO %APP_NAME% appears to still be running. Start aborted.
+  GOTO :end
+)
+
+START "" /B "%APP_EXECUTABLE%" -profile "%APP_ENV_PROFILE%" "%APP_EXT_CONFIG%" > appstart.log 2>&1
+ECHO {{ .AppName }} started.
+GOTO :end
+
+:doStop
+SET /P PID= < %APP_PID%
+IF NOT %PID% == "" (
+  taskkill /pid %PID% /f
+	ECHO {{ .AppName }} stopped.
+)
+GOTO :end
+
+:doVersion
+%APP_EXECUTABLE% -version
+GOTO :end
+
+:cmdUsage
+echo Usage: %0 {start or stop or version}
+GOTO :end
+
+:end
+ENDLOCAL
+`
+
+func init() {
+	buildCmd.Run = buildRun
+}

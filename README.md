@@ -2,28 +2,16 @@
 
 Home of all aah framework CLI tools.
 
-## aah
+## aah CLI Tool
  [![Go Report Card](https://goreportcard.com/badge/github.com/go-aah/tools/aah)](https://goreportcard.com/report/github.com/go-aah/tools/aah)
  [![Powered by Go](https://img.shields.io/badge/powered_by-go-blue.svg)](https://golang.org)
- [![Version](https://img.shields.io/badge/version-0.3-blue.svg)](https://github.com/go-aah/tools/releases/latest)
+ [![Version](https://img.shields.io/badge/version-0.5-blue.svg)](https://github.com/go-aah/tools/releases/latest)
  [![License](https://img.shields.io/github/license/go-aah/tools.svg)](LICENSE)
 
-***v0.3 [pre-release](https://github.com/go-aah/tools/releases/latest) and tagged on Mar 24, 2017***
+***Release [v0.5](https://github.com/go-aah/tools/releases/latest)  tagged on May 19, 2017***
 
-Actively working towards better and extensible web framework for Go. Working on website and documentation of aah framework.
+aah framework - A scalable, performant, rapid development Web framework for Go.
 
+Requires `go1.8` and above.
 
-**Stay tuned on -**
-  * Gitter - [![chat online](https://img.shields.io/gitter/room/aahframework/community.svg)](https://gitter.im/aahframework/community)
-  * Twitter - [![Twitter Follow](https://img.shields.io/twitter/follow/aahframework.svg?style=social&label=Follow)](https://twitter.com/aahframework)
-
-
-# Installation aah framework
-#### Stable Version
-```bash
-# install the aah framework
-# it installs framework and aah CLI tool
-go get -u aahframework.org/tools.v0/aah
-```
-
-See [official website](https://aahframework.org) - Work-in-progress.
+Visit official website https://aahframework.org to learn more.

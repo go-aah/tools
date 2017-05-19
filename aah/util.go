@@ -6,12 +6,13 @@ package main
 
 import (
 	"fmt"
-	"html/template"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"text/template"
 	"time"
 
 	"aahframework.org/aah.v0"
@@ -24,6 +25,18 @@ func importPathRelwd() string {
 	pwd, _ := os.Getwd()
 	importPath, _ := filepath.Rel(gosrcDir, pwd)
 	return filepath.ToSlash(importPath)
+}
+
+// loadAahProjectFile method loads build config from 'aah.project'
+func loadAahProjectFile(baseDir string) (*config.Config, error) {
+	// read build config from 'aah.project'
+	aahProjectFile := filepath.Join(baseDir, "aah.project")
+	if !ess.IsFileExists(aahProjectFile) {
+		log.Fatal("Missing 'aah.project' file, not a valid aah framework application.")
+	}
+
+	log.Infof("Loading aah project file: %s", aahProjectFile)
+	return config.LoadFile(aahProjectFile)
 }
 
 func getNonEmptyAbsPath(patha, pathb string) string {
@@ -40,12 +53,13 @@ func getNonEmptyAbsPath(patha, pathb string) string {
 	return configPath
 }
 
-func firstNonEmpty(a, b string) string {
-	r := a
-	if !ess.IsStrEmpty(b) {
-		r = b
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if !ess.IsStrEmpty(v) {
+			return v
+		}
 	}
-	return r
+	return ""
 }
 
 // getAppVersion method returns the aah application version, which used to display
@@ -63,7 +77,7 @@ func getAppVersion(appBaseDir string, cfg *config.Config) string {
 	}
 
 	// fallback version number from file aah.project
-	version := cfg.StringDefault("version", "")
+	version := cfg.StringDefault("build.version", "")
 
 	// git describe
 	if gitcmd, err := exec.LookPath("git"); err == nil {
@@ -72,6 +86,7 @@ func getAppVersion(appBaseDir string, cfg *config.Config) string {
 			return version
 		}
 
+		_ = os.Chdir(appBaseDir)
 		gitArgs := []string{fmt.Sprintf("--git-dir=%s", appGitDir), "describe", "--always", "--dirty"}
 		output, err := execCmd(gitcmd, gitArgs, false)
 		if err != nil {
@@ -102,7 +117,7 @@ func getBuildDate() string {
 
 func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 	cmd := exec.Command(cmdName, args...)
-	log.Info("Executing ", strings.Join(cmd.Args, " "))
+	log.Debug("Executing ", strings.Join(cmd.Args, " "))
 
 	if stdout {
 		cmd.Stdout = os.Stdout
@@ -123,20 +138,59 @@ func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 	return "", nil
 }
 
-func renderTmpl(w io.Writer, text string, data interface{}) {
+func renderTmpl(w io.Writer, text string, data interface{}) error {
 	tmpl := template.Must(template.New("").Parse(text))
-	if err := tmpl.Execute(w, data); err != nil {
-		log.Fatalf("Unable to render template text: %s", err)
-	}
+	return tmpl.Execute(w, data)
 }
 
-// createAppBinaryName method binary name creation
-func createAppBinaryName(buildCfg *config.Config) string {
-	name := strings.Replace(buildCfg.StringDefault("name", aah.AppName()), " ", "_", -1)
-	appBinaryName := buildCfg.StringDefault("build.binary_name", name)
-	if isWindows {
+// appBinaryFile method binary file path creation
+func appBinaryFile(buildCfg *config.Config, appBuildDir string) string {
+	appName := strings.Replace(aah.AppName(), " ", "_", -1)
+	appBinaryName := buildCfg.StringDefault("build.binary_name", appName)
+	if isWindowsOS() {
 		appBinaryName += ".exe"
 	}
 
-	return filepath.Join(gopath, "bin", "aah.d", aah.AppImportPath(), appBinaryName)
+	return filepath.Join(appBuildDir, "bin", appBinaryName)
+}
+
+func addTargetBuildInfo(name string) string {
+	if goos := getGOOS(); !ess.IsStrEmpty(goos) {
+		name += "-" + strings.ToLower(goos)
+	}
+	if goarch := getGOARCH(); !ess.IsStrEmpty(goarch) {
+		name += "-" + strings.ToLower(goarch)
+	}
+	return name
+}
+
+func isWindowsOS() bool {
+	return getGOOS() == "windows"
+}
+
+func getGOOS() string {
+	goos := os.Getenv("GOOS")
+	if ess.IsStrEmpty(goos) {
+		goos = runtime.GOOS
+	}
+	return goos
+}
+
+func getGOARCH() string {
+	goarch := os.Getenv("GOARCH")
+	if ess.IsStrEmpty(goarch) {
+		goarch = runtime.GOARCH
+	}
+	return goarch
+}
+
+func excludeAndCreateSlice(arr []string, str string) []string {
+	var result []string
+	for _, v := range arr {
+		if str == v {
+			continue
+		}
+		result = append(result, v)
+	}
+	return result
 }
