@@ -113,5 +113,6 @@ func init() {
 		buildCmd,
 		versionCmd,
 		helpCmd,
+		listCmd,
 	}
 }
