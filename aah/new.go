@@ -76,8 +76,8 @@ func newRun(args []string) {
 		log.Fatal(err)
 	}
 
-	log.Infof("\nYour aah %s application created successfully at '%s'", appType, appDir)
-	log.Infof("You shall run your application: 'aah run -importPath=%s'\n", importPath)
+	log.Infof("\nYour aah %s application was created successfully at '%s'", appType, appDir)
+	log.Infof("You shall run your application via the command: 'aah run -importPath=%s'\n", importPath)
 	log.Info("\nGo to https://docs.aahframework.org to learn more and customize your aah application.\n")
 	_ = log.SetPattern(log.DefaultPattern)
 }
