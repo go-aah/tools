@@ -26,18 +26,24 @@ var (
 	}
 )
 
-func listRun(args []string) {
+type aahProjectDirectories []string
 
-	gopath, err := ess.GoPath()
+func (a aahProjectDirectories) String() string {
 
-	if err != nil {
-		fmt.Println("Your GOPATH could not be determined .... exiting")
-		os.Exit(1)
+	var formatted string
+
+	for _, v := range a {
+		formatted = fmt.Sprintf("%s \n %s", formatted, v)
 	}
 
-	var count int
+	return formatted
+}
 
-	filepath.Walk(gopath, func(path string, info os.FileInfo, err error) error {
+func listRun(args []string) {
+
+	projectsDir := aahProjectDirectories{}
+
+	ess.Walk(gopath, func(path string, info os.FileInfo, err error) error {
 
 		if err != nil {
 			return err
@@ -48,16 +54,15 @@ func listRun(args []string) {
 		}
 
 		if isAahProject(path) {
-			count++
-			fmt.Println(filepath.Dir(path))
-			return nil
+			projectsDir = append(projectsDir, filepath.Dir(path))
 		}
 
 		return nil
 	})
 
-	if count > 0 {
+	if count := len(projectsDir); count > 0 {
 		fmt.Printf("\n %d aah projects were found in your GOPATH \n", count)
+		fmt.Println(projectsDir)
 		return
 	}
 
@@ -66,6 +71,6 @@ func listRun(args []string) {
 
 }
 
-func isAahProject(dir string) bool {
-	return strings.HasSuffix(dir, aahProjectIdentifier)
+func isAahProject(file string) bool {
+	return strings.HasSuffix(file, aahProjectIdentifier)
 }
