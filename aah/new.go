@@ -40,6 +40,7 @@ start your development.
 Go to https://docs.aahframework.org to learn more and customize your aah application.
 `,
 	}
+	reader = bufio.NewReader(os.Stdin)
 )
 
 func newRun(args []string) {
@@ -48,8 +49,6 @@ func newRun(args []string) {
 	log.Info()
 	log.Info("Based on your inputs, aah CLI tool generates the aah application structure")
 	log.Info("for you.")
-
-	reader := bufio.NewReader(os.Stdin)
 
 	// Collect data
 	importPath := getImportPath(reader)
@@ -95,7 +94,7 @@ func readInput(reader *bufio.Reader, prompt string) string {
 func getImportPath(reader *bufio.Reader) string {
 	var importPath string
 	for {
-		importPath = readInput(reader, "\nEnter your application import path: ")
+		importPath = filepath.ToSlash(readInput(reader, "\nEnter your application import path: "))
 		if !ess.IsStrEmpty(importPath) {
 			if ess.IsImportPathExists(importPath) {
 				log.Errorf("Given import path '%s' is already exists", importPath)

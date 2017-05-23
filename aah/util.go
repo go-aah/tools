@@ -30,7 +30,7 @@ func importPathRelwd() string {
 // loadAahProjectFile method loads build config from 'aah.project'
 func loadAahProjectFile(baseDir string) (*config.Config, error) {
 	// read build config from 'aah.project'
-	aahProjectFile := filepath.Join(baseDir, "aah.project")
+	aahProjectFile := filepath.Join(baseDir, aahProjectIdentifier)
 	if !ess.IsFileExists(aahProjectFile) {
 		log.Fatal("Missing 'aah.project' file, not a valid aah framework application.")
 	}
@@ -193,4 +193,8 @@ func excludeAndCreateSlice(arr []string, str string) []string {
 		result = append(result, v)
 	}
 	return result
+}
+
+func isAahProject(file string) bool {
+	return strings.HasSuffix(file, aahProjectIdentifier)
 }

@@ -19,12 +19,12 @@ import (
 )
 
 // Version no. of aah framework CLI tool
-const Version = "0.5"
+const Version = "0.6"
 
 const (
-	header = `––––––––––––––––––––––––––––––––––––––––––––––––––––
+	header = `–––––––––––––––––––––––––––––––––––––––––––––––––––––
    aah framework v%s -  https://aahframework.org
-––––––––––––––––––––––––––––––––––––––––––––––––––––
+–––––––––––––––––––––––––––––––––––––––––––––––––––––
 `
 	aahImportPath    = "aahframework.org/aah.v0"
 	aahCLIImportPath = "aahframework.org/tools.v0/aah"
@@ -111,8 +111,8 @@ func init() {
 		newCmd,
 		runCmd,
 		buildCmd,
+		listCmd,
 		versionCmd,
 		helpCmd,
-		listCmd,
 	}
 }
