@@ -72,7 +72,7 @@ func newRun(args []string) {
 	}
 
 	if err := createAahApp(appDir, appType, data); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	log.Infof("\nYour aah %s application was created successfully at '%s'", appType, appDir)
@@ -155,14 +155,14 @@ func getSessionInfo(reader *bufio.Reader, appType string) (string, string) {
 func createAahApp(appDir, appType string, data map[string]interface{}) error {
 	aahToolsPath, err := build.Import(aahCLIImportPath, "", build.FindOnly)
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
 
 	// app directory creation
 	if err := ess.MkDirAll(appDir, permRWXRXRX); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	// aah.project
@@ -211,7 +211,7 @@ func processFile(destDir, srcDir, f string, data map[string]interface{}) {
 	if strings.HasSuffix(f, aahTmplExt) {
 		sfbytes, _ := ioutil.ReadAll(sf)
 		if err := renderTmpl(df, string(sfbytes), data); err != nil {
-			log.Fatalf("Unable to process file '%s': %s", dfPath, err)
+			fatalf("Unable to process file '%s': %s", dfPath, err)
 		}
 	} else {
 		_, _ = io.Copy(df, sf)

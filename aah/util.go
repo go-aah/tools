@@ -32,7 +32,7 @@ func loadAahProjectFile(baseDir string) (*config.Config, error) {
 	// read build config from 'aah.project'
 	aahProjectFile := filepath.Join(baseDir, aahProjectIdentifier)
 	if !ess.IsFileExists(aahProjectFile) {
-		log.Fatal("Missing 'aah.project' file, not a valid aah framework application.")
+		fatal("Missing 'aah.project' file, not a valid aah framework application.")
 	}
 
 	log.Infof("Loading aah project file: %s", aahProjectFile)
@@ -47,7 +47,7 @@ func getNonEmptyAbsPath(patha, pathb string) string {
 
 	configPath, err := filepath.Abs(v)
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	return configPath

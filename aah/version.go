@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	versionCmdFlags = flag.NewFlagSet("version", flag.ExitOnError)
+	versionCmdFlags = flag.NewFlagSet("version", flag.ContinueOnError)
 	allFlag         = versionCmdFlags.Bool("all", false, "Display aah framework, modules version and go version")
 	versionCmd      = &command{
 		Name:      "version",
@@ -45,7 +45,7 @@ var (
 
 func versionRun(args []string) {
 	if err := versionCmdFlags.Parse(args); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	fmt.Printf("Version Info:\n")
