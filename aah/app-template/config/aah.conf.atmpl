@@ -239,6 +239,12 @@ view {
   # To use custom Go template delimiters for view files.
   # Default value is `{{ .TmplDemils }}`.
   #delimiters = "{{ .TmplDemils }}"
+
+  # Framework chooses the default app layout as `master.html` if you not
+  # provide one. However you may have pages or template without layout too.
+  # So option to disable the default layout for HTML.
+  # Default value is `true`. Available since v0.6
+  #default_layout = false
 }
 {{- end }}
 
