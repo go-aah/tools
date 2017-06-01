@@ -97,7 +97,7 @@ func getImportPath(reader *bufio.Reader) string {
 		importPath = filepath.ToSlash(readInput(reader, "\nEnter your application import path: "))
 		if !ess.IsStrEmpty(importPath) {
 			if ess.IsImportPathExists(importPath) {
-				log.Errorf("Given import path '%s' is already exists", importPath)
+				log.Errorf("Given import path '%s' already exists", importPath)
 				importPath = ""
 				continue
 			}
