@@ -113,7 +113,7 @@ request {
   # HTTP header then it does not generate one.
   id {
     # Default value is `true`.
-    #enable = true
+    enable = {{ if eq .AppType "web" }}false{{ else }}true{{ end }}
 
     # Default value is `X-Request-Id`, change it if you have different one.
     #header = "X-Request-Id"
@@ -216,6 +216,35 @@ render {
 }
 
 {{ if eq .AppType "web" -}}
+# ------------------------------------------------------------------
+# Cache configuration
+# Doc: https://docs.aahframework.org/static-files.html#cache-control
+# ------------------------------------------------------------------
+cache {
+  static {
+    # Default `Cache-Control` for all static files,
+    # if specific mime type is not defined.
+    default_cache_control = "public, max-age=31536000"
+
+    # Define by mime types, if mime is not present then default is applied.
+    # Config is very flexible to define by mime type.
+    #
+    # Create a unique name and provide `mime` with comma separated value
+    # and `cache_control`.
+    # mime_types {
+    #   css_js {
+    #     mime = "text/css, application/javascript"
+    #     cache_control = "public, max-age=604800, must-revalidate, proxy-revalidate"
+    #   }
+    #
+    #   images {
+    #     mime = "image/jpeg, image/png, image/gif, image/svg+xml, image/x-icon"
+    #     cache_control = "public, max-age=2628000, must-revalidate, proxy-revalidate"
+    #   }
+    # }
+  }
+}
+
 # ---------------------------------------------------------------
 # View configuration
 # Doc: https://docs.aahframework.org/app-config.html#section-view
@@ -227,11 +256,11 @@ view {
   # Default value is `go`. Currently only `go` is supported.
   #engine = "go"
 
-  # Choosing your own view file extension.
+  # Choose your own view file extension.
   # Default value is `.html`.
   #ext = ".html"
 
-  # Whether you need a case sensitive view file resolve or not.
+  # Choose whether you need a case sensitive view file resolve or not.
   # For e.g.: "/views/pages/app/login.tmpl" == "/views/pages/App/Login.tmpl"
   # Default value is `false`.
   #case_sensitive = false
@@ -240,7 +269,7 @@ view {
   # Default value is `{{ .TmplDemils }}`.
   #delimiters = "{{ .TmplDemils }}"
 
-  # Framework chooses the default app layout as `master.html` if you not
+  # Framework chooses the default app layout as `master.html` if you do not
   # provide one. However you may have pages or template without layout too.
   # So option to disable the default layout for HTML.
   # Default value is `true`. Available since v0.6

@@ -111,7 +111,7 @@ domains {
         #method = "GET"
 
         # The controller to be called for mapped URL path.
-        #   * `controller` attribute supports with or without package prefix. For e.g.: `v1.User` or `User`
+        #   * `controller` attribute supports with or without package prefix. For e.g.: `v1/User` or `User`
         #   * `controller` attribute supports both naming conventions. For e.g.: `User` or `UserController`
         controller = "App"
 
