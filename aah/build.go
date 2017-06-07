@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	buildCmdFlags              = flag.NewFlagSet("build", flag.ExitOnError)
+	buildCmdFlags              = flag.NewFlagSet("build", flag.ContinueOnError)
 	buildImportPathFlag        = buildCmdFlags.String("importPath", "", "Import path of aah application")
 	buildImportPathShortFlag   = buildCmdFlags.String("ip", "", "Import path of aah application")
 	buildArtifactPathFlag      = buildCmdFlags.String("artifactPath", "", "Output location application build artifact. Default location is <app-base>/aah-build")
@@ -50,7 +50,7 @@ Example(s) short and long flag:
 
 func buildRun(args []string) {
 	if err := buildCmdFlags.Parse(args); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	var err error
@@ -60,7 +60,7 @@ func buildRun(args []string) {
 	}
 
 	if !ess.IsImportPathExists(importPath) {
-		log.Fatalf("Given import path '%s' does not exists", importPath)
+		fatalf("Given import path '%s' does not exists", importPath)
 	}
 
 	aah.Init(importPath)
@@ -68,7 +68,7 @@ func buildRun(args []string) {
 
 	buildCfg, err := loadAahProjectFile(appBaseDir)
 	if err != nil {
-		log.Fatalf("aah project file error: %s", err)
+		fatalf("aah project file error: %s", err)
 	}
 
 	_ = log.SetLevel(buildCfg.StringDefault("build.log_level", "info"))
@@ -77,13 +77,13 @@ func buildRun(args []string) {
 
 	appBinay, err := compileApp(buildCfg, true)
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	appProfile := firstNonEmpty(*buildProfileFlag, *buildProfileShortFlag, "prod")
 	buildBaseDir, err := copyFilesToWorkingDir(buildCfg, appBaseDir, appBinay, appProfile)
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	archiveName := ess.StripExt(filepath.Base(appBinay)) + "-" + getAppVersion(appBaseDir, buildCfg)
@@ -94,7 +94,7 @@ func buildRun(args []string) {
 	// Creating app archive
 	destZip, err := createZipArchive(buildBaseDir, destArchiveDir, archiveName)
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	log.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
@@ -128,7 +128,7 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appPr
 	cfgExcludes, _ := buildCfg.StringList("build.excludes")
 	excludes := ess.Excludes(cfgExcludes)
 	if err = excludes.Validate(); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	// aah application and custom directories
@@ -154,7 +154,7 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appPr
 	}
 	buf := &bytes.Buffer{}
 	if err = renderTmpl(buf, aahBashStartupTemplate, data); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 	if err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah.sh"), buf.Bytes(), permRWXRXRX); err != nil {
 		return "", err
@@ -162,7 +162,7 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appPr
 
 	buf.Reset()
 	if err = renderTmpl(buf, aahCmdStartupTemplate, data); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 	err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah.cmd"), buf.Bytes(), permRWXRXRX)
 
@@ -176,7 +176,7 @@ func createZipArchive(buildBaseDir, archiveBaseDir, archiveName string) (string,
 	ess.DeleteFiles(files...)
 
 	if err := ess.MkDirAll(archiveBaseDir, permRWXRXRX); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 	return destZip, ess.Zip(destZip, buildBaseDir)
 }

@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	runCmdFlags            = flag.NewFlagSet("run", flag.ExitOnError)
+	runCmdFlags            = flag.NewFlagSet("run", flag.ContinueOnError)
 	runImportPathFlag      = runCmdFlags.String("importPath", "", "Import path of aah application")
 	runImportPathShortFlag = runCmdFlags.String("ip", "", "Import path of aah application")
 	runConfigFlag          = runCmdFlags.String("config", "", "External config for overriding aah.conf")
@@ -50,7 +50,7 @@ using 'aah run' for production use.
 
 func runRun(args []string) {
 	if err := runCmdFlags.Parse(args); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	importPath := firstNonEmpty(*runImportPathFlag, *runImportPathShortFlag)
@@ -59,7 +59,7 @@ func runRun(args []string) {
 	}
 
 	if !ess.IsImportPathExists(importPath) {
-		log.Fatalf("Given import path '%s' does not exists", importPath)
+		fatalf("Given import path '%s' does not exists", importPath)
 	}
 
 	appStartArgs := []string{}
@@ -77,18 +77,18 @@ func runRun(args []string) {
 
 	buildCfg, err := loadAahProjectFile(aah.AppBaseDir())
 	if err != nil {
-		log.Fatalf("aah project file error: %s", err)
+		fatalf("aah project file error: %s", err)
 	}
 
 	_ = log.SetLevel(buildCfg.StringDefault("build.log_level", "info"))
 
 	appBinary, err := compileApp(buildCfg, false)
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	if _, err := execCmd(appBinary, appStartArgs, true); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 }
 

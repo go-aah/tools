@@ -40,16 +40,14 @@ start your development.
 Go to https://docs.aahframework.org to learn more and customize your aah application.
 `,
 	}
+	reader = bufio.NewReader(os.Stdin)
 )
 
 func newRun(args []string) {
 	_ = log.SetPattern("%message")
 	log.Info("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
 	log.Info()
-	log.Info("Based on your inputs, aah CLI tool generates the aah application structure")
-	log.Info("for you.")
-
-	reader := bufio.NewReader(os.Stdin)
+	log.Info("Based on your inputs, aah CLI tool generates the aah application structure for you.")
 
 	// Collect data
 	importPath := getImportPath(reader)
@@ -73,7 +71,7 @@ func newRun(args []string) {
 	}
 
 	if err := createAahApp(appDir, appType, data); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	log.Infof("\nYour aah %s application was created successfully at '%s'", appType, appDir)
@@ -95,10 +93,10 @@ func readInput(reader *bufio.Reader, prompt string) string {
 func getImportPath(reader *bufio.Reader) string {
 	var importPath string
 	for {
-		importPath = readInput(reader, "\nEnter your application import path: ")
+		importPath = filepath.ToSlash(readInput(reader, "\nEnter your application import path: "))
 		if !ess.IsStrEmpty(importPath) {
 			if ess.IsImportPathExists(importPath) {
-				log.Errorf("Given import path '%s' is already exists", importPath)
+				log.Errorf("Given import path '%s' already exists", importPath)
 				importPath = ""
 				continue
 			}
@@ -156,14 +154,14 @@ func getSessionInfo(reader *bufio.Reader, appType string) (string, string) {
 func createAahApp(appDir, appType string, data map[string]interface{}) error {
 	aahToolsPath, err := build.Import(aahCLIImportPath, "", build.FindOnly)
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
 
 	// app directory creation
 	if err := ess.MkDirAll(appDir, permRWXRXRX); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	// aah.project
@@ -212,7 +210,7 @@ func processFile(destDir, srcDir, f string, data map[string]interface{}) {
 	if strings.HasSuffix(f, aahTmplExt) {
 		sfbytes, _ := ioutil.ReadAll(sf)
 		if err := renderTmpl(df, string(sfbytes), data); err != nil {
-			log.Fatalf("Unable to process file '%s': %s", dfPath, err)
+			fatalf("Unable to process file '%s': %s", dfPath, err)
 		}
 	} else {
 		_, _ = io.Copy(df, sf)

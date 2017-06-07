@@ -25,18 +25,18 @@ domains {
     # route can't be matched but a `route` for the path with (without)
     # the trailing slash exists.
     # Default value is `true`.
-    #redirect_trailing_slash = true
+    redirect_trailing_slash = true
 
     # aah supports out-of-the-box `405 MethodNotAllowed` status with `Allow`
     # header as per `RFC7231`. Perfect for RESTful APIs.
     # Default value is `true`.
-    #method_not_allowed = true
+    {{ if eq .AppType "web" }}#{{ end }}method_not_allowed = true
 
     # aah framework supports out-of-the-box `OPTIONS` request replies.
     # User defined `OPTIONS` routes take priority over the automatic replies.
     # Perfect for RESTful APIs.
     # Default value is `true`.
-    #auto_options = true
+    {{ if eq .AppType "web" }}#{{ end }}auto_options = true
 
     # Mapping your custom `NotFound` implementation. It is when no matching
     # route is found. If it is not set framework default is called. This is optional one.
@@ -111,7 +111,7 @@ domains {
         #method = "GET"
 
         # The controller to be called for mapped URL path.
-        #   * `controller` attribute supports with or without package prefix. For e.g.: `v1.User` or `User`
+        #   * `controller` attribute supports with or without package prefix. For e.g.: `v1/User` or `User`
         #   * `controller` attribute supports both naming conventions. For e.g.: `User` or `UserController`
         controller = "App"
 

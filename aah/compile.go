@@ -135,18 +135,18 @@ func compileApp(buildCfg *config.Config, appPack bool) (string, error) {
 func generateSource(dir, filename, templateSource string, templateArgs map[string]interface{}) {
 	if !ess.IsFileExists(dir) {
 		if err := ess.MkDirAll(dir, 0644); err != nil {
-			log.Fatal(err)
+			fatal(err)
 		}
 	}
 
 	file := filepath.Join(dir, filename)
 	buf := &bytes.Buffer{}
 	if err := renderTmpl(buf, templateSource, templateArgs); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	if err := ioutil.WriteFile(file, buf.Bytes(), permRWXRXRX); err != nil {
-		log.Fatalf("aah '%s' file write error: %s", filename, err)
+		fatalf("aah '%s' file write error: %s", filename, err)
 	}
 }
 
@@ -190,7 +190,7 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 				}
 			}
 		} else if len(notExistsPkgs) > 0 {
-			log.Fatal("Below application dependencies are not exists, "+
+			fatal("Below application dependencies are not exists, "+
 				"enable 'build.dep_get=true' in 'aah.project' for auto fetch\n---> ",
 				strings.Join(notExistsPkgs, "\n---> "))
 		}

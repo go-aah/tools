@@ -19,12 +19,12 @@ import (
 )
 
 // Version no. of aah framework CLI tool
-const Version = "0.5"
+const Version = "0.6"
 
 const (
-	header = `––––––––––––––––––––––––––––––––––––––––––––––––––––
+	header = `–––––––––––––––––––––––––––––––––––––––––––––––––––––
    aah framework v%s -  https://aahframework.org
-––––––––––––––––––––––––––––––––––––––––––––––––––––
+–––––––––––––––––––––––––––––––––––––––––––––––––––––
 `
 	aahImportPath    = "aahframework.org/aah.v0"
 	aahCLIImportPath = "aahframework.org/tools.v0/aah"
@@ -37,6 +37,11 @@ var (
 	gocmd    string
 	gosrcDir string
 	subCmds  commands
+
+	// abstract it, so we can do unit test
+	fatal  = log.Fatal
+	fatalf = log.Fatalf
+	exit   = os.Exit
 )
 
 // aah cli tool entry point
@@ -47,24 +52,24 @@ func main() {
 			cfg, _ := config.ParseString(``)
 			strace := aruntime.NewStacktrace(r, cfg)
 			strace.Print(os.Stdout)
-			os.Exit(2)
+			exit(2)
 		}
 	}()
 
 	// check go is installed or not
 	if !ess.LookExecutable("go") {
-		log.Fatal("Unable to find Go executable in PATH")
+		fatal("Unable to find Go executable in PATH")
 	}
 
 	var err error
 
-	// get GOPATH, refer https://godoc.org/aahframework.org/essentials#GoPath
+	// get GOPATH, refer https://godoc.org/aahframework.org/essentials.v0#GoPath
 	if gopath, err = ess.GoPath(); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	if gocmd, err = exec.LookPath("go"); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	flag.Parse()
@@ -84,7 +89,7 @@ func main() {
 
 	// Validate command arguments count
 	if len(args)-1 > cmd.ArgsCount {
-		log.Fatal("Too many arguments given. Run 'aah help command'.\n\n")
+		fatal("Too many arguments given. Run 'aah help command'.\n\n")
 	}
 
 	// running command
@@ -111,6 +116,7 @@ func init() {
 		newCmd,
 		runCmd,
 		buildCmd,
+		listCmd,
 		versionCmd,
 		helpCmd,
 	}

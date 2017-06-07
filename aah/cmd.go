@@ -52,7 +52,7 @@ type (
 func (c *command) Usage() {
 	fmt.Fprintf(os.Stderr, "Usage: %v\n\n", c.UsageLine)
 	fmt.Fprintf(os.Stderr, "%v\n\n", strings.TrimSpace(c.Long))
-	os.Exit(2)
+	exit(2)
 }
 
 // Find finds the command from command name otherwise returns error
@@ -77,10 +77,10 @@ func displayUsage() {
 	}
 	fmt.Fprintf(os.Stderr, "\nUse \"aah help [command]\" for more information about a command.\n\n")
 
-	os.Exit(2)
+	exit(2)
 }
 
 func commandNotFound(name string) {
 	log.Errorf("Unknown command '%v', Run 'aah help'.\n\n", name)
-	os.Exit(2)
+	exit(2)
 }
