@@ -234,12 +234,12 @@ cache {
     # mime_types {
     #   css_js {
     #     mime = "text/css, application/javascript"
-    #     cache_control = "public, max-age=604800, must-revalidate, proxy-revalidate"
+    #     cache_control = "public, max-age=604800, proxy-revalidate"
     #   }
     #
     #   images {
     #     mime = "image/jpeg, image/png, image/gif, image/svg+xml, image/x-icon"
-    #     cache_control = "public, max-age=2628000, must-revalidate, proxy-revalidate"
+    #     cache_control = "public, max-age=2628000, proxy-revalidate"
     #   }
     # }
   }

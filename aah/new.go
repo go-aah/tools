@@ -47,8 +47,7 @@ func newRun(args []string) {
 	_ = log.SetPattern("%message")
 	log.Info("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
 	log.Info()
-	log.Info("Based on your inputs, aah CLI tool generates the aah application structure")
-	log.Info("for you.")
+	log.Info("Based on your inputs, aah CLI tool generates the aah application structure for you.")
 
 	// Collect data
 	importPath := getImportPath(reader)
