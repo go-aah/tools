@@ -19,7 +19,7 @@ import (
 )
 
 // Version no. of aah framework CLI tool
-const Version = "0.6"
+const Version = "0.7"
 
 const (
 	header = `–––––––––––––––––––––––––––––––––––––––––––––––––––––
@@ -102,11 +102,12 @@ func main() {
 //___________________________________
 
 func printHeader() {
-	if !isWindowsOS() {
-		fmt.Fprintf(os.Stdout, fmt.Sprintf("\033[1;32m%v\033[0m\n", header), aah.Version)
-		return
+	if isWindowsOS() {
+		fmt.Fprintf(os.Stdout, header, aah.Version)
+	} else {
+		fmt.Fprintf(os.Stdout, fmt.Sprintf("\033[1;32m%v\033[0m", header), aah.Version)
 	}
-	fmt.Fprintf(os.Stdout, header, aah.Version)
+	fmt.Fprintf(os.Stdout, "# Report improvements/bugs at https://github.com/go-aah/aah/issues\n\n")
 }
 
 func init() {
