@@ -147,6 +147,18 @@ i18n {
   # locale from HTTP Request.
   # Default value is `en`.
   #default = "en"
+
+  # Overriding Request Locale via URL Path or URL Query Param
+  param_name {
+    # Specify URL Path Param name i.e. `/:lang/home.html`, `/:lang/aboutus.html`, etc.
+    # For e.g.: `/en/home.html`, `/en/aboutus.html`, `/zh-CN/home.html`, `/zh-CN/aboutus.html` etc.
+    # Default value is `lang`
+    #path = "locale"
+
+    # Specify URL Query Param name i.e `?lang=en`, `?lang=zh-CN`, etc.
+    # Default value is `lang`
+    #query = "locale"
+  }
 }
 
 # -----------------------------------------------------------------
