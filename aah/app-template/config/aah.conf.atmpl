@@ -126,15 +126,20 @@ request {
   # request, response, processing time, client IP address, etc. aah framework
   # provides the flexible and configurable access log capabilities.
   access_log {
+    # Enabling server access log
     # Default value is `false`
     enable = false
 
-    # Absolute path of access log file
+    # Absolute path to access log file or relative path.
     # Default location is application logs directory
     #file = "{{ .AppName }}-access.log"
 
-    # Default request access log pattern as follows
-    #pattern = "%clientip %reqid %reqtime %restime %resstatus %ressize %reqmethod %requrl"
+    # Default server access log pattern
+    #pattern = "%clientip %reqtime %restime %resstatus %ressize %reqmethod %requrl"
+
+    # Access Log channel buffer size
+    # Default value is `500`
+    #channel_buffer_size = 500
   }
 }
 
@@ -188,19 +193,6 @@ runtime {
     # Default value is `false`.
     #all_goroutines = true
   }
-
-  # Pooling configuration is to reduce GC overhead from framework.
-  # Tune these value based on your use case. Pool doesn't create object
-  # unless it's needed.
-  # Doc: https://docs.aahframework.org/pooling.html
-  pooling {
-    # Default value is `500`.
-    #global = 500
-
-    # Used for `bytes.Buffer`
-    # Default value is `200`.
-    #buffer = 200
-  }
 }
 
 # -----------------------------------------------------------------
@@ -216,7 +208,7 @@ render {
   #  - Based `render.default` value supported types are `html`, `json`, `xml` and `text`
   #  - Finally aah framework uses `http.DetectContentType` API
   # Default value is `empty` string.
-  default = "html"
+  default = "{{ if eq .AppType "web" }}html{{ else }}json{{ end }}"
 
   # Pretty print option is helpful in `dev` environment profile.
   # It is only applicable to JSON and XML.
