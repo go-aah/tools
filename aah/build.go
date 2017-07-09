@@ -1,60 +1,55 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools source code and usage is governed by a MIT style
+// go-aah/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
 
-	"aahframework.org/aah.v0"
+	"gopkg.in/urfave/cli.v1"
+
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
 
-var (
-	buildCmdFlags              = flag.NewFlagSet("build", flag.ContinueOnError)
-	buildImportPathFlag        = buildCmdFlags.String("importPath", "", "Import path of aah application")
-	buildImportPathShortFlag   = buildCmdFlags.String("ip", "", "Import path of aah application")
-	buildArtifactPathFlag      = buildCmdFlags.String("artifactPath", "", "Output location application build artifact. Default location is <app-base>/aah-build")
-	buildArtifactPathShortFlag = buildCmdFlags.String("ap", "", "Output location application build artifact. Default location is <app-base>/aah-build")
-	buildProfileFlag           = buildCmdFlags.String("profile", "", "Environment profile name to activate. e.g: dev, qa, prod")
-	buildProfileShortFlag      = buildCmdFlags.String("p", "", "Environment profile name to activate. e.g: dev, qa, prod")
-	buildCmd                   = &command{
-		Name:      "build",
-		UsageLine: "aah build [-ip | -importPath] [-ap | -artifactPath] [-p | -profile]",
-		Flags:     buildCmdFlags,
-		ArgsCount: 3,
-		Short:     "build aah application for deployment",
-		Long: `
-Build the aah web/api application by importPath.
+var buildCmd = cli.Command{
+	Name:    "build",
+	Aliases: []string{"b"},
+	Usage:   "Build aah application for deployment",
+	Description: `Build the aah web/api application by importPath.
 
-To know more CLI tool - https://docs.aahframework.org/aah-cli-tool.html
-
-Example(s) short and long flag:
+	Example(s) short and long flag:
     aah build
-
     aah build -p=dev
-
     aah build -ip=github.com/user/appname -ap=/Users/jeeva -p=qa
+    aah build --importPath=github.com/user/appname --artifactPath=/Users/jeeva --profile=qa`,
+	Action: buildAction,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "ip, importPath",
+			Usage: "Import path of aah application",
+		},
+		cli.StringFlag{
+			Name:  "p, profile",
+			Usage: "Environment profile name to activate. e.g: dev, qa, prod",
+			Value: "prod",
+		},
+		cli.StringFlag{
+			Name:  "ap, artifactPath",
+			Usage: "Output location application build artifact. Default location is <app-base>/aah-build",
+		},
+	},
+}
 
-    aah build -importPath=github.com/user/appname -artifactPath=/Users/jeeva -profile=qa
-`,
-	}
-)
-
-func buildRun(args []string) {
-	if err := buildCmdFlags.Parse(args); err != nil {
-		fatal(err)
-	}
-
+func buildAction(c *cli.Context) error {
 	var err error
-	importPath := firstNonEmpty(*buildImportPathFlag, *buildImportPathShortFlag)
+	importPath := firstNonEmpty(c.String("ip"), c.String("importPath"))
 	if ess.IsStrEmpty(importPath) {
 		importPath = importPathRelwd()
 	}
@@ -80,7 +75,7 @@ func buildRun(args []string) {
 		fatal(err)
 	}
 
-	appProfile := firstNonEmpty(*buildProfileFlag, *buildProfileShortFlag, "prod")
+	appProfile := firstNonEmpty(c.String("p"), c.String("profile"))
 	buildBaseDir, err := copyFilesToWorkingDir(buildCfg, appBaseDir, appBinay, appProfile)
 	if err != nil {
 		fatal(err)
@@ -89,7 +84,7 @@ func buildRun(args []string) {
 	archiveName := ess.StripExt(filepath.Base(appBinay)) + "-" + getAppVersion(appBaseDir, buildCfg)
 	archiveName = addTargetBuildInfo(archiveName)
 	appBuildDir := filepath.Join(appBaseDir, "build")
-	destArchiveDir := firstNonEmpty(*buildArtifactPathFlag, *buildArtifactPathShortFlag, appBuildDir)
+	destArchiveDir := firstNonEmpty(c.String("ap"), c.String("artifactPath"), appBuildDir)
 
 	// Creating app archive
 	destZip, err := createZipArchive(buildBaseDir, destArchiveDir, archiveName)
@@ -99,6 +94,7 @@ func buildRun(args []string) {
 
 	log.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 	log.Infof("Your application artifact is here: %s", destZip)
+	return nil
 }
 
 func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appProfile string) (string, error) {
@@ -406,7 +402,3 @@ GOTO :end
 :end
 ENDLOCAL
 `
-
-func init() {
-	buildCmd.Run = buildRun
-}

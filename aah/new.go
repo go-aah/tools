@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools source code and usage is governed by a MIT style
+// go-aah/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"gopkg.in/urfave/cli.v1"
+
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
@@ -27,23 +29,24 @@ const (
 )
 
 var (
-	newCmd = &command{
-		Name:      "new",
-		UsageLine: "aah new",
-		Short:     "create new aah 'web' or 'api' application (interactive)",
-		Long: `
-'aah new' command is an interactive program to assist you to quick start aah application.
+	newCmd = cli.Command{
+		Name:    "new",
+		Aliases: []string{"n"},
+		Usage:   "Create new aah 'web' or 'api' application (interactive)",
+		Description: `aah new command is an interactive program to assist you to quick start aah application.
 
-Just provide your inputs based on your use case to generate base structure to kick
-start your development.
+	Just provide your inputs based on your use case to generate base structure to kick
+	start your development.
 
-Go to https://docs.aahframework.org to learn more and customize your aah application.
-`,
+	Go to https://docs.aahframework.org to learn more and customize your aah application.
+	`,
+		Action: newAction,
 	}
+
 	reader = bufio.NewReader(os.Stdin)
 )
 
-func newRun(args []string) {
+func newAction(c *cli.Context) error {
 	_ = log.SetPattern("%message")
 	log.Info("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
 	log.Info()
@@ -78,6 +81,7 @@ func newRun(args []string) {
 	log.Infof("You shall run your application via the command: 'aah run -importPath=%s'\n", importPath)
 	log.Info("\nGo to https://docs.aahframework.org to learn more and customize your aah application.\n")
 	_ = log.SetPattern(log.DefaultPattern)
+	return nil
 }
 
 func readInput(reader *bufio.Reader, prompt string) string {
@@ -227,8 +231,4 @@ func getDestPath(destDir, srcDir, v string) string {
 		dpath = dpath[:len(dpath)-len(aahTmplExt)]
 	}
 	return dpath
-}
-
-func init() {
-	newCmd.Run = newRun
 }

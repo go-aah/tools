@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools source code and usage is governed by a MIT style
+// go-aah/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -15,7 +15,7 @@ import (
 	"text/template"
 	"time"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -23,7 +23,12 @@ import (
 
 func importPathRelwd() string {
 	pwd, _ := os.Getwd()
-	importPath, _ := filepath.Rel(gosrcDir, pwd)
+	var importPath string
+	if strings.HasPrefix(pwd, gosrcDir) {
+		importPath, _ = filepath.Rel(gosrcDir, pwd)
+	} else if idx := strings.Index(pwd, "src"); idx > 0 {
+		importPath = pwd[idx+4:]
+	}
 	return filepath.ToSlash(importPath)
 }
 

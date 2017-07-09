@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools source code and usage is governed by a MIT style
+// go-aah/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -73,6 +73,7 @@ func compileApp(buildCfg *config.Config, appPack bool) (string, error) {
 	// get all the types info referred aah framework context embedded
 	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", aahImportPath))
 	appImportPaths := prg.CreateImportPaths(appControllers)
+	appSecurity := appSecurity(aah.AppConfig(), appImportPaths)
 
 	// prepare aah application version and build date
 	appVersion := getAppVersion(appBaseDir, buildCfg)
@@ -114,6 +115,7 @@ func compileApp(buildCfg *config.Config, appPack bool) (string, error) {
 		"AppBinaryName":  appBinaryName,
 		"AppControllers": appControllers,
 		"AppImportPaths": appImportPaths,
+		"AppSecurity":    appSecurity,
 		"AppIsPackaged":  appPack,
 	})
 
@@ -199,6 +201,71 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 	return nil
 }
 
+func appSecurity(appCfg *config.Config, appImportPaths map[string]string) map[string]interface{} {
+	securityInfo := make(map[string]interface{})
+	importPathPrefix := path.Join(aah.AppImportPath(), "app")
+	keyPrefixAuthScheme := "security.auth_schemes"
+
+	for _, keyAuthScheme := range appCfg.KeysByPath(keyPrefixAuthScheme) {
+		keyPrefixAuthSchemeCfg := keyPrefixAuthScheme + "." + keyAuthScheme
+
+		// Basic auth - file realm check
+		if appCfg.StringDefault(keyPrefixAuthSchemeCfg+".scheme", "") == "basic" {
+			fileRealmPath := appCfg.StringDefault(keyPrefixAuthSchemeCfg+".file_realm", "")
+			if !ess.IsStrEmpty(fileRealmPath) {
+				continue
+			}
+		}
+
+		isAuthSchemeCfg := false
+		authSchemeInfo := struct {
+			Authenticator string
+			Authorizer    string
+		}{}
+
+		// Authenticator
+
+		authenticator := appCfg.StringDefault(keyPrefixAuthSchemeCfg+".authenticator", "")
+		if !ess.IsStrEmpty(authenticator) {
+			var authcAlias string
+			importPath := path.Join(importPathPrefix, path.Dir(authenticator))
+			if alias, found := appImportPaths[importPath]; found {
+				authcAlias = alias
+			} else {
+				authcAlias = keyAuthScheme + "sec"
+				appImportPaths[importPath] = authcAlias
+			}
+			authSchemeInfo.Authenticator = authcAlias + "." + path.Base(authenticator)
+			isAuthSchemeCfg = true
+		}
+
+		// Authorizer
+		authorizer := appCfg.StringDefault(keyPrefixAuthSchemeCfg+".authorizer", "")
+		if !ess.IsStrEmpty(authorizer) {
+			var authzAlias string
+			importPath := path.Join(importPathPrefix, path.Dir(authorizer))
+			if alias, found := appImportPaths[importPath]; found {
+				authzAlias = alias
+			} else {
+				authzAlias = keyAuthScheme + "secz"
+				appImportPaths[importPath] = authzAlias
+			}
+			authSchemeInfo.Authorizer = authzAlias + "." + path.Base(authorizer)
+			isAuthSchemeCfg = true
+		}
+
+		if isAuthSchemeCfg {
+			securityInfo[keyAuthScheme] = authSchemeInfo
+		}
+	}
+
+	if len(securityInfo) == 0 {
+		return nil
+	}
+
+	return securityInfo
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Generate Templates
 //___________________________________
@@ -216,7 +283,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"{{ range $k, $v := $.AppImportPaths }}
@@ -279,7 +346,7 @@ func main() {
 
 	aah.Init("{{ .AppImportPath }}")
 
-	// Adding all the controllers which refers 'aah.Context' directly
+	// Adding all the application controllers which refers 'aah.Context' directly
 	// or indirectly from app/controllers/** {{ range $i, $c := .AppControllers }}
 	aah.AddController(
 		(*{{ index $.AppImportPaths .ImportPath }}.{{ .Name }})(nil),
@@ -292,6 +359,25 @@ func main() {
 	    },{{ end }}
 		},
 	){{- end }}
+
+	{{ if .AppSecurity -}}
+	// Initialize application security auth schemes - Authenticator & Authorizer
+	secMgr := aah.AppSecurityManager()
+	{{- range $k, $v := $.AppSecurity }}
+	{{ if $v.Authenticator -}}
+	log.Debugf("Calling authenticator Init for auth scheme '%s'", "{{ $k }}")
+	if err := secMgr.GetAuthScheme("{{ $k }}").SetAuthenticator(&{{ $v.Authenticator }}{}); err != nil {
+		log.Fatal(err)
+	}
+	{{ end -}}
+	{{ if $v.Authorizer -}}
+	log.Debugf("Calling authorizer Init for auth scheme '%s'", "{{ $k }}")
+	if err := secMgr.GetAuthScheme("{{ $k }}").SetAuthorizer(&{{ $v.Authorizer }}{}); err != nil {
+		log.Fatal(err)
+	}
+	{{ end -}}
+	{{ end -}}
+	{{ end }}
 
 	log.Info("aah application initialized successfully")
 

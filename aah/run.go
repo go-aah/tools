@@ -1,34 +1,24 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools source code and usage is governed by a MIT style
+// go-aah/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
-	"flag"
+	"gopkg.in/urfave/cli.v1"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
 
-var (
-	runCmdFlags            = flag.NewFlagSet("run", flag.ContinueOnError)
-	runImportPathFlag      = runCmdFlags.String("importPath", "", "Import path of aah application")
-	runImportPathShortFlag = runCmdFlags.String("ip", "", "Import path of aah application")
-	runConfigFlag          = runCmdFlags.String("config", "", "External config for overriding aah.conf")
-	runConfigShortFlag     = runCmdFlags.String("c", "", "External config for overriding aah.conf")
-	runProfileFlag         = runCmdFlags.String("profile", "", "Environment profile name to activate. e.g: dev, qa, prod")
-	runProfileShortFlag    = runCmdFlags.String("p", "", "Environment profile name to activate. e.g: dev, qa, prod")
-	runCmd                 = &command{
-		Name:      "run",
-		UsageLine: "aah run [-ip | -importPath] [-c | -config] [-p | -profile]",
-		ArgsCount: 3,
-		Short:     "run aah framework application",
-		Long: `
-Run the aah framework web/api application.
+var runCmd = cli.Command{
+	Name:    "run",
+	Aliases: []string{"r"},
+	Usage:   "Run aah framework application",
+	Description: `Run the aah framework web/api application.
 
-Example(s) short and long flag:
+	Example(s) short and long flag:
     aah run
 		aah run -p=qa
 
@@ -36,24 +26,32 @@ Example(s) short and long flag:
 		aah run -ip=github.com/user/appname -p=qa
 		aah run -ip=github.com/user/appname -c=/path/to/config/external.conf -p=qa
 
-    aah run -importPath=github.com/username/name
-		aah run -importPath=github.com/username/name -profile=qa
-		aah run -importPath=github.com/username/name -config=/path/to/config/external.conf -profile=qa
+    aah run --importPath=github.com/username/name
+		aah run --importPath=github.com/username/name --profile=qa
+		aah run --importPath=github.com/username/name --config=/path/to/config/external.conf --profile=qa
 
-Default aah application environment profile is 'dev'.
+	Note: It is recommended to use build and deploy approach instead of
+	using 'aah run' for production use.`,
+	Action: runAction,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "ip, importPath",
+			Usage: "Import path of aah application",
+		},
+		cli.StringFlag{
+			Name:  "p, profile",
+			Usage: "Environment profile name to activate. e.g: dev, qa, prod",
+			Value: "dev",
+		},
+		cli.StringFlag{
+			Name:  "c, config",
+			Usage: "External config for overriding aah.conf values",
+		},
+	},
+}
 
-Note: It is recommended to use build and deploy approach instead of
-using 'aah run' for production use.
-`,
-	}
-)
-
-func runRun(args []string) {
-	if err := runCmdFlags.Parse(args); err != nil {
-		fatal(err)
-	}
-
-	importPath := firstNonEmpty(*runImportPathFlag, *runImportPathShortFlag)
+func runAction(c *cli.Context) error {
+	importPath := firstNonEmpty(c.String("ip"), c.String("importPath"))
 	if ess.IsStrEmpty(importPath) {
 		importPath = importPathRelwd()
 	}
@@ -63,12 +61,12 @@ func runRun(args []string) {
 	}
 
 	appStartArgs := []string{}
-	configPath := getNonEmptyAbsPath(*runConfigFlag, *runConfigShortFlag)
+	configPath := getNonEmptyAbsPath(c.String("c"), c.String("config"))
 	if !ess.IsStrEmpty(configPath) {
 		appStartArgs = append(appStartArgs, "-config", configPath)
 	}
 
-	envProfile := firstNonEmpty(*runProfileFlag, *runProfileShortFlag)
+	envProfile := firstNonEmpty(c.String("p"), c.String("config"))
 	if !ess.IsStrEmpty(envProfile) {
 		appStartArgs = append(appStartArgs, "-profile", envProfile)
 	}
@@ -90,8 +88,6 @@ func runRun(args []string) {
 	if _, err := execCmd(appBinary, appStartArgs, true); err != nil {
 		fatal(err)
 	}
-}
 
-func init() {
-	runCmd.Run = runRun
+	return nil
 }

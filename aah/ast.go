@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/tools source code and usage is governed by a MIT style
+// go-aah/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	buildImportCache map[string]string
+	buildImportCache = map[string]string{}
 
 	// Reference: https://golang.org/pkg/builtin/
 	builtInDataTypes = map[string]bool{
@@ -601,8 +601,4 @@ func parseParamFieldExpr(pkgName string, expr ast.Expr) (*typeExpr, error) {
 	}
 
 	return nil, errors.New("not a valid fieldname/parameter name")
-}
-
-func init() {
-	buildImportCache = map[string]string{}
 }
