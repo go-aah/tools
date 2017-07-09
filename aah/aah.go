@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools source code and usage is governed by a MIT style
+// go-aah/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -106,6 +106,7 @@ func main() {
 		runCmd,
 		buildCmd,
 		listCmd,
+		cleanCmd,
 	}
 
 	sort.Sort(cli.FlagsByName(app.Flags))
@@ -140,7 +141,7 @@ func init() {
 
 	cli.VersionPrinter = func(c *cli.Context) {
 		_ = printHeader(c)
-		fmt.Fprint(c.App.Writer, "\nVersion(s):\n")
+		fmt.Fprint(c.App.Writer, "Version(s):\n")
 		fmt.Fprintf(c.App.Writer, "\t%-17s v%s\n", "aah framework", aah.Version)
 		fmt.Fprintf(c.App.Writer, "\t%-17s v%s\n", "aah cli tool", Version)
 		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", "Modules: ", strings.Join(
@@ -165,10 +166,7 @@ COMMANDS:
 {{range .Commands}}{{if not .HideHelp}}  {{join .Names ", "}}{{ "\t   " }}{{.Usage}}{{ "\n" }}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
 GLOBAL OPTIONS:
   {{range .VisibleFlags}}{{.}}
-  {{end}}{{end}}{{if .Version}}
-VERSION:
-  {{.Version}}
-  {{end}}
+  {{end}}{{end}}
 `
 
 	cli.CommandHelpTemplate = `NAME:
