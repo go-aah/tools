@@ -78,7 +78,7 @@ func newAction(c *cli.Context) error {
 	}
 
 	log.Infof("\nYour aah %s application was created successfully at '%s'", appType, appDir)
-	log.Infof("You shall run your application via the command: 'aah run -importPath=%s'\n", importPath)
+	log.Infof("You shall run your application via the command: 'aah run --importpath %s'\n", importPath)
 	log.Info("\nGo to https://docs.aahframework.org to learn more and customize your aah application.\n")
 	_ = log.SetPattern(log.DefaultPattern)
 	return nil

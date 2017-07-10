@@ -15,21 +15,28 @@ import (
 )
 
 var cleanCmd = cli.Command{
-	Name:        "clean",
-	Aliases:     []string{"c"},
-	Usage:       "Cleans the aah generated files and build directory",
-	Description: ``,
-	Action:      cleanAction,
+	Name:    "clean",
+	Aliases: []string{"c"},
+	Usage:   "Cleans the aah generated files and build directory",
+	Description: `aah clean command does cleanup of generated files and build directory.
+
+	Such as aah.go and <app-base-dir>/build directory.
+
+	Examples of short and long flags:
+		aah clean
+		aah clean -i github.com/user/appname
+		aah clean --importpath github.com/user/appname`,
+	Action: cleanAction,
 	Flags: []cli.Flag{
 		cli.StringFlag{
-			Name:  "ip, importPath",
+			Name:  "i, importpath",
 			Usage: "Import path of aah application",
 		},
 	},
 }
 
 func cleanAction(c *cli.Context) error {
-	importPath := firstNonEmpty(c.String("ip"), c.String("importPath"))
+	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
 	if ess.IsStrEmpty(importPath) {
 		importPath = importPathRelwd()
 	}

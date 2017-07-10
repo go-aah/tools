@@ -18,24 +18,23 @@ var runCmd = cli.Command{
 	Usage:   "Run aah framework application",
 	Description: `Run the aah framework web/api application.
 
-	Example(s) short and long flag:
+	Examples of short and long flags:
     aah run
-		aah run -p=qa
+		aah run -p qa
 
-		aah run -ip=github.com/user/appname
-		aah run -ip=github.com/user/appname -p=qa
-		aah run -ip=github.com/user/appname -c=/path/to/config/external.conf -p=qa
+		aah run -i github.com/user/appname
+		aah run -i github.com/user/appname -p qa
+		aah run -i github.com/user/appname -c /path/to/config/external.conf -p qa
 
-    aah run --importPath=github.com/username/name
-		aah run --importPath=github.com/username/name --profile=qa
-		aah run --importPath=github.com/username/name --config=/path/to/config/external.conf --profile=qa
+    aah run --importpath github.com/username/name
+		aah run --importpath github.com/username/name --profile qa
+		aah run --importpath github.com/username/name --config /path/to/config/external.conf --profile qa
 
 	Note: It is recommended to use build and deploy approach instead of
 	using 'aah run' for production use.`,
-	Action: runAction,
 	Flags: []cli.Flag{
 		cli.StringFlag{
-			Name:  "ip, importPath",
+			Name:  "i, importpath",
 			Usage: "Import path of aah application",
 		},
 		cli.StringFlag{
@@ -48,10 +47,11 @@ var runCmd = cli.Command{
 			Usage: "External config for overriding aah.conf values",
 		},
 	},
+	Action: runAction,
 }
 
 func runAction(c *cli.Context) error {
-	importPath := firstNonEmpty(c.String("ip"), c.String("importPath"))
+	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
 	if ess.IsStrEmpty(importPath) {
 		importPath = importPathRelwd()
 	}

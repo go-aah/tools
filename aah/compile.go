@@ -224,7 +224,6 @@ func appSecurity(appCfg *config.Config, appImportPaths map[string]string) map[st
 		}{}
 
 		// Authenticator
-
 		authenticator := appCfg.StringDefault(keyPrefixAuthSchemeCfg+".authenticator", "")
 		if !ess.IsStrEmpty(authenticator) {
 			var authcAlias string

@@ -22,17 +22,21 @@ var buildCmd = cli.Command{
 	Name:    "build",
 	Aliases: []string{"b"},
 	Usage:   "Build aah application for deployment",
-	Description: `Build the aah web/api application by importPath.
+	Description: `Build the aah web/api application by import path.
 
-	Example(s) short and long flag:
+	Artifact naming convention:
+		* <app-binary-name>-<app-version>-<goos>-<goarch>.zip
+			For e.g.: aahwebsite-381eaa8-darwin-amd64.zip
+
+	Examples of short and long flags:
     aah build
-    aah build -p=dev
-    aah build -ip=github.com/user/appname -ap=/Users/jeeva -p=qa
-    aah build --importPath=github.com/user/appname --artifactPath=/Users/jeeva --profile=qa`,
+    aah build -p dev
+    aah build -i github.com/user/appname -a /Users/jeeva -p=qa
+    aah build --importpath github.com/user/appname --artifactpath /Users/jeeva --profile qa`,
 	Action: buildAction,
 	Flags: []cli.Flag{
 		cli.StringFlag{
-			Name:  "ip, importPath",
+			Name:  "i, importpath",
 			Usage: "Import path of aah application",
 		},
 		cli.StringFlag{
@@ -41,15 +45,15 @@ var buildCmd = cli.Command{
 			Value: "prod",
 		},
 		cli.StringFlag{
-			Name:  "ap, artifactPath",
-			Usage: "Output location application build artifact. Default location is <app-base>/aah-build",
+			Name:  "a, artifactpath, o, output",
+			Usage: "Output directory of aah application build artifact. Default directory is '<app-base>/aah-build'",
 		},
 	},
 }
 
 func buildAction(c *cli.Context) error {
 	var err error
-	importPath := firstNonEmpty(c.String("ip"), c.String("importPath"))
+	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
 	if ess.IsStrEmpty(importPath) {
 		importPath = importPathRelwd()
 	}
@@ -84,7 +88,8 @@ func buildAction(c *cli.Context) error {
 	archiveName := ess.StripExt(filepath.Base(appBinay)) + "-" + getAppVersion(appBaseDir, buildCfg)
 	archiveName = addTargetBuildInfo(archiveName)
 	appBuildDir := filepath.Join(appBaseDir, "build")
-	destArchiveDir := firstNonEmpty(c.String("ap"), c.String("artifactPath"), appBuildDir)
+	destArchiveDir := firstNonEmpty(c.String("o"), c.String("output"),
+		c.String("a"), c.String("artifactpath"), appBuildDir)
 
 	// Creating app archive
 	destZip, err := createZipArchive(buildBaseDir, destArchiveDir, archiveName)

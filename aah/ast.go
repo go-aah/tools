@@ -101,7 +101,7 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // LoadProgram method loads the Go source code for the given directory.

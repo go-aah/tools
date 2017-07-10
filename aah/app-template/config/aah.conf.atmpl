@@ -122,13 +122,13 @@ request {
   # Default value is `32mb`, choose your value based on your use case
   #multipart_size = "32mb"
 
-  # To manage server effectively it is necessary to know details about the
+  # To manage aah server effectively it is necessary to know details about the
   # request, response, processing time, client IP address, etc. aah framework
   # provides the flexible and configurable access log capabilities.
   access_log {
     # Enabling server access log
     # Default value is `false`
-    enable = false
+    #enable = true
 
     # Absolute path to access log file or relative path.
     # Default location is application logs directory
