@@ -38,6 +38,12 @@ domains {
     # Default value is `true`.
     {{ if eq .AppType "web" }}#{{ end }}auto_options = true
 
+    # Default auth is used when route does not have attribute `auth` defined.
+    # If you don't define attribute `auth` then framework treats that route as
+    # `anonymous` auth scheme.
+    # Default value is empty string.
+    #default_auth = ""
+
     # Mapping your custom `NotFound` implementation. It is when no matching
     # route is found. If it is not set framework default is called. This is optional one.
     # Create your controller and action method with param called `isStatic bool`.
@@ -119,6 +125,18 @@ domains {
         # Default values are mapped based on `HTTP` method. Refer doc for more info.
         # Default action value for GET is 'Index'.
         #action = "Index"
+
+        # Auth config attribute is used to assign auth scheme for the route.
+        # If you do not this attribute then framework acquire value as follows.
+        #
+        #   - Inherits the parent route `auth` attribute value if present.
+        #   - Inherits the `default_auth` attribute config value if defined.
+        #   - Otherwise route is treated as `anonymous` auth scheme.
+        #
+        # When you want to define particular route as anonymous then define
+        # `auth` attribute as `anonymous`.
+        # Default value is empty string.
+        #auth = ""
       }
 
     } # end - routes
