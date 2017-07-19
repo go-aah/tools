@@ -7,12 +7,14 @@ package main
 import (
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"gopkg.in/radovskyb/watcher.v1"
 	"gopkg.in/urfave/cli.v1"
 
 	"aahframework.org/aah.v0-unstable"
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0-unstable"
 	"aahframework.org/log.v0-unstable"
 )
@@ -82,20 +84,20 @@ func runAction(c *cli.Context) error {
 SA:
 	aah.Init(importPath)
 
-	buildCfg, err := loadAahProjectFile(aah.AppBaseDir())
+	projectCfg, err := loadAahProjectFile(aah.AppBaseDir())
 	if err != nil {
 		fatalf("aah project file error: %s", err)
 	}
 
-	_ = log.SetLevel(buildCfg.StringDefault("build.log_level", "info"))
+	_ = log.SetLevel(projectCfg.StringDefault("build.log_level", "info"))
 
-	appBinary, err := compileApp(buildCfg, false)
+	appBinary, err := compileApp(projectCfg, false)
 	if err != nil {
 		fatal(err)
 	}
 
 	w := watcher.New()
-	go startWatcher(aah.AppBaseDir(), w, watch)
+	go startWatcher(projectCfg, aah.AppBaseDir(), w, watch)
 	go startApp(appBinary, appStartArgs, inst)
 
 	// Wait for application changes
@@ -129,12 +131,21 @@ func startApp(appBinary string, args []string, inst <-chan bool) {
 	}
 }
 
-func startWatcher(baseDir string, w *watcher.Watcher, watch chan<- bool) {
+func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher, watch chan<- bool) {
 	w.IgnoreHiddenFiles(true)
 	w.SetMaxEvents(1)
 
-	dirExcludes := ess.Excludes{".*", "build", "static", "vendor", "tests", "logs"}
-	fileExcludes := ess.Excludes{".*", "_test.go", aah.AppName() + ".pid", "aah.go", "LICENSE", "README.md"}
+	dirExcludes, _ := projectCfg.StringList("watch.dir_excludes")
+	if len(dirExcludes) == 0 {
+		// put defaults
+		dirExcludes = append(dirExcludes, ".*", "build", "static", "vendor", "tests", "logs")
+	}
+
+	fileExcludes, _ := projectCfg.StringList("watch.file_excludes")
+	if len(fileExcludes) == 0 {
+		// put defaults
+		fileExcludes = append(fileExcludes, ".*", "_test.go", aah.AppName()+".pid", "aah.go", "LICENSE", "README.md")
+	}
 
 	dirs, _ := ess.DirsPathExcludes(baseDir, true, dirExcludes)
 	for _, d := range dirs {
@@ -152,7 +163,7 @@ func startWatcher(baseDir string, w *watcher.Watcher, watch chan<- bool) {
 		for {
 			select {
 			case <-w.Event:
-				log.Infof("Application change detected in '%v'", aah.AppImportPath())
+				log.Info("Application file change(s) detected")
 				watch <- true
 			case err := <-w.Error:
 				log.Error("Watch error:", err)
@@ -161,6 +172,14 @@ func startWatcher(baseDir string, w *watcher.Watcher, watch chan<- bool) {
 			}
 		}
 	}()
+
+	if log.IsLevelTrace() {
+		var fileList []string
+		for path := range w.WatchedFiles() {
+			fileList = append(fileList, stripGoPath(path))
+		}
+		log.Trace("Watched files:\n\t", strings.Join(fileList, "\n\t"))
+	}
 
 	if err := w.Start(time.Millisecond * 100); err != nil {
 		log.Error(err)
