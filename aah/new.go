@@ -26,6 +26,9 @@ const (
 	storeCookie = "cookie"
 	storeFile   = "file"
 	aahTmplExt  = ".atmpl"
+	authForm    = "form"
+	authBasic   = "basic"
+	authAPI     = "api"
 )
 
 var (
@@ -55,6 +58,7 @@ func newAction(c *cli.Context) error {
 	// Collect data
 	importPath := getImportPath(reader)
 	appType := getAppType(reader)
+	authScheme := getAuthScheme(reader, appType)
 	sessionScope, sessionStore := getSessionInfo(reader, appType)
 
 	// Process it
@@ -65,6 +69,7 @@ func newAction(c *cli.Context) error {
 		"AppName":                 appName,
 		"AppType":                 appType,
 		"AppImportPath":           importPath,
+		"AppAuthScheme":           authScheme,
 		"AppSessionScope":         sessionScope,
 		"AppSessionStore":         sessionStore,
 		"AppSessionFileStorePath": appSessionFilepath,
@@ -107,7 +112,7 @@ func getImportPath(reader *bufio.Reader) string {
 			break
 		}
 	}
-	return importPath
+	return strings.Replace(importPath, " ", "-", -1)
 }
 
 func getAppType(reader *bufio.Reader) string {
@@ -117,7 +122,7 @@ func getAppType(reader *bufio.Reader) string {
 		if ess.IsStrEmpty(appType) || appType == typeWeb || appType == typeAPI {
 			break
 		} else {
-			log.Error("Unsupported new aah application type, choose either 'web or 'api")
+			log.Error("Unsupported new aah application type, choose either 'web or 'api'")
 			appType = ""
 		}
 	}
@@ -125,6 +130,28 @@ func getAppType(reader *bufio.Reader) string {
 		appType = typeWeb
 	}
 	return appType
+}
+
+func getAuthScheme(reader *bufio.Reader, appType string) string {
+	var authScheme string
+	for {
+		authScheme = readInput(reader, "\nChoose your application Auth Scheme (form, basic, or api), default is 'none': ")
+		if ess.IsStrEmpty(authScheme) ||
+			authScheme == authForm || authScheme == authBasic || authScheme == authAPI {
+			if ess.IsStrEmpty(authScheme) ||
+				(appType == typeWeb && (authScheme == authForm || authScheme == authBasic)) ||
+				(appType == typeAPI && (authScheme == authAPI || authScheme == authBasic)) {
+				break
+			} else {
+				log.Errorf("Application type '%v' is not applicable with auth scheme '%v'", appType, authScheme)
+				authScheme = ""
+			}
+		} else {
+			log.Error("Unsupported Auth Scheme, choose either 'form', 'basic', 'api' or 'none'")
+			authScheme = ""
+		}
+	}
+	return authScheme
 }
 
 func getSessionInfo(reader *bufio.Reader, appType string) (string, string) {

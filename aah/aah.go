@@ -38,7 +38,7 @@ const (
 –––––––––––––––––––––––––––––––––––––––––––––––––––––
 `
 	aahImportPath    = "aahframework.org/aah.v0-unstable"
-	aahCLIImportPath = "aahframework.org/tools.v0/aah"
+	aahCLIImportPath = "aahframework.org/tools.v0-unstable/aah"
 	permRWXRXRX      = 0755
 	permRWRWRW       = 0666
 )
@@ -159,29 +159,29 @@ func init() {
 		fmt.Println()
 	}
 
-	cli.AppHelpTemplate = `USAGE:
+	cli.AppHelpTemplate = `Usage:
   {{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}
 {{if .Commands}}
-COMMANDS:
+Commands:
 {{range .Commands}}{{if not .HideHelp}}  {{join .Names ", "}}{{ "\t   " }}{{.Usage}}{{ "\n" }}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
-GLOBAL OPTIONS:
+Global Options:
   {{range .VisibleFlags}}{{.}}
   {{end}}{{end}}
 `
 
-	cli.CommandHelpTemplate = `NAME:
+	cli.CommandHelpTemplate = `Name:
   {{.HelpName}} - {{.Usage}}
 
-USAGE:
+Usage:
   {{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{if .Category}}
 
-CATEGORY:
+Category:
   {{.Category}}{{end}}{{if .Description}}
 
-DESCRIPTION:
+Description:
   {{.Description}}{{end}}{{if .VisibleFlags}}
 
-OPTIONS:
+Options:
    {{range .VisibleFlags}}{{.}}
    {{end}}{{end}}
 `

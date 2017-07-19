@@ -49,7 +49,7 @@ func listAction(c *cli.Context) error {
 	})
 
 	if count := len(aahProjects); count > 0 {
-		log.Infof("%d aah projects were found, import paths are-", count)
+		log.Infof("%d aah projects were found, import paths are:", count)
 		prefix := gosrcDir + string(filepath.Separator)
 		for _, p := range aahProjects {
 			log.Infof("    %s", filepath.ToSlash(strings.TrimPrefix(p, prefix)))
