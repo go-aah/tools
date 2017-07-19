@@ -130,7 +130,6 @@ func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 		if err := cmd.Run(); err != nil {
 			return "", err
 		}
-		_ = cmd.Wait()
 	} else {
 		bytes, err := cmd.CombinedOutput()
 		if err != nil {

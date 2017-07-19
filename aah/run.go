@@ -5,11 +5,16 @@
 package main
 
 import (
+	"os"
+	"os/exec"
+	"time"
+
+	"gopkg.in/radovskyb/watcher.v1"
 	"gopkg.in/urfave/cli.v1"
 
 	"aahframework.org/aah.v0-unstable"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
+	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/log.v0-unstable"
 )
 
 var runCmd = cli.Command{
@@ -71,6 +76,10 @@ func runAction(c *cli.Context) error {
 		appStartArgs = append(appStartArgs, "-profile", envProfile)
 	}
 
+	inst := make(chan bool)
+	watch := make(chan bool)
+
+SA:
 	aah.Init(importPath)
 
 	buildCfg, err := loadAahProjectFile(aah.AppBaseDir())
@@ -85,9 +94,75 @@ func runAction(c *cli.Context) error {
 		fatal(err)
 	}
 
-	if _, err := execCmd(appBinary, appStartArgs, true); err != nil {
+	w := watcher.New()
+	go startWatcher(aah.AppBaseDir(), w, watch)
+	go startApp(appBinary, appStartArgs, inst)
+
+	// Wait for application changes
+	<-watch
+	inst <- true
+
+	// Changes detected give some grace time before proceeding
+	time.Sleep(time.Millisecond * 100)
+	w.Close()
+	goto SA
+}
+
+func startApp(appBinary string, args []string, inst <-chan bool) {
+	cmd := exec.Command(appBinary, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
 		fatal(err)
 	}
 
-	return nil
+	// wait for Shutdown instruction
+	for {
+		if <-inst {
+			if isWindowsOS() {
+				_ = cmd.Process.Kill()
+			} else {
+				_ = cmd.Process.Signal(os.Interrupt)
+			}
+			return
+		}
+	}
+}
+
+func startWatcher(baseDir string, w *watcher.Watcher, watch chan<- bool) {
+	w.IgnoreHiddenFiles(true)
+	w.SetMaxEvents(1)
+
+	dirExcludes := ess.Excludes{".*", "build", "static", "vendor", "tests", "logs"}
+	fileExcludes := ess.Excludes{".*", "_test.go", aah.AppName() + ".pid", "aah.go", "LICENSE", "README.md"}
+
+	dirs, _ := ess.DirsPathExcludes(baseDir, true, dirExcludes)
+	for _, d := range dirs {
+		files, _ := ess.FilesPathExcludes(d, false, fileExcludes)
+		for _, f := range files {
+			if err := w.Add(f); err != nil {
+				log.Errorf("Unable add watch for '%v'", f)
+			}
+		}
+	}
+
+	go func() { w.Wait() }()
+
+	go func() {
+		for {
+			select {
+			case <-w.Event:
+				log.Infof("Application change detected in '%v'", aah.AppImportPath())
+				watch <- true
+			case err := <-w.Error:
+				log.Error("Watch error:", err)
+			case <-w.Closed:
+				return
+			}
+		}
+	}()
+
+	if err := w.Start(time.Millisecond * 100); err != nil {
+		log.Error(err)
+	}
 }
