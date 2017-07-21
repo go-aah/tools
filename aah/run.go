@@ -7,6 +7,7 @@ package main
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -135,36 +136,24 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 	w.IgnoreHiddenFiles(true)
 	w.SetMaxEvents(1)
 
-	dirExcludes, _ := projectCfg.StringList("watch.dir_excludes")
-	if len(dirExcludes) == 0 {
-		// put defaults
-		dirExcludes = append(dirExcludes, ".*", "build", "static", "vendor", "tests", "logs")
-	}
-
-	fileExcludes, _ := projectCfg.StringList("watch.file_excludes")
-	if len(fileExcludes) == 0 {
-		// put defaults
-		fileExcludes = append(fileExcludes, ".*", "_test.go", aah.AppName()+".pid", "aah.go", "LICENSE", "README.md")
-	}
-
-	dirs, _ := ess.DirsPathExcludes(baseDir, true, dirExcludes)
-	for _, d := range dirs {
-		files, _ := ess.FilesPathExcludes(d, false, fileExcludes)
-		for _, f := range files {
-			if err := w.Add(f); err != nil {
-				log.Errorf("Unable add watch for '%v'", f)
-			}
-		}
-	}
+	loadWatchFiles(projectCfg, baseDir, w)
 
 	go func() { w.Wait() }()
 
 	go func() {
 		for {
 			select {
-			case <-w.Event:
-				log.Info("Application file change(s) detected")
-				watch <- true
+			case e := <-w.Event:
+				switch e.Op {
+				case watcher.Create:
+					log.Info("Adding file to watch list:", e.Path)
+					if err := w.Add(e.Path); err != nil {
+						log.Error(err)
+					}
+				default:
+					log.Info("Application file change(s) detected")
+					watch <- true
+				}
 			case err := <-w.Error:
 				log.Error("Watch error:", err)
 			case <-w.Closed:
@@ -182,6 +171,47 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 	}
 
 	if err := w.Start(time.Millisecond * 100); err != nil {
+		log.Error(err)
+	}
+}
+
+func loadWatchFiles(projectCfg *config.Config, baseDir string, w *watcher.Watcher) {
+	// standard file ignore list for aah project
+	stdIgnoreList := []string{
+		filepath.Join(baseDir, aah.AppName()+".pid"),
+		filepath.Join(baseDir, "app", "aah.go"),
+	}
+
+	// user can provide their list via config
+	dirExcludes, _ := projectCfg.StringList("watch.dir_excludes")
+	if len(dirExcludes) == 0 { // put defaults
+		dirExcludes = append(dirExcludes, ".*")
+	}
+
+	fileExcludes, _ := projectCfg.StringList("watch.file_excludes")
+	if len(fileExcludes) == 0 { // put defaults
+		fileExcludes = append(fileExcludes, ".*", "_test.go", "LICENSE", "README.md")
+	}
+
+	// standard dir ignore list for aah project
+	dirExcludes = append(dirExcludes, "build", "static", "vendor", "tests", "logs")
+
+	dirs, _ := ess.DirsPathExcludes(baseDir, true, dirExcludes)
+	for _, d := range dirs {
+		if err := w.Add(d); err != nil {
+			log.Errorf("Unable add watch for '%v'", d)
+		}
+
+		files, _ := ess.FilesPathExcludes(d, false, fileExcludes)
+		for _, f := range files {
+			if err := w.Add(f); err != nil {
+				log.Errorf("Unable add watch for '%v'", f)
+			}
+		}
+	}
+
+	// Add ignore list
+	if err := w.Ignore(stdIgnoreList...); err != nil {
 		log.Error(err)
 	}
 }
