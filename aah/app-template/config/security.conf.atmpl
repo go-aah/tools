@@ -69,7 +69,7 @@ security {
         # Default value is `false`.
         #always_to_default = false
       }
-    }{{ end }}
+    }{{ end -}}
 
     {{ if eq .AppAuthScheme "basic" -}}
     # HTTP Basic Auth Scheme
@@ -110,7 +110,7 @@ security {
         # Default value is `bcrypt`.
         #type = "bcrypt"
       }
-    }{{ end }}
+    }{{ end -}}
 
     {{ if eq .AppAuthScheme "api" -}}
     # REST API Authentication Scheme
@@ -224,6 +224,5 @@ security {
     # `m -> minutes`, `h -> hours`.
     # Default value is `30m`.
     #cleanup_interval = "30m"
-  }
-  {{- end }}
+  }{{ end -}}
 }

@@ -1,7 +1,7 @@
 package controllers
 
 import (
-  "aahframework.org/aah.v0"
+  "aahframework.org/aah.v0-unstable"
   "{{.AppImportPath}}/app/models"
 )
 
@@ -12,7 +12,7 @@ type App struct {
 
 // Index method is application {{ if eq .AppType "web" -}}home page.{{ else }}root API endpoint.{{- end }}
 func (a *App) Index() {
-  {{ if eq .AppType "web" -}}
+  {{- if eq .AppType "web" }}
   data := aah.Data{
     "Greet": models.Greet{
       Message: "Welcome to aah framework - Web Application",
@@ -20,9 +20,8 @@ func (a *App) Index() {
   }
 
   a.Reply().Ok().HTML(data)
-{{ else }}
+{{- else }}
   a.Reply().Ok().JSON(models.Greet{
     Message: "Welcome to aah framework - API application",
-  })
-{{- end -}}
+  }){{ end }}
 }

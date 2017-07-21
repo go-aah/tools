@@ -113,7 +113,7 @@ request {
   # HTTP header then it does not generate one.
   id {
     # Default value is `true`.
-    enable = {{ if eq .AppType "web" }}false{{ else }}true{{ end }}
+    enable = true
 
     # Default value is `X-Request-Id`, change it if you have different one.
     #header = "X-Request-Id"
@@ -295,6 +295,12 @@ view {
   #default_layout = false
 }
 {{- end }}
+
+# --------------------------------------------------------------
+# Application Security
+# Doc: https://docs.aahframework.org/security-config.html
+# --------------------------------------------------------------
+include "./security.conf"
 
 # --------------------------------------------------------------
 # Environment Profiles e.g.: dev, qa, prod

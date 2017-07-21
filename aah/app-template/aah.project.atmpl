@@ -46,9 +46,9 @@ build {
 # excluded from watched file list.
 # Read more about hot-reload: https://github.com/go-aah/aah/issues/4
 watch {
-  # Note: static directory not required to monitored, since server delivers
-  # update to file on environment profile `dev`.
-  dir_excludes = [".*", "build", "static", "vendor", "tests", "logs"]
+  # Note: static directory not required to be monitored, since server delivers
+  # up-to-date file on environment profile `dev`.
+  dir_excludes = [".*"]
 
-  file_excludes = [".*", "_test.go", "{{ .AppName }}.pid", "aah.go", "LICENSE", "README.md"]
+  file_excludes = [".*", "_test.go", "LICENSE", "README.md"]
 }

@@ -131,7 +131,12 @@ domains {
         #
         #   - Inherits the parent route `auth` attribute value if present.
         #   - Inherits the `default_auth` attribute config value if defined.
-        #   - Otherwise route is treated as `anonymous` auth scheme.
+        #   - Otherwise it becomes not defined.
+        #
+        # When routes auth attribute is not defined; two possible actions are taken:
+        #   - If one or more auth schemes are defined in security.auth_schemes { ... }
+        #     and routes auth attribute is not defined then framework treats that route as 403 Forbidden.
+        #   - Else framework treats that route as anonymous.
         #
         # When you want to define particular route as anonymous then define
         # `auth` attribute as `anonymous`.
