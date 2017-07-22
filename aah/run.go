@@ -155,7 +155,10 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 					watch <- true
 				}
 			case err := <-w.Error:
-				log.Error("Watch error:", err)
+				if err == watcher.ErrWatchedFileDeleted {
+					// treat as information, not an error
+					log.Info("Watched file/directory is deleted, just move on")
+				}
 			case <-w.Closed:
 				return
 			}

@@ -28,7 +28,7 @@ const (
 	aahTmplExt  = ".atmpl"
 	authForm    = "form"
 	authBasic   = "basic"
-	authAPI     = "api"
+	authGeneric = "api"
 )
 
 var (
@@ -59,7 +59,7 @@ func newAction(c *cli.Context) error {
 	importPath := getImportPath(reader)
 	appType := getAppType(reader)
 	authScheme := getAuthScheme(reader, appType)
-	sessionScope, sessionStore := getSessionInfo(reader, appType)
+	sessionStore := getSessionInfo(reader, appType)
 
 	// Process it
 	appDir := filepath.Join(gosrcDir, filepath.FromSlash(importPath))
@@ -70,7 +70,6 @@ func newAction(c *cli.Context) error {
 		"AppType":                 appType,
 		"AppImportPath":           importPath,
 		"AppAuthScheme":           authScheme,
-		"AppSessionScope":         sessionScope,
 		"AppSessionStore":         sessionStore,
 		"AppSessionFileStorePath": appSessionFilepath,
 		"AppSessionSignKey":       ess.RandomString(64),
@@ -133,37 +132,41 @@ func getAppType(reader *bufio.Reader) string {
 }
 
 func getAuthScheme(reader *bufio.Reader, appType string) string {
-	var authScheme string
+	var (
+		authScheme  string
+		schemeNames string
+	)
+
+	if appType == typeWeb {
+		schemeNames = "form, basic"
+	} else if appType == typeAPI {
+		schemeNames = "basic, generic"
+	}
+
 	for {
-		authScheme = readInput(reader, "\nChoose your application Auth Scheme (form, basic, or api), default is 'none': ")
+		authScheme = readInput(reader, fmt.Sprintf("\nChoose your application Auth Scheme (%v), default is 'none': ", schemeNames))
 		if ess.IsStrEmpty(authScheme) ||
-			authScheme == authForm || authScheme == authBasic || authScheme == authAPI {
+			authScheme == authForm || authScheme == authBasic || authScheme == authGeneric {
 			if ess.IsStrEmpty(authScheme) ||
 				(appType == typeWeb && (authScheme == authForm || authScheme == authBasic)) ||
-				(appType == typeAPI && (authScheme == authAPI || authScheme == authBasic)) {
+				(appType == typeAPI && (authScheme == authGeneric || authScheme == authBasic)) {
 				break
 			} else {
 				log.Errorf("Application type '%v' is not applicable with auth scheme '%v'", appType, authScheme)
 				authScheme = ""
 			}
 		} else {
-			log.Error("Unsupported Auth Scheme, choose either 'form', 'basic', 'api' or 'none'")
+			log.Error("Unsupported Auth Scheme, choose either 'form', 'basic', 'generic' or 'none'")
 			authScheme = ""
 		}
 	}
 	return authScheme
 }
 
-func getSessionInfo(reader *bufio.Reader, appType string) (string, string) {
-	sessionScope := "stateless"
+func getSessionInfo(reader *bufio.Reader, appType string) string {
 	sessionStore := storeCookie
-	if appType == typeWeb {
-		sessionScope = "stateful"
-	} else {
-		return sessionScope, sessionStore
-	}
 
-	if sessionScope == "stateful" {
+	if appType == typeWeb {
 		// Session Store
 		for {
 			sessionStore = readInput(reader, "\nChoose your session store (cookie or file), default is 'cookie': ")
@@ -179,7 +182,7 @@ func getSessionInfo(reader *bufio.Reader, appType string) (string, string) {
 		}
 	}
 
-	return sessionScope, sessionStore
+	return sessionStore
 }
 
 func createAahApp(appDir, appType string, data map[string]interface{}) error {

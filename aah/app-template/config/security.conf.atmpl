@@ -6,13 +6,17 @@
 ######################################################
 
 security {
+  # -------------------------------------------------------
+  # Authentication & Authorization configuration
+  # Doc: https://docs.aahframework.org/security-design.html
+  # -------------------------------------------------------
   auth_schemes {
     {{ if eq .AppAuthScheme "form" -}}
     # HTTP Form Auth Scheme
     # It is custom defined name, this is used in the routes `auth` attribute.
     form_auth {
       # Auth scheme name.
-      # Supported values are `form`, `basic` and `api`.
+      # Currently supported values are `form`, `basic` and `generic`.
       # It is required value, no default.
       scheme = "form"
 
@@ -76,7 +80,7 @@ security {
     # It is custom defined name, this is used in the routes `auth` attribute.
     basic_auth {
       # Auth scheme name.
-      # Supported values are `form`, `basic` and `api`.
+      # Currently supported values are `form`, `basic` and `generic`.
       # It is required value, no default.
       scheme = "basic"
 
@@ -112,14 +116,14 @@ security {
       }
     }{{ end -}}
 
-    {{ if eq .AppAuthScheme "api" -}}
-    # REST API Authentication Scheme
+    {{ if eq .AppAuthScheme "generic" -}}
+    # Generic Authentication Scheme
     # It is custom defined name, this is used in the routes `auth` attribute.
     api_auth {
       # Auth scheme name.
-      # Supported values are `form`, `basic` and `api`.
+      # Currently supported values are `form`, `basic` and `generic`.
       # It is required value, no default.
-      scheme = "api"
+      scheme = "generic"
 
       # Framework calls `Authenticator` to get the Subject's authentication
       # information. The credential validation is not done by framework, it is
@@ -145,18 +149,18 @@ security {
     }{{ end }}
   }
 
-  {{ if eq .AppSessionScope "stateful" -}}
   # -----------------------------------------------------------------------
   # Session configuration
   # HTTP state management across multiple requests.
   # Doc: https://docs.aahframework.org/security-config.html#section-session
   # -----------------------------------------------------------------------
   session {
+    {{ if eq .AppAuthScheme "form" -}}
     # Session mode to choose whether HTTP session should be persisted or
     # destroyed at the end of the request. Supported values are `stateless`
     # and `stateful`.
     # Default value is `stateless` for API and `stateful` for Web app.
-    mode = "{{ .AppSessionScope }}"
+    mode = "{{ if eq .AppAuthScheme "" }}stateless{{ else }}stateful{{ end }}"
 
     # Session store is to choose where session value should be persisted.
     store {
@@ -224,5 +228,6 @@ security {
     # `m -> minutes`, `h -> hours`.
     # Default value is `30m`.
     #cleanup_interval = "30m"
-  }{{ end -}}
+    {{- end }}
+  }
 }
