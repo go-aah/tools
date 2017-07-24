@@ -85,7 +85,7 @@ security {
       scheme = "basic"
 
       # Realm name is used for `Www-Authenticate` HTTP header.
-      # Note: Modern browsers are not respecting this values now a days.
+      # Note: Nowadays, modern browsers are not respecting this values.
       # However aah framework does its due diligence.
       realm_name = "Protected"
 
