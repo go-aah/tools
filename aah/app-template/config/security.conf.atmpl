@@ -117,9 +117,9 @@ security {
     }{{ end -}}
 
     {{ if eq .AppAuthScheme "generic" -}}
-    # Generic Authentication Scheme
+    # Generic Auth Scheme
     # It is custom defined name, this is used in the routes `auth` attribute.
-    api_auth {
+    generic_auth {
       # Auth scheme name.
       # Currently supported values are `form`, `basic` and `generic`.
       # It is required value, no default.
