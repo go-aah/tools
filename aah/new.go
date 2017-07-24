@@ -28,7 +28,7 @@ const (
 	aahTmplExt  = ".atmpl"
 	authForm    = "form"
 	authBasic   = "basic"
-	authGeneric = "api"
+	authGeneric = "generic"
 )
 
 var (
