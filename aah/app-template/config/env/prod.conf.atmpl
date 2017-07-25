@@ -10,7 +10,7 @@ prod {
   # --------------------------------------------------
   log {
     # Receiver is where is log values gets logged. Currently framework
-    # supports `console`, `file` and `discard` as a receivers.
+    # supports `console` and `file`. Hooks for extension.
     # Default value is `console`.
     receiver = "file"
 

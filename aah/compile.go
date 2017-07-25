@@ -192,7 +192,7 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 				}
 			}
 		} else if len(notExistsPkgs) > 0 {
-			fatal("Below application dependencies are not exists, "+
+			fatal("Below application dependencies does not exist, "+
 				"enable 'build.dep_get=true' in 'aah.project' for auto fetch\n---> ",
 				strings.Join(notExistsPkgs, "\n---> "))
 		}
