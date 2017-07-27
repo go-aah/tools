@@ -7,10 +7,12 @@ package main
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -201,4 +203,15 @@ func excludeAndCreateSlice(arr []string, str string) []string {
 
 func isAahProject(file string) bool {
 	return strings.HasSuffix(file, aahProjectIdentifier)
+}
+
+func findAvailablePort() string {
+	lstn, err := net.Listen("tcp", ":0")
+	if err != nil {
+		log.Error(err)
+		return "0"
+	}
+	defer ess.CloseQuietly(lstn)
+
+	return strconv.Itoa(lstn.Addr().(*net.TCPAddr).Port)
 }

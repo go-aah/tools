@@ -46,7 +46,7 @@ var buildCmd = cli.Command{
 		},
 		cli.StringFlag{
 			Name:  "a, artifactpath, o, output",
-			Usage: "Output directory of aah application build artifact. Default directory is '<app-base>/aah-build'",
+			Usage: "Output directory of aah application build artifact. Default directory is '<app-base-dir>/build'",
 		},
 	},
 }
@@ -65,27 +65,31 @@ func buildAction(c *cli.Context) error {
 	aah.Init(importPath)
 	appBaseDir := aah.AppBaseDir()
 
-	buildCfg, err := loadAahProjectFile(appBaseDir)
+	projectCfg, err := loadAahProjectFile(appBaseDir)
 	if err != nil {
 		fatalf("aah project file error: %s", err)
 	}
 
-	_ = log.SetLevel(buildCfg.StringDefault("build.log_level", "info"))
+	_ = log.SetLevel(projectCfg.StringDefault("build.log_level", "info"))
 
 	log.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 
-	appBinay, err := compileApp(buildCfg, true)
+	appBinay, err := compileApp(&compileArgs{
+		Cmd:        "BuildCmd",
+		ProjectCfg: projectCfg,
+		AppPack:    true,
+	})
 	if err != nil {
 		fatal(err)
 	}
 
 	appProfile := firstNonEmpty(c.String("p"), c.String("profile"))
-	buildBaseDir, err := copyFilesToWorkingDir(buildCfg, appBaseDir, appBinay, appProfile)
+	buildBaseDir, err := copyFilesToWorkingDir(projectCfg, appBaseDir, appBinay, appProfile)
 	if err != nil {
 		fatal(err)
 	}
 
-	archiveName := ess.StripExt(filepath.Base(appBinay)) + "-" + getAppVersion(appBaseDir, buildCfg)
+	archiveName := ess.StripExt(filepath.Base(appBinay)) + "-" + getAppVersion(appBaseDir, projectCfg)
 	archiveName = addTargetBuildInfo(archiveName)
 	appBuildDir := filepath.Join(appBaseDir, "build")
 	destArchiveDir := firstNonEmpty(c.String("o"), c.String("output"),
@@ -102,7 +106,7 @@ func buildAction(c *cli.Context) error {
 	return nil
 }
 
-func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appProfile string) (string, error) {
+func copyFilesToWorkingDir(projectCfg *config.Config, appBaseDir, appBinary, appProfile string) (string, error) {
 	appBinaryName := filepath.Base(appBinary)
 	tmpDir, err := ioutil.TempDir("", appBinaryName)
 	if err != nil {
@@ -126,10 +130,10 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appPr
 	}
 
 	// build package excludes
-	cfgExcludes, _ := buildCfg.StringList("build.excludes")
+	cfgExcludes, _ := projectCfg.StringList("build.excludes")
 	excludes := ess.Excludes(cfgExcludes)
 	if err = excludes.Validate(); err != nil {
-		fatal(err)
+		return "", err
 	}
 
 	// aah application and custom directories
@@ -155,7 +159,7 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appPr
 	}
 	buf := &bytes.Buffer{}
 	if err = renderTmpl(buf, aahBashStartupTemplate, data); err != nil {
-		fatal(err)
+		return "", err
 	}
 	if err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah.sh"), buf.Bytes(), permRWXRXRX); err != nil {
 		return "", err
@@ -163,7 +167,7 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appPr
 
 	buf.Reset()
 	if err = renderTmpl(buf, aahCmdStartupTemplate, data); err != nil {
-		fatal(err)
+		return "", err
 	}
 	err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah.cmd"), buf.Bytes(), permRWXRXRX)
 
@@ -177,7 +181,7 @@ func createZipArchive(buildBaseDir, archiveBaseDir, archiveName string) (string,
 	ess.DeleteFiles(files...)
 
 	if err := ess.MkDirAll(archiveBaseDir, permRWXRXRX); err != nil {
-		fatal(err)
+		return "", err
 	}
 	return destZip, ess.Zip(destZip, buildBaseDir)
 }
