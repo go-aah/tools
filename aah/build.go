@@ -42,7 +42,6 @@ var buildCmd = cli.Command{
 		cli.StringFlag{
 			Name:  "p, profile",
 			Usage: "Environment profile name to activate. e.g: dev, qa, prod",
-			Value: "prod",
 		},
 		cli.StringFlag{
 			Name:  "a, artifactpath, o, output",
@@ -83,7 +82,7 @@ func buildAction(c *cli.Context) error {
 		fatal(err)
 	}
 
-	appProfile := firstNonEmpty(c.String("p"), c.String("profile"))
+	appProfile := firstNonEmpty(c.String("p"), c.String("profile"), "prod")
 	buildBaseDir, err := copyFilesToWorkingDir(projectCfg, appBaseDir, appBinay, appProfile)
 	if err != nil {
 		fatal(err)

@@ -58,9 +58,7 @@ var runCmd = cli.Command{
 		},
 		cli.StringFlag{
 			Name:  "p, profile",
-			Usage: "Environment profile name to activate. e.g: dev, qa, prod",
-			Value: "dev",
-		},
+			Usage: "Environment profile name to activate. e.g: dev, qa, prod"},
 		cli.StringFlag{
 			Name:  "c, config",
 			Usage: "External config for overriding aah.conf values",
@@ -115,7 +113,7 @@ func runAction(c *cli.Context) error {
 		appStartArgs = append(appStartArgs, "-config", configPath)
 	}
 
-	envProfile := firstNonEmpty(c.String("p"), c.String("config"))
+	envProfile := firstNonEmpty(c.String("p"), c.String("profile"), "dev")
 	if !ess.IsStrEmpty(envProfile) {
 		appStartArgs = append(appStartArgs, "-profile", envProfile)
 	}
@@ -355,6 +353,7 @@ func loadWatchFiles(projectCfg *config.Config, baseDir string, w *watcher.Watche
 //___________________________________
 
 func (p *process) Start() error {
+	log.Debug("Executing ", strings.Join(p.cmd.Args, " "))
 	p.cmd.Stdout = p.nw
 	p.cmd.Stderr = p.nw
 	if err := p.cmd.Start(); err != nil {
