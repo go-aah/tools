@@ -27,16 +27,23 @@ server {
 
   # Valid time units are "s = seconds", "m = minutes"
   timeout {
-    # mapped to `http.Server.ReadTimeout`.
+    # Mapped to `http.Server.ReadTimeout`, is the maximum duration for reading
+    # the entire request, including the body.
+    #
+    # Because ReadTimeout does not let Handlers make per-request decisions on
+    # each request body's acceptable deadline or upload rate, most users will
+    # prefer to use ReadHeaderTimeout. It is valid to use them both.
     # Default value is `90s`.
     #read = "90s"
 
-    # mapped to `http.Server.WriteTimeout`
+    # Mapped to `http.Server.WriteTimeout`, is the maximum duration before timing
+    # out writes of the response. It is reset whenever a new request's header is
+    # read. Like ReadTimeout, it does not let Handlers make decisions on a
+    # per-request basis.
     # Default value is `90s`.
     #write = "90s"
 
-    # aah sever graceful shutdown timeout
-    # Note: applicable only to go1.8 and above
+    # aah server graceful shutdown timeout
     # Default value is `60s`.
     #grace_shutdown = "60s"
   }
