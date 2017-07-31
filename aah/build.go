@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/urfave/cli.v1"
 
@@ -22,17 +23,17 @@ var buildCmd = cli.Command{
 	Name:    "build",
 	Aliases: []string{"b"},
 	Usage:   "Build aah application for deployment",
-	Description: `Build the aah web/api application by import path.
+	Description: `Build aah application by import path.
 
-	Artifact naming convention:
-		* <app-binary-name>-<app-version>-<goos>-<goarch>.zip
-			For e.g.: aahwebsite-381eaa8-darwin-amd64.zip
+	Artifact naming convention:  <app-binary-name>-<app-version>-<goos>-<goarch>.zip
+	For e.g.: aahwebsite-381eaa8-darwin-amd64.zip
 
 	Examples of short and long flags:
     aah build
-    aah build -p dev
-    aah build -i github.com/user/appname -a /Users/jeeva -p=qa
-    aah build --importpath github.com/user/appname --artifactpath /Users/jeeva --profile qa`,
+    aah build -e dev
+    aah build -i github.com/user/appname -o /Users/jeeva -e qa    
+		aah build -i github.com/user/appname -o /Users/jeeva/aahwebsite.zip
+		aah build --importpath github.com/user/appname --output /Users/jeeva --envprofile qa`,
 	Action: buildAction,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -40,12 +41,12 @@ var buildCmd = cli.Command{
 			Usage: "Import path of aah application",
 		},
 		cli.StringFlag{
-			Name:  "p, profile",
+			Name:  "e, envprofile",
 			Usage: "Environment profile name to activate. e.g: dev, qa, prod",
 		},
 		cli.StringFlag{
-			Name:  "a, artifactpath, o, output",
-			Usage: "Output directory of aah application build artifact. Default directory is '<app-base-dir>/build'",
+			Name:  "o, output",
+			Usage: "Output of aah application build artifact. Default is '<app-base-dir>/build/<app-binary-name>-<app-version>-<goos>-<goarch>.zip'",
 		},
 	},
 }
@@ -82,26 +83,41 @@ func buildAction(c *cli.Context) error {
 		fatal(err)
 	}
 
-	appProfile := firstNonEmpty(c.String("p"), c.String("profile"), "prod")
+	appProfile := firstNonEmpty(c.String("e"), c.String("envprofile"), "prod")
 	buildBaseDir, err := copyFilesToWorkingDir(projectCfg, appBaseDir, appBinay, appProfile)
 	if err != nil {
 		fatal(err)
 	}
 
+	outputFile := firstNonEmpty(c.String("o"), c.String("output"))
 	archiveName := ess.StripExt(filepath.Base(appBinay)) + "-" + getAppVersion(appBaseDir, projectCfg)
 	archiveName = addTargetBuildInfo(archiveName)
-	appBuildDir := filepath.Join(appBaseDir, "build")
-	destArchiveDir := firstNonEmpty(c.String("o"), c.String("output"),
-		c.String("a"), c.String("artifactpath"), appBuildDir)
+
+	var destArchiveFile string
+	if ess.IsStrEmpty(outputFile) {
+		destArchiveFile = filepath.Join(appBaseDir, "build", archiveName)
+	} else {
+		destArchiveFile, err = filepath.Abs(outputFile)
+		if err != nil {
+			fatal(err)
+		}
+
+		if !strings.HasSuffix(destArchiveFile, ".zip") {
+			destArchiveFile = filepath.Join(destArchiveFile, archiveName)
+		}
+	}
+
+	if !strings.HasSuffix(destArchiveFile, ".zip") {
+		destArchiveFile = destArchiveFile + ".zip"
+	}
 
 	// Creating app archive
-	destZip, err := createZipArchive(buildBaseDir, destArchiveDir, archiveName)
-	if err != nil {
+	if err := createZipArchive(buildBaseDir, destArchiveFile); err != nil {
 		fatal(err)
 	}
 
 	log.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
-	log.Infof("Your application artifact is here: %s", destZip)
+	log.Infof("Your application artifact is here: %s", destArchiveFile)
 	return nil
 }
 
@@ -173,16 +189,14 @@ func copyFilesToWorkingDir(projectCfg *config.Config, appBaseDir, appBinary, app
 	return buildBaseDir, err
 }
 
-func createZipArchive(buildBaseDir, archiveBaseDir, archiveName string) (string, error) {
-	destZip := filepath.Join(archiveBaseDir, archiveName) + ".zip"
+func createZipArchive(buildBaseDir, destArchiveFile string) error {
+	ess.DeleteFiles(destArchiveFile)
 
-	files, _ := filepath.Glob(filepath.Join(archiveBaseDir, archiveName+"*.*"))
-	ess.DeleteFiles(files...)
-
+	archiveBaseDir := filepath.Dir(destArchiveFile)
 	if err := ess.MkDirAll(archiveBaseDir, permRWXRXRX); err != nil {
-		return "", err
+		return err
 	}
-	return destZip, ess.Zip(destZip, buildBaseDir)
+	return ess.Zip(destArchiveFile, buildBaseDir)
 }
 
 const aahBashStartupTemplate = `#!/usr/bin/env bash

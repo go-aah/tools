@@ -39,15 +39,15 @@ var runCmd = cli.Command{
 
 	Examples of short and long flags:
     aah run
-		aah run -p qa
+		aah run -e qa
 
 		aah run -i github.com/user/appname
-		aah run -i github.com/user/appname -p qa
-		aah run -i github.com/user/appname -c /path/to/config/external.conf -p qa
+		aah run -i github.com/user/appname -e qa
+		aah run -i github.com/user/appname -e qa -c /path/to/config/external.conf 
 
     aah run --importpath github.com/username/name
-		aah run --importpath github.com/username/name --profile qa
-		aah run --importpath github.com/username/name --config /path/to/config/external.conf --profile qa
+		aah run --importpath github.com/username/name --envprofile qa
+		aah run --importpath github.com/username/name --envprofile qa --config /path/to/config/external.conf
 
 	Note: It is recommended to use build and deploy approach instead of
 	using 'aah run' for production use.`,
@@ -57,11 +57,11 @@ var runCmd = cli.Command{
 			Usage: "Import path of aah application",
 		},
 		cli.StringFlag{
-			Name:  "p, profile",
+			Name:  "e, envprofile",
 			Usage: "Environment profile name to activate. e.g: dev, qa, prod"},
 		cli.StringFlag{
 			Name:  "c, config",
-			Usage: "External config for overriding aah.conf values",
+			Usage: "External config file for overriding aah.conf values",
 		},
 	},
 	Action: runAction,
@@ -113,7 +113,7 @@ func runAction(c *cli.Context) error {
 		appStartArgs = append(appStartArgs, "-config", configPath)
 	}
 
-	envProfile := firstNonEmpty(c.String("p"), c.String("profile"), "dev")
+	envProfile := firstNonEmpty(c.String("e"), c.String("envprofile"), "dev")
 	if !ess.IsStrEmpty(envProfile) {
 		appStartArgs = append(appStartArgs, "-profile", envProfile)
 	}
@@ -125,7 +125,7 @@ func runAction(c *cli.Context) error {
 	}
 
 	// Hot-Reload is applicable only to `dev` environment profile.
-	if projectCfg.BoolDefault("hot_reload.enable", true) && aah.AppProfile() == "dev" {
+	if projectCfg.BoolDefault("hot_reload.enable", true) && envProfile == "dev" {
 		log.Infof("Hot-Reload enabled for environment profile: %s", aah.AppProfile())
 
 		address := firstNonEmpty(aah.AppHTTPAddress(), "localhost")
@@ -154,7 +154,7 @@ func runAction(c *cli.Context) error {
 		return nil
 	}
 
-	log.Info("Hot-Reload is not enabled, possibly 'hot_reload.enable = false' or env profile is not 'dev'")
+	log.Info("Hot-Reload is not enabled, possibly 'hot_reload.enable = false' or environment profile is not 'dev'")
 
 	appBinary, err := compileApp(&compileArgs{
 		Cmd:        "RunCmd",

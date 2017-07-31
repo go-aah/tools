@@ -29,6 +29,7 @@ const (
 	authForm    = "form"
 	authBasic   = "basic"
 	authGeneric = "generic"
+	authNone    = "none"
 )
 
 var (
@@ -145,9 +146,9 @@ func getAuthScheme(reader *bufio.Reader, appType string) string {
 
 	for {
 		authScheme = readInput(reader, fmt.Sprintf("\nChoose your application Auth Scheme (%v), default is 'none': ", schemeNames))
-		if ess.IsStrEmpty(authScheme) ||
-			authScheme == authForm || authScheme == authBasic || authScheme == authGeneric {
-			if ess.IsStrEmpty(authScheme) ||
+		if ess.IsStrEmpty(authScheme) || authScheme == authForm || authScheme == authBasic ||
+			authScheme == authGeneric || authScheme == authNone {
+			if ess.IsStrEmpty(authScheme) || authScheme == authNone ||
 				(appType == typeWeb && (authScheme == authForm || authScheme == authBasic)) ||
 				(appType == typeAPI && (authScheme == authGeneric || authScheme == authBasic)) {
 				break
@@ -159,6 +160,10 @@ func getAuthScheme(reader *bufio.Reader, appType string) string {
 			log.Error("Unsupported Auth Scheme, choose either 'form', 'basic', 'generic' or 'none'")
 			authScheme = ""
 		}
+	}
+
+	if authScheme == authNone {
+		authScheme = ""
 	}
 	return authScheme
 }

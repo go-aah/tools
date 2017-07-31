@@ -49,8 +49,11 @@ func cleanAction(c *cli.Context) error {
 	aah.Init(importPath)
 	appBaseDir := aah.AppBaseDir()
 
-	ess.DeleteFiles(filepath.Join(appBaseDir, "app", "aah.go"),
-		filepath.Join(appBaseDir, "build"))
+	ess.DeleteFiles(
+		filepath.Join(appBaseDir, "app", "aah.go"),
+		filepath.Join(appBaseDir, "build"),
+		filepath.Join(appBaseDir, aah.AppName()+".pid"),
+	)
 
 	log.Infof("Import Path: '%v' clean successful.", importPath)
 	log.Info()
