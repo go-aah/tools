@@ -27,7 +27,7 @@ dev {
     # into receivers. Customize it as per your need, learn more about flags
     # and format - https://docs.aahframework.org/log-config.html#pattern
     # Default value is `%time:2006-01-02 15:04:05.000 %level:-5 %message`
-    pattern = "%time:2006-01-02 15:04:05.000 %level:-5 %shortfile %line %message"
+    pattern = "%time:2006-01-02 15:04:05.000 %level:-5 %message"
   }
 
   # -------------------------
