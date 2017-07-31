@@ -146,8 +146,7 @@ func getAuthScheme(reader *bufio.Reader, appType string) string {
 
 	for {
 		authScheme = readInput(reader, fmt.Sprintf("\nChoose your application Auth Scheme (%v), default is 'none': ", schemeNames))
-		if ess.IsStrEmpty(authScheme) || authScheme == authForm || authScheme == authBasic ||
-			authScheme == authGeneric || authScheme == authNone {
+		if isAuthSchemeSupported(authScheme) {
 			if ess.IsStrEmpty(authScheme) || authScheme == authNone ||
 				(appType == typeWeb && (authScheme == authForm || authScheme == authBasic)) ||
 				(appType == typeAPI && (authScheme == authGeneric || authScheme == authBasic)) {
@@ -266,4 +265,9 @@ func getDestPath(destDir, srcDir, v string) string {
 		dpath = dpath[:len(dpath)-len(aahTmplExt)]
 	}
 	return dpath
+}
+
+func isAuthSchemeSupported(authScheme string) bool {
+	return ess.IsStrEmpty(authScheme) || authScheme == authForm || authScheme == authBasic ||
+		authScheme == authGeneric || authScheme == authNone
 }
