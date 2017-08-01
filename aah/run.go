@@ -35,7 +35,8 @@ var runCmd = cli.Command{
 	Name:    "run",
 	Aliases: []string{"r"},
 	Usage:   "Run aah framework application (supports hot-reload)",
-	Description: `Run the aah framework web/api application. It supports hot-reload, code and refresh the browser see your updates.
+	Description: `Run the aah framework web/api application. It supports hot-reload, just code and refresh the browser
+	to see your updates.
 
 	Examples of short and long flags:
     aah run
@@ -43,7 +44,7 @@ var runCmd = cli.Command{
 
 		aah run -i github.com/user/appname
 		aah run -i github.com/user/appname -e qa
-		aah run -i github.com/user/appname -e qa -c /path/to/config/external.conf 
+		aah run -i github.com/user/appname -e qa -c /path/to/config/external.conf
 
     aah run --importpath github.com/username/name
 		aah run --importpath github.com/username/name --envprofile qa
