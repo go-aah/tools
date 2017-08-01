@@ -1,15 +1,17 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools source code and usage is governed by a MIT style
+// go-aah/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
+
+	"gopkg.in/urfave/cli.v1"
 
 	"aahframework.org/aah.v0"
 	"aahframework.org/config.v0"
@@ -17,44 +19,41 @@ import (
 	"aahframework.org/log.v0"
 )
 
-var (
-	buildCmdFlags              = flag.NewFlagSet("build", flag.ContinueOnError)
-	buildImportPathFlag        = buildCmdFlags.String("importPath", "", "Import path of aah application")
-	buildImportPathShortFlag   = buildCmdFlags.String("ip", "", "Import path of aah application")
-	buildArtifactPathFlag      = buildCmdFlags.String("artifactPath", "", "Output location application build artifact. Default location is <app-base>/aah-build")
-	buildArtifactPathShortFlag = buildCmdFlags.String("ap", "", "Output location application build artifact. Default location is <app-base>/aah-build")
-	buildProfileFlag           = buildCmdFlags.String("profile", "", "Environment profile name to activate. e.g: dev, qa, prod")
-	buildProfileShortFlag      = buildCmdFlags.String("p", "", "Environment profile name to activate. e.g: dev, qa, prod")
-	buildCmd                   = &command{
-		Name:      "build",
-		UsageLine: "aah build [-ip | -importPath] [-ap | -artifactPath] [-p | -profile]",
-		Flags:     buildCmdFlags,
-		ArgsCount: 3,
-		Short:     "build aah application for deployment",
-		Long: `
-Build the aah web/api application by importPath.
+var buildCmd = cli.Command{
+	Name:    "build",
+	Aliases: []string{"b"},
+	Usage:   "Build aah application for deployment",
+	Description: `Build aah application by import path.
 
-To know more CLI tool - https://docs.aahframework.org/aah-cli-tool.html
+	Artifact naming convention:  <app-binary-name>-<app-version>-<goos>-<goarch>.zip
+	For e.g.: aahwebsite-381eaa8-darwin-amd64.zip
 
-Example(s) short and long flag:
+	Examples of short and long flags:
     aah build
+    aah build -e dev
+    aah build -i github.com/user/appname -o /Users/jeeva -e qa    
+		aah build -i github.com/user/appname -o /Users/jeeva/aahwebsite.zip
+		aah build --importpath github.com/user/appname --output /Users/jeeva --envprofile qa`,
+	Action: buildAction,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "i, importpath",
+			Usage: "Import path of aah application",
+		},
+		cli.StringFlag{
+			Name:  "e, envprofile",
+			Usage: "Environment profile name to activate. e.g: dev, qa, prod",
+		},
+		cli.StringFlag{
+			Name:  "o, output",
+			Usage: "Output of aah application build artifact. Default is '<app-base-dir>/build/<app-binary-name>-<app-version>-<goos>-<goarch>.zip'",
+		},
+	},
+}
 
-    aah build -p=dev
-
-    aah build -ip=github.com/user/appname -ap=/Users/jeeva -p=qa
-
-    aah build -importPath=github.com/user/appname -artifactPath=/Users/jeeva -profile=qa
-`,
-	}
-)
-
-func buildRun(args []string) {
-	if err := buildCmdFlags.Parse(args); err != nil {
-		fatal(err)
-	}
-
+func buildAction(c *cli.Context) error {
 	var err error
-	importPath := firstNonEmpty(*buildImportPathFlag, *buildImportPathShortFlag)
+	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
 	if ess.IsStrEmpty(importPath) {
 		importPath = importPathRelwd()
 	}
@@ -66,42 +65,63 @@ func buildRun(args []string) {
 	aah.Init(importPath)
 	appBaseDir := aah.AppBaseDir()
 
-	buildCfg, err := loadAahProjectFile(appBaseDir)
+	projectCfg, err := loadAahProjectFile(appBaseDir)
 	if err != nil {
 		fatalf("aah project file error: %s", err)
 	}
 
-	_ = log.SetLevel(buildCfg.StringDefault("build.log_level", "info"))
+	_ = log.SetLevel(projectCfg.StringDefault("build.log_level", "info"))
 
 	log.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 
-	appBinay, err := compileApp(buildCfg, true)
+	appBinay, err := compileApp(&compileArgs{
+		Cmd:        "BuildCmd",
+		ProjectCfg: projectCfg,
+		AppPack:    true,
+	})
 	if err != nil {
 		fatal(err)
 	}
 
-	appProfile := firstNonEmpty(*buildProfileFlag, *buildProfileShortFlag, "prod")
-	buildBaseDir, err := copyFilesToWorkingDir(buildCfg, appBaseDir, appBinay, appProfile)
+	appProfile := firstNonEmpty(c.String("e"), c.String("envprofile"), "prod")
+	buildBaseDir, err := copyFilesToWorkingDir(projectCfg, appBaseDir, appBinay, appProfile)
 	if err != nil {
 		fatal(err)
 	}
 
-	archiveName := ess.StripExt(filepath.Base(appBinay)) + "-" + getAppVersion(appBaseDir, buildCfg)
+	outputFile := firstNonEmpty(c.String("o"), c.String("output"))
+	archiveName := ess.StripExt(filepath.Base(appBinay)) + "-" + getAppVersion(appBaseDir, projectCfg)
 	archiveName = addTargetBuildInfo(archiveName)
-	appBuildDir := filepath.Join(appBaseDir, "build")
-	destArchiveDir := firstNonEmpty(*buildArtifactPathFlag, *buildArtifactPathShortFlag, appBuildDir)
+
+	var destArchiveFile string
+	if ess.IsStrEmpty(outputFile) {
+		destArchiveFile = filepath.Join(appBaseDir, "build", archiveName)
+	} else {
+		destArchiveFile, err = filepath.Abs(outputFile)
+		if err != nil {
+			fatal(err)
+		}
+
+		if !strings.HasSuffix(destArchiveFile, ".zip") {
+			destArchiveFile = filepath.Join(destArchiveFile, archiveName)
+		}
+	}
+
+	if !strings.HasSuffix(destArchiveFile, ".zip") {
+		destArchiveFile = destArchiveFile + ".zip"
+	}
 
 	// Creating app archive
-	destZip, err := createZipArchive(buildBaseDir, destArchiveDir, archiveName)
-	if err != nil {
+	if err := createZipArchive(buildBaseDir, destArchiveFile); err != nil {
 		fatal(err)
 	}
 
 	log.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
-	log.Infof("Your application artifact is here: %s", destZip)
+	log.Infof("Your application artifact is here: %s", destArchiveFile)
+	return nil
 }
 
-func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appProfile string) (string, error) {
+func copyFilesToWorkingDir(projectCfg *config.Config, appBaseDir, appBinary, appProfile string) (string, error) {
 	appBinaryName := filepath.Base(appBinary)
 	tmpDir, err := ioutil.TempDir("", appBinaryName)
 	if err != nil {
@@ -125,10 +145,10 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appPr
 	}
 
 	// build package excludes
-	cfgExcludes, _ := buildCfg.StringList("build.excludes")
+	cfgExcludes, _ := projectCfg.StringList("build.excludes")
 	excludes := ess.Excludes(cfgExcludes)
 	if err = excludes.Validate(); err != nil {
-		fatal(err)
+		return "", err
 	}
 
 	// aah application and custom directories
@@ -154,7 +174,7 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appPr
 	}
 	buf := &bytes.Buffer{}
 	if err = renderTmpl(buf, aahBashStartupTemplate, data); err != nil {
-		fatal(err)
+		return "", err
 	}
 	if err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah.sh"), buf.Bytes(), permRWXRXRX); err != nil {
 		return "", err
@@ -162,23 +182,21 @@ func copyFilesToWorkingDir(buildCfg *config.Config, appBaseDir, appBinary, appPr
 
 	buf.Reset()
 	if err = renderTmpl(buf, aahCmdStartupTemplate, data); err != nil {
-		fatal(err)
+		return "", err
 	}
 	err = ioutil.WriteFile(filepath.Join(buildBaseDir, "aah.cmd"), buf.Bytes(), permRWXRXRX)
 
 	return buildBaseDir, err
 }
 
-func createZipArchive(buildBaseDir, archiveBaseDir, archiveName string) (string, error) {
-	destZip := filepath.Join(archiveBaseDir, archiveName) + ".zip"
+func createZipArchive(buildBaseDir, destArchiveFile string) error {
+	ess.DeleteFiles(destArchiveFile)
 
-	files, _ := filepath.Glob(filepath.Join(archiveBaseDir, archiveName+"*.*"))
-	ess.DeleteFiles(files...)
-
+	archiveBaseDir := filepath.Dir(destArchiveFile)
 	if err := ess.MkDirAll(archiveBaseDir, permRWXRXRX); err != nil {
-		fatal(err)
+		return err
 	}
-	return destZip, ess.Zip(destZip, buildBaseDir)
+	return ess.Zip(destArchiveFile, buildBaseDir)
 }
 
 const aahBashStartupTemplate = `#!/usr/bin/env bash
@@ -406,7 +424,3 @@ GOTO :end
 :end
 ENDLOCAL
 `
-
-func init() {
-	buildCmd.Run = buildRun
-}

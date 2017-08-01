@@ -41,3 +41,21 @@ build {
   # refer: https://golang.org/pkg/path/filepath/#Match
   excludes = ["*.go", "*_test.go", ".*", "*.bak", "*.tmp", "vendor", "app", "build", "tests", "logs"]
 }
+
+# Hot-Reload is development purpose to help developer.
+# Read more about implementation here - https://github.com/go-aah/aah/issues/4
+#
+# NOTE: Do not use hot-reload feature for production purpose, it's not recommended.
+hot_reload {
+  # Default value is `true`.
+  enable = true
+
+  # Watch configuration - files/directories exclusion list.
+  watch {
+    # Note: static directory not required to be monitored, since server delivers
+    # up-to-date file on environment profile `dev`.
+    dir_excludes = [".*"]
+
+    file_excludes = [".*", "_test.go", "LICENSE", "README.md"]
+  }
+}

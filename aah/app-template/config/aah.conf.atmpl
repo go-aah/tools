@@ -27,16 +27,23 @@ server {
 
   # Valid time units are "s = seconds", "m = minutes"
   timeout {
-    # mapped to `http.Server.ReadTimeout`.
+    # Mapped to `http.Server.ReadTimeout`, is the maximum duration for reading
+    # the entire request, including the body.
+    #
+    # Because ReadTimeout does not let Handlers make per-request decisions on
+    # each request body's acceptable deadline or upload rate, most users will
+    # prefer to use ReadHeaderTimeout. It is valid to use them both.
     # Default value is `90s`.
     #read = "90s"
 
-    # mapped to `http.Server.WriteTimeout`
+    # Mapped to `http.Server.WriteTimeout`, is the maximum duration before timing
+    # out writes of the response. It is reset whenever a new request's header is
+    # read. Like ReadTimeout, it does not let Handlers make decisions on a
+    # per-request basis.
     # Default value is `90s`.
     #write = "90s"
 
-    # aah sever graceful shutdown timeout
-    # Note: applicable only to go1.8 and above
+    # aah server graceful shutdown timeout
     # Default value is `60s`.
     #grace_shutdown = "60s"
   }
@@ -96,9 +103,33 @@ server {
       # autocert manager passes the Cache certificates data encoded in PEM,
       # with private/public parts combined in a single Cache.Put call,
       # private key first.
-      # Default value is `empty` string
+      # Default value is `empty` string.
       #cache_dir = "/Users/jeeva/autocert"
     }
+  }
+
+  # To manage aah server effectively it is necessary to know details about the
+  # request, response, processing time, client IP address, etc. aah framework
+  # provides the flexible and configurable access log capabilities.
+  access_log {
+    # Enabling server access log
+    # Default value is `false`.
+    #enable = true
+
+    # Absolute path to access log file or relative path.
+    # Default location is application logs directory
+    #file = "{{ .AppName }}-access.log"
+
+    # Default server access log pattern
+    #pattern = "%clientip %custom:- %reqtime %reqmethod %requrl %reqproto %resstatus %ressize %restime %reqhdr:referer"
+
+    # Access Log channel buffer size
+    # Default value is `500`.
+    #channel_buffer_size = 500
+
+    # Include static files access log too.
+    # Default value is `true`.
+    #static_file = false
   }
 }
 
@@ -113,7 +144,7 @@ request {
   # HTTP header then it does not generate one.
   id {
     # Default value is `true`.
-    enable = {{ if eq .AppType "web" }}false{{ else }}true{{ end }}
+    enable = true
 
     # Default value is `X-Request-Id`, change it if you have different one.
     #header = "X-Request-Id"
@@ -132,6 +163,19 @@ i18n {
   # locale from HTTP Request.
   # Default value is `en`.
   #default = "en"
+
+  # Overriding Request Locale `Accept-Language` header value via URL Path
+  # parameter or URL Query parameter.
+  param_name {
+    # Specify URL Path Param name i.e. `/:lang/home.html`, `/:lang/aboutus.html`, etc.
+    # For e.g.: `/en/home.html`, `/en/aboutus.html`, `/zh-CN/home.html`, `/zh-CN/aboutus.html` etc.
+    # Default value is `lang`.
+    #path = "locale"
+
+    # Specify URL Query Param name i.e `?lang=en`, `?lang=zh-CN`, etc.
+    # Default value is `lang`.
+    #query = "locale"
+  }
 }
 
 # -----------------------------------------------------------------
@@ -161,19 +205,6 @@ runtime {
     # Default value is `false`.
     #all_goroutines = true
   }
-
-  # Pooling configuration is to reduce GC overhead from framework.
-  # Tune these value based on your use case. Pool doesn't create object
-  # unless it's needed.
-  # Doc: https://docs.aahframework.org/pooling.html
-  pooling {
-    # Default value is `500`.
-    #global = 500
-
-    # Used for `bytes.Buffer`
-    # Default value is `200`.
-    #buffer = 200
-  }
 }
 
 # -----------------------------------------------------------------
@@ -189,7 +220,7 @@ render {
   #  - Based `render.default` value supported types are `html`, `json`, `xml` and `text`
   #  - Finally aah framework uses `http.DetectContentType` API
   # Default value is `empty` string.
-  default = "html"
+  default = "{{ if eq .AppType "web" }}html{{ else }}json{{ end }}"
 
   # Pretty print option is helpful in `dev` environment profile.
   # It is only applicable to JSON and XML.
@@ -276,6 +307,12 @@ view {
   #default_layout = false
 }
 {{- end }}
+
+# --------------------------------------------------------------
+# Application Security
+# Doc: https://docs.aahframework.org/security-config.html
+# --------------------------------------------------------------
+include "./security.conf"
 
 # --------------------------------------------------------------
 # Environment Profiles e.g.: dev, qa, prod

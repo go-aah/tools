@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools source code and usage is governed by a MIT style
+// go-aah/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"gopkg.in/urfave/cli.v1"
+
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
@@ -24,26 +26,31 @@ const (
 	storeCookie = "cookie"
 	storeFile   = "file"
 	aahTmplExt  = ".atmpl"
+	authForm    = "form"
+	authBasic   = "basic"
+	authGeneric = "generic"
+	authNone    = "none"
 )
 
 var (
-	newCmd = &command{
-		Name:      "new",
-		UsageLine: "aah new",
-		Short:     "create new aah 'web' or 'api' application (interactive)",
-		Long: `
-'aah new' command is an interactive program to assist you to quick start aah application.
+	newCmd = cli.Command{
+		Name:    "new",
+		Aliases: []string{"n"},
+		Usage:   "Create new aah 'web' or 'api' application (interactive)",
+		Description: `aah new command is an interactive program to assist you to quick start aah application.
 
-Just provide your inputs based on your use case to generate base structure to kick
-start your development.
+	Just provide your inputs based on your use case to generate base structure to kick
+	start your development.
 
-Go to https://docs.aahframework.org to learn more and customize your aah application.
-`,
+	Go to https://docs.aahframework.org to learn more and customize your aah application.
+	`,
+		Action: newAction,
 	}
+
 	reader = bufio.NewReader(os.Stdin)
 )
 
-func newRun(args []string) {
+func newAction(c *cli.Context) error {
 	_ = log.SetPattern("%message")
 	log.Info("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
 	log.Info()
@@ -52,7 +59,8 @@ func newRun(args []string) {
 	// Collect data
 	importPath := getImportPath(reader)
 	appType := getAppType(reader)
-	sessionScope, sessionStore := getSessionInfo(reader, appType)
+	authScheme := getAuthScheme(reader, appType)
+	sessionStore := getSessionInfo(reader, appType)
 
 	// Process it
 	appDir := filepath.Join(gosrcDir, filepath.FromSlash(importPath))
@@ -62,7 +70,7 @@ func newRun(args []string) {
 		"AppName":                 appName,
 		"AppType":                 appType,
 		"AppImportPath":           importPath,
-		"AppSessionScope":         sessionScope,
+		"AppAuthScheme":           authScheme,
 		"AppSessionStore":         sessionStore,
 		"AppSessionFileStorePath": appSessionFilepath,
 		"AppSessionSignKey":       ess.RandomString(64),
@@ -75,9 +83,10 @@ func newRun(args []string) {
 	}
 
 	log.Infof("\nYour aah %s application was created successfully at '%s'", appType, appDir)
-	log.Infof("You shall run your application via the command: 'aah run -importPath=%s'\n", importPath)
+	log.Infof("You shall run your application via the command: 'aah run --importpath %s'\n", importPath)
 	log.Info("\nGo to https://docs.aahframework.org to learn more and customize your aah application.\n")
 	_ = log.SetPattern(log.DefaultPattern)
+	return nil
 }
 
 func readInput(reader *bufio.Reader, prompt string) string {
@@ -103,7 +112,7 @@ func getImportPath(reader *bufio.Reader) string {
 			break
 		}
 	}
-	return importPath
+	return strings.Replace(importPath, " ", "-", -1)
 }
 
 func getAppType(reader *bufio.Reader) string {
@@ -113,7 +122,7 @@ func getAppType(reader *bufio.Reader) string {
 		if ess.IsStrEmpty(appType) || appType == typeWeb || appType == typeAPI {
 			break
 		} else {
-			log.Error("Unsupported new aah application type, choose either 'web or 'api")
+			log.Error("Unsupported new aah application type, choose either 'web or 'api'")
 			appType = ""
 		}
 	}
@@ -123,16 +132,45 @@ func getAppType(reader *bufio.Reader) string {
 	return appType
 }
 
-func getSessionInfo(reader *bufio.Reader, appType string) (string, string) {
-	sessionScope := "stateless"
-	sessionStore := storeCookie
+func getAuthScheme(reader *bufio.Reader, appType string) string {
+	var (
+		authScheme  string
+		schemeNames string
+	)
+
 	if appType == typeWeb {
-		sessionScope = "stateful"
-	} else {
-		return sessionScope, sessionStore
+		schemeNames = "form, basic"
+	} else if appType == typeAPI {
+		schemeNames = "basic, generic"
 	}
 
-	if sessionScope == "stateful" {
+	for {
+		authScheme = readInput(reader, fmt.Sprintf("\nChoose your application Auth Scheme (%v), default is 'none': ", schemeNames))
+		if isAuthSchemeSupported(authScheme) {
+			if ess.IsStrEmpty(authScheme) || authScheme == authNone ||
+				(appType == typeWeb && (authScheme == authForm || authScheme == authBasic)) ||
+				(appType == typeAPI && (authScheme == authGeneric || authScheme == authBasic)) {
+				break
+			} else {
+				log.Errorf("Application type '%v' is not applicable with auth scheme '%v'", appType, authScheme)
+				authScheme = ""
+			}
+		} else {
+			log.Error("Unsupported Auth Scheme, choose either 'form', 'basic', 'generic' or 'none'")
+			authScheme = ""
+		}
+	}
+
+	if authScheme == authNone {
+		authScheme = ""
+	}
+	return authScheme
+}
+
+func getSessionInfo(reader *bufio.Reader, appType string) string {
+	sessionStore := storeCookie
+
+	if appType == typeWeb {
 		// Session Store
 		for {
 			sessionStore = readInput(reader, "\nChoose your session store (cookie or file), default is 'cookie': ")
@@ -148,7 +186,7 @@ func getSessionInfo(reader *bufio.Reader, appType string) (string, string) {
 		}
 	}
 
-	return sessionScope, sessionStore
+	return sessionStore
 }
 
 func createAahApp(appDir, appType string, data map[string]interface{}) error {
@@ -229,6 +267,7 @@ func getDestPath(destDir, srcDir, v string) string {
 	return dpath
 }
 
-func init() {
-	newCmd.Run = newRun
+func isAuthSchemeSupported(authScheme string) bool {
+	return ess.IsStrEmpty(authScheme) || authScheme == authForm || authScheme == authBasic ||
+		authScheme == authGeneric || authScheme == authNone
 }

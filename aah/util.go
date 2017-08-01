@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools source code and usage is governed by a MIT style
+// go-aah/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -7,10 +7,12 @@ package main
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -23,7 +25,12 @@ import (
 
 func importPathRelwd() string {
 	pwd, _ := os.Getwd()
-	importPath, _ := filepath.Rel(gosrcDir, pwd)
+	var importPath string
+	if strings.HasPrefix(pwd, gosrcDir) {
+		importPath, _ = filepath.Rel(gosrcDir, pwd)
+	} else if idx := strings.Index(pwd, "src"); idx > 0 {
+		importPath = pwd[idx+4:]
+	}
 	return filepath.ToSlash(importPath)
 }
 
@@ -125,7 +132,6 @@ func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 		if err := cmd.Run(); err != nil {
 			return "", err
 		}
-		_ = cmd.Wait()
 	} else {
 		bytes, err := cmd.CombinedOutput()
 		if err != nil {
@@ -197,4 +203,15 @@ func excludeAndCreateSlice(arr []string, str string) []string {
 
 func isAahProject(file string) bool {
 	return strings.HasSuffix(file, aahProjectIdentifier)
+}
+
+func findAvailablePort() string {
+	lstn, err := net.Listen("tcp", ":0")
+	if err != nil {
+		log.Error(err)
+		return "0"
+	}
+	defer ess.CloseQuietly(lstn)
+
+	return strconv.Itoa(lstn.Addr().(*net.TCPAddr).Port)
 }

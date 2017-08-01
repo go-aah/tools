@@ -6,18 +6,161 @@
 ######################################################
 
 security {
-  {{ if eq .AppSessionScope "stateful" -}}
+  # -------------------------------------------------------
+  # Authentication & Authorization configuration
+  # Doc: https://docs.aahframework.org/security-design.html
+  # -------------------------------------------------------
+  auth_schemes {
+    {{ if eq .AppAuthScheme "form" -}}
+    # HTTP Form Auth Scheme
+    # It is custom defined name, this is used in the routes `auth` attribute.
+    form_auth {
+      # Auth scheme name.
+      # Currently supported values are `form`, `basic` and `generic`.
+      # It is required value, no default.
+      scheme = "form"
+
+      # Framework calls `Authenticator` to get the Subject's authentication
+      # information. Then framework validates the credential using password
+      # encoder.
+      # It is required value, no default.
+      #authenticator = "security/Authentication"
+
+      # Framework calls `Authorizer` to get Subject's authorization information,
+      # such as Roles, Permissions. Then it populates the Subject instance.
+      # It is required value, no default.
+      #authorizer = "security/Authorization"
+
+      # Password encoder is used to encode the given credential and then compares
+      # it with application provide credential.
+      # Currently supported hashing is `bcrypt`, additional hash types (upcoming).
+      password_encoder {
+        # Default value is `bcrypt`.
+        #type = "bcrypt"
+      }
+
+      # Field names are used to extract `AuthenticationToken` from request.
+      field {
+        # Default value is `username`
+        #identity = "username"
+
+        # Default value is `password`
+        #credential = "password"
+      }
+
+      # URLs is used when appropriate.
+      url {
+        # Login page URL, implement your login and configure here.
+        # Default value is `/login.html`.
+        #login = "/login.html"
+
+        # Login submit URL, used to submit login credential for authentication.
+        # Basically login form submits its values to this URL as POST request.
+        # Default value is `/login`.
+        #login_submit = "/login"
+
+        # Login failure, any failure during authentication process. Framework
+        # sends user to this URL and logs detailed information in the log.
+        #login_failure = "/login.html?error=true"
+
+        # Default page URL after the successful authentication. By default framework
+        # redirects the user to requested page after authentication. Otherwise it
+        # sends to this URL.
+        # Default value is `/`.
+        #default_target = "/"
+
+        # Always redirect to default URL, regardless of the request page.
+        # Default value is `false`.
+        #always_to_default = false
+      }
+    }{{ end -}}
+
+    {{ if eq .AppAuthScheme "basic" -}}
+    # HTTP Basic Auth Scheme
+    # It is custom defined name, this is used in the routes `auth` attribute.
+    basic_auth {
+      # Auth scheme name.
+      # Currently supported values are `form`, `basic` and `generic`.
+      # It is required value, no default.
+      scheme = "basic"
+
+      # Realm name is used for `Www-Authenticate` HTTP header.
+      # Note: Nowadays, modern browsers are not respecting this values.
+      # However aah framework does its due diligence.
+      realm_name = "Protected"
+
+      # Basic auth realm file path. You can use absolute path or
+      # environment variable to provide path.
+      # No default value.
+      file_realm = "/path/to/basic-realm-file.conf"
+
+      ## NOTE: you can use either file realm or dynamic
+
+      # Framework calls `Authenticator` to get the Subject's authentication
+      # information. Then framework validates the credential using password
+      # encoder.
+      # It is required value when `file_realm` not configured, no default.
+      #authenticator = "security/Authentication"
+
+      # Framework calls `Authorizer` to get Subject's authorization information,
+      # such as Roles and Permissions. Then it populates the Subject instance.
+      # It is required value when `file_realm` not configured, no default.
+      #authorizer = "security/Authorization"
+
+      # Password encoder is used to encode the given credential and then compares
+      # it with application provide credential.
+      # Currently supported hashing is `bcrypt`, additional hash types (upcoming).
+      password_encoder {
+        # Default value is `bcrypt`.
+        #type = "bcrypt"
+      }
+    }{{ end -}}
+
+    {{ if eq .AppAuthScheme "generic" -}}
+    # Generic Auth Scheme
+    # It is custom defined name, this is used in the routes `auth` attribute.
+    generic_auth {
+      # Auth scheme name.
+      # Currently supported values are `form`, `basic` and `generic`.
+      # It is required value, no default.
+      scheme = "generic"
+
+      # Framework calls `Authenticator` to get the Subject's authentication
+      # information. The credential validation is not done by framework, it is
+      # left interface implementation.
+      # It is required value, no default.
+      #authenticator = "security/Authentication"
+
+      # Framework calls `Authorizer` to get Subject's authorization information,
+      # such as Roles and Permissions. Then it populates the Subject instance.
+      # It is required value, no default.
+      #authorizer = "security/Authorization"
+
+      # Header names are used to extract `AuthenticationToken` from request.
+      header {
+        # Default value is 'Authorization'
+        #identity = "Authorization"
+
+        # Optional credential header
+        # Typically it's not used, however in the industry people do use it
+        # Default value is empty string
+        #credential = "X-AuthPass"
+      }
+    }{{ end }}
+  }
+
   # -----------------------------------------------------------------------
   # Session configuration
   # HTTP state management across multiple requests.
   # Doc: https://docs.aahframework.org/security-config.html#section-session
   # -----------------------------------------------------------------------
   session {
+    {{ if eq .AppAuthScheme "form" -}}
     # Session mode to choose whether HTTP session should be persisted or
     # destroyed at the end of the request. Supported values are `stateless`
     # and `stateful`.
     # Default value is `stateless` for API and `stateful` for Web app.
-    mode = "{{ .AppSessionScope }}"
+    mode = "{{ if eq .AppAuthScheme "" }}stateless{{ else }}stateful{{ end }}"
 
     # Session store is to choose where session value should be persisted.
     store {
@@ -85,6 +228,6 @@ security {
     # `m -> minutes`, `h -> hours`.
     # Default value is `30m`.
     #cleanup_interval = "30m"
+    {{- end }}
   }
-  {{- end }}
 }

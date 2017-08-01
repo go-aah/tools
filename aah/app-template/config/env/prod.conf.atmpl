@@ -10,7 +10,7 @@ prod {
   # --------------------------------------------------
   log {
     # Receiver is where is log values gets logged. Currently framework
-    # supports `console` and `file` as a receivers.
+    # supports `console` and `file`. Hooks for extension.
     # Default value is `console`.
     receiver = "file"
 
@@ -18,6 +18,10 @@ prod {
     # and `TRACE`. Config value can be in lowercase or uppercase.
     # Default value is `debug`.
     level = "warn"
+
+    # Format to define log entry output format. Supported formats are `text` and `json`.
+    # Default value is `text`.
+    #format = "json"
 
     # Pattern config defines the message flags and formatting while logging
     # into receivers. Customize it as per your need, learn more about flags
@@ -32,10 +36,10 @@ prod {
     # Rotate config section is applicable only to `file` receiver type.
     # Default rotation is 'daily'.
     rotate {
-      # Mode is used to determine rotate mode. Currently it supports `daily`,
-      # `lines` and `size`.
+      # Policy is used to determine rotate policy. Currently it supports `daily`,
+      # `lines` and `size` policies.
       # Default value is `daily`.
-      #mode = "daily"
+      #policy = "daily"
 
       # This is applicable only to if `mode` is `size`.
       # Default value is 100MB.

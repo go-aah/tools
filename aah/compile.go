@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools source code and usage is governed by a MIT style
+// go-aah/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -20,13 +20,22 @@ import (
 	"aahframework.org/router.v0"
 )
 
+type compileArgs struct {
+	Cmd        string
+	ProxyPort  string
+	ProjectCfg *config.Config
+	AppPack    bool
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
 
 // compileApp method calls Go ast parser, generates main.go and builds aah
 // application binary at Go bin directory
-func compileApp(buildCfg *config.Config, appPack bool) (string, error) {
+func compileApp(args *compileArgs) (string, error) {
+	projectCfg := args.ProjectCfg
+
 	// app variables
 	appBaseDir := aah.AppBaseDir()
 	appImportPath := aah.AppImportPath()
@@ -34,11 +43,11 @@ func compileApp(buildCfg *config.Config, appPack bool) (string, error) {
 	appControllersPath := filepath.Join(appCodeDir, "controllers")
 	appBuildDir := filepath.Join(appBaseDir, "build")
 
-	appName := buildCfg.StringDefault("name", aah.AppName())
+	appName := projectCfg.StringDefault("name", aah.AppName())
 	log.Infof("Compile starts for '%s' [%s]", appName, appImportPath)
 
 	// excludes for Go AST processing
-	excludes, _ := buildCfg.StringList("build.ast_excludes")
+	excludes, _ := projectCfg.StringList("build.ast_excludes")
 
 	// get all configured Controllers with action info
 	registeredActions := aah.AppRouter().RegisteredActions()
@@ -73,27 +82,28 @@ func compileApp(buildCfg *config.Config, appPack bool) (string, error) {
 	// get all the types info referred aah framework context embedded
 	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", aahImportPath))
 	appImportPaths := prg.CreateImportPaths(appControllers)
+	appSecurity := appSecurity(aah.AppConfig(), appImportPaths)
 
 	// prepare aah application version and build date
-	appVersion := getAppVersion(appBaseDir, buildCfg)
+	appVersion := getAppVersion(appBaseDir, projectCfg)
 	appBuildDate := getBuildDate()
 
 	// create go build arguments
 	buildArgs := []string{"build"}
 
-	if flags, found := buildCfg.StringList("build.flags"); found {
+	if flags, found := projectCfg.StringList("build.flags"); found {
 		buildArgs = append(buildArgs, flags...)
 	}
 
-	if ldflags := buildCfg.StringDefault("build.ldflags", ""); !ess.IsStrEmpty(ldflags) {
+	if ldflags := projectCfg.StringDefault("build.ldflags", ""); !ess.IsStrEmpty(ldflags) {
 		buildArgs = append(buildArgs, "-ldflags", ldflags)
 	}
 
-	if tags := buildCfg.StringDefault("build.tags", ""); !ess.IsStrEmpty(tags) {
+	if tags := projectCfg.StringDefault("build.tags", ""); !ess.IsStrEmpty(tags) {
 		buildArgs = append(buildArgs, "-tags", tags)
 	}
 
-	appBinary := appBinaryFile(buildCfg, appBuildDir)
+	appBinary := appBinaryFile(projectCfg, appBuildDir)
 	appBinaryName := filepath.Base(appBinary)
 	buildArgs = append(buildArgs, "-o", appBinary)
 
@@ -106,7 +116,9 @@ func compileApp(buildCfg *config.Config, appPack bool) (string, error) {
 	log.Debugf("Cleaning build directory %s", appBuildDir)
 	ess.DeleteFiles(appMainGoFile, appBuildDir)
 
-	generateSource(appCodeDir, "aah.go", aahMainTemplate, map[string]interface{}{
+	if err := generateSource(appCodeDir, "aah.go", aahMainTemplate, map[string]interface{}{
+		"AppTargetCmd":   args.Cmd,
+		"AppProxyPort":   args.ProxyPort,
 		"AahVersion":     aah.Version,
 		"AppImportPath":  appImportPath,
 		"AppVersion":     appVersion,
@@ -114,11 +126,14 @@ func compileApp(buildCfg *config.Config, appPack bool) (string, error) {
 		"AppBinaryName":  appBinaryName,
 		"AppControllers": appControllers,
 		"AppImportPaths": appImportPaths,
-		"AppIsPackaged":  appPack,
-	})
+		"AppSecurity":    appSecurity,
+		"AppIsPackaged":  args.AppPack,
+	}); err != nil {
+		return "", err
+	}
 
 	// getting project dependencies if not exists in $GOPATH
-	if err := checkAndGetAppDeps(appImportPath, buildCfg); err != nil {
+	if err := checkAndGetAppDeps(appImportPath, projectCfg); err != nil {
 		return "", fmt.Errorf("unable to get application dependencies: %s", err)
 	}
 
@@ -132,22 +147,23 @@ func compileApp(buildCfg *config.Config, appPack bool) (string, error) {
 	return appBinary, nil
 }
 
-func generateSource(dir, filename, templateSource string, templateArgs map[string]interface{}) {
+func generateSource(dir, filename, templateSource string, templateArgs map[string]interface{}) error {
 	if !ess.IsFileExists(dir) {
 		if err := ess.MkDirAll(dir, 0644); err != nil {
-			fatal(err)
+			return err
 		}
 	}
 
 	file := filepath.Join(dir, filename)
 	buf := &bytes.Buffer{}
 	if err := renderTmpl(buf, templateSource, templateArgs); err != nil {
-		fatal(err)
+		return err
 	}
 
 	if err := ioutil.WriteFile(file, buf.Bytes(), permRWXRXRX); err != nil {
-		fatalf("aah '%s' file write error: %s", filename, err)
+		return fmt.Errorf("aah '%s' file write error: %s", filename, err)
 	}
+	return nil
 }
 
 // checkAndGetAppDeps method project dependencies is present otherwise
@@ -190,13 +206,75 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 				}
 			}
 		} else if len(notExistsPkgs) > 0 {
-			fatal("Below application dependencies are not exists, "+
-				"enable 'build.dep_get=true' in 'aah.project' for auto fetch\n---> ",
+			return fmt.Errorf("Below application dependencies does not exist, "+
+				"enable 'build.dep_get=true' in 'aah.project' for auto fetch\n---> %s",
 				strings.Join(notExistsPkgs, "\n---> "))
 		}
 	}
 
 	return nil
+}
+
+func appSecurity(appCfg *config.Config, appImportPaths map[string]string) map[string]interface{} {
+	securityInfo := make(map[string]interface{})
+	importPathPrefix := path.Join(aah.AppImportPath(), "app")
+	keyPrefixAuthScheme := "security.auth_schemes"
+
+	for _, keyAuthScheme := range appCfg.KeysByPath(keyPrefixAuthScheme) {
+		keyPrefixAuthSchemeCfg := keyPrefixAuthScheme + "." + keyAuthScheme
+
+		// Basic auth - file realm check
+		if appCfg.StringDefault(keyPrefixAuthSchemeCfg+".scheme", "") == "basic" {
+			fileRealmPath := appCfg.StringDefault(keyPrefixAuthSchemeCfg+".file_realm", "")
+			if !ess.IsStrEmpty(fileRealmPath) {
+				continue
+			}
+		}
+
+		isAuthSchemeCfg := false
+		authSchemeInfo := struct {
+			Authenticator string
+			Authorizer    string
+		}{}
+
+		// Authenticator
+		authenticator := appCfg.StringDefault(keyPrefixAuthSchemeCfg+".authenticator", "")
+		if !ess.IsStrEmpty(authenticator) {
+			authSchemeInfo.Authenticator = prepareAuthAlias(
+				keyAuthScheme+"sec", authenticator, importPathPrefix, appImportPaths)
+			isAuthSchemeCfg = true
+		}
+
+		// Authorizer
+		authorizer := appCfg.StringDefault(keyPrefixAuthSchemeCfg+".authorizer", "")
+		if !ess.IsStrEmpty(authorizer) {
+			authSchemeInfo.Authorizer = prepareAuthAlias(
+				keyAuthScheme+"secz", authorizer, importPathPrefix, appImportPaths)
+			isAuthSchemeCfg = true
+		}
+
+		if isAuthSchemeCfg {
+			securityInfo[keyAuthScheme] = authSchemeInfo
+		}
+	}
+
+	if len(securityInfo) == 0 {
+		return nil
+	}
+
+	return securityInfo
+}
+
+func prepareAuthAlias(keyAuthAlias, auth, importPathPrefix string, appImportPaths map[string]string) string {
+	var authAlias string
+	importPath := path.Join(importPathPrefix, path.Dir(auth))
+	if alias, found := appImportPaths[importPath]; found {
+		authAlias = alias
+	} else {
+		authAlias = keyAuthAlias
+		appImportPaths[importPath] = authAlias
+	}
+	return authAlias + "." + path.Base(auth)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -247,6 +325,14 @@ func setAppEnvProfile(e *aah.Event) {
 	aah.AppConfig().SetString("env.active", *profile)
 }
 
+{{ if eq .AppTargetCmd "RunCmd" -}}
+{{ if .AppProxyPort -}}
+func setAppProxyPort(e *aah.Event) {
+	aah.AppConfig().SetString("server.proxyport", "{{ .AppProxyPort }}")
+}
+{{- end }}
+{{- end }}
+
 func main() {
 	log.Infof("aah framework v%s, requires ≥ go1.8", aah.Version)
 	flag.Parse()
@@ -279,7 +365,7 @@ func main() {
 
 	aah.Init("{{ .AppImportPath }}")
 
-	// Adding all the controllers which refers 'aah.Context' directly
+	// Adding all the application controllers which refers 'aah.Context' directly
 	// or indirectly from app/controllers/** {{ range $i, $c := .AppControllers }}
 	aah.AddController(
 		(*{{ index $.AppImportPaths .ImportPath }}.{{ .Name }})(nil),
@@ -293,7 +379,32 @@ func main() {
 		},
 	){{- end }}
 
+	{{ if .AppSecurity -}}
+	// Initialize application security auth schemes - Authenticator & Authorizer
+	secMgr := aah.AppSecurityManager()
+	{{- range $k, $v := $.AppSecurity }}
+	{{ if $v.Authenticator -}}
+	log.Debugf("Calling authenticator Init for auth scheme '%s'", "{{ $k }}")
+	if err := secMgr.GetAuthScheme("{{ $k }}").SetAuthenticator(&{{ $v.Authenticator }}{}); err != nil {
+		log.Fatal(err)
+	}
+	{{ end -}}
+	{{ if $v.Authorizer -}}
+	log.Debugf("Calling authorizer Init for auth scheme '%s'", "{{ $k }}")
+	if err := secMgr.GetAuthScheme("{{ $k }}").SetAuthorizer(&{{ $v.Authorizer }}{}); err != nil {
+		log.Fatal(err)
+	}
+	{{ end -}}
+	{{ end -}}
+	{{ end }}
+
 	log.Info("aah application initialized successfully")
+
+	{{ if eq .AppTargetCmd "RunCmd" -}}
+	{{ if .AppProxyPort -}}
+	aah.OnStart(setAppProxyPort)
+	{{- end }}
+	{{- end }}
 
   aah.Start()
 }

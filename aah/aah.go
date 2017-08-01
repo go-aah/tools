@@ -1,25 +1,36 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools source code and usage is governed by a MIT style
+// go-aah/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
-	"flag"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"sort"
+	"strings"
+
+	"gopkg.in/urfave/cli.v1"
 
 	"aahframework.org/aah.v0"
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/i18n.v0"
 	"aahframework.org/log.v0"
+	"aahframework.org/router.v0"
+	"aahframework.org/security.v0"
+	"aahframework.org/test.v0"
+	"aahframework.org/view.v0"
 )
 
 // Version no. of aah framework CLI tool
-const Version = "0.6"
+const Version = "0.7"
 
 const (
 	header = `–––––––––––––––––––––––––––––––––––––––––––––––––––––
@@ -36,13 +47,34 @@ var (
 	gopath   string
 	gocmd    string
 	gosrcDir string
-	subCmds  commands
 
 	// abstract it, so we can do unit test
 	fatal  = log.Fatal
 	fatalf = log.Fatalf
 	exit   = os.Exit
 )
+
+func checkPrerequisites() error {
+	// check go is installed or not
+	if !ess.LookExecutable("go") {
+		return errors.New("Unable to find Go executable in PATH")
+	}
+
+	var err error
+
+	// get GOPATH, refer https://godoc.org/aahframework.org/essentials.v0#GoPath
+	if gopath, err = ess.GoPath(); err != nil {
+		return err
+	}
+
+	if gocmd, err = exec.LookPath("go"); err != nil {
+		return err
+	}
+
+	gosrcDir = filepath.Join(gopath, "src")
+
+	return nil
+}
 
 // aah cli tool entry point
 func main() {
@@ -56,44 +88,29 @@ func main() {
 		}
 	}()
 
-	// check go is installed or not
-	if !ess.LookExecutable("go") {
-		fatal("Unable to find Go executable in PATH")
-	}
-
-	var err error
-
-	// get GOPATH, refer https://godoc.org/aahframework.org/essentials.v0#GoPath
-	if gopath, err = ess.GoPath(); err != nil {
+	if err := checkPrerequisites(); err != nil {
 		fatal(err)
 	}
 
-	if gocmd, err = exec.LookPath("go"); err != nil {
-		fatal(err)
+	app := cli.NewApp()
+	app.Name = "aah"
+	app.Usage = "framework CLI tool"
+	app.Version = Version
+	app.Author = "Jeevanandam M."
+	app.Email = "jeeva@myjeeva.com"
+	app.Copyright = "Copyright (c) Jeevanandam M. <jeeva@myjeeva.com>"
+
+	app.Before = printHeader
+	app.Commands = []cli.Command{
+		newCmd,
+		runCmd,
+		buildCmd,
+		listCmd,
+		cleanCmd,
 	}
 
-	flag.Parse()
-	args := flag.Args()
-	gosrcDir = filepath.Join(gopath, "src")
-
-	printHeader()
-	if len(args) == 0 {
-		displayUsage()
-	}
-
-	// find the command
-	cmd, err := subCmds.Find(args[0])
-	if err != nil {
-		commandNotFound(args[0])
-	}
-
-	// Validate command arguments count
-	if len(args)-1 > cmd.ArgsCount {
-		fatal("Too many arguments given. Run 'aah help command'.\n\n")
-	}
-
-	// running command
-	cmd.Run(args[1:])
+	sort.Sort(cli.FlagsByName(app.Flags))
+	_ = app.Run(os.Args)
 	return
 }
 
@@ -101,23 +118,71 @@ func main() {
 // Unexported methods
 //___________________________________
 
-func printHeader() {
-	if !isWindowsOS() {
-		fmt.Fprintf(os.Stdout, fmt.Sprintf("\033[1;32m%v\033[0m\n", header), aah.Version)
-		return
+func printHeader(c *cli.Context) error {
+	if isWindowsOS() {
+		fmt.Fprintf(c.App.Writer, header, aah.Version)
+	} else {
+		fmt.Fprintf(c.App.Writer, fmt.Sprintf("\033[1;32m%v\033[0m", header), aah.Version)
 	}
-	fmt.Fprintf(os.Stdout, header, aah.Version)
+	fmt.Fprintf(c.App.Writer, "# Report improvements/bugs at https://github.com/go-aah/aah/issues\n\n")
+	return nil
 }
 
 func init() {
-	// Adding list of commands. The order here is the order in
-	// which commands are printed by 'aah help'.
-	subCmds = commands{
-		newCmd,
-		runCmd,
-		buildCmd,
-		listCmd,
-		versionCmd,
-		helpCmd,
+	cli.HelpFlag = cli.BoolFlag{
+		Name:  "h, help",
+		Usage: "show help",
 	}
+
+	cli.VersionFlag = cli.BoolFlag{
+		Name:  "v, version",
+		Usage: "print aah framework version and go version",
+	}
+
+	cli.VersionPrinter = func(c *cli.Context) {
+		_ = printHeader(c)
+		fmt.Fprint(c.App.Writer, "Version(s):\n")
+		fmt.Fprintf(c.App.Writer, "\t%-17s v%s\n", "aah framework", aah.Version)
+		fmt.Fprintf(c.App.Writer, "\t%-17s v%s\n", "aah cli tool", Version)
+		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", "Modules: ", strings.Join(
+			[]string{
+				"config v" + config.Version, "essentials v" + ess.Version,
+				"ahttp v" + ahttp.Version, "router v" + router.Version,
+				"security v" + security.Version}, ", "))
+		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", "", strings.Join(
+			[]string{"i18n v" + i18n.Version, "view v" + view.Version,
+				"log v" + log.Version, "test v" + test.Version, "aruntime v" + aruntime.Version,
+			}, ", "))
+		fmt.Println()
+		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", fmt.Sprintf("go[%s/%s]",
+			runtime.GOOS, runtime.GOARCH), runtime.Version()[2:])
+		fmt.Println()
+	}
+
+	cli.AppHelpTemplate = `Usage:
+  {{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}
+{{if .Commands}}
+Commands:
+{{range .Commands}}{{if not .HideHelp}}  {{join .Names ", "}}{{ "\t   " }}{{.Usage}}{{ "\n" }}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
+Global Options:
+  {{range .VisibleFlags}}{{.}}
+  {{end}}{{end}}
+`
+
+	cli.CommandHelpTemplate = `Name:
+  {{.HelpName}} - {{.Usage}}
+
+Usage:
+  {{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{if .Category}}
+
+Category:
+  {{.Category}}{{end}}{{if .Description}}
+
+Description:
+  {{.Description}}{{end}}{{if .VisibleFlags}}
+
+Options:
+   {{range .VisibleFlags}}{{.}}
+   {{end}}{{end}}
+`
 }
