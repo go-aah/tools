@@ -240,30 +240,16 @@ func appSecurity(appCfg *config.Config, appImportPaths map[string]string) map[st
 		// Authenticator
 		authenticator := appCfg.StringDefault(keyPrefixAuthSchemeCfg+".authenticator", "")
 		if !ess.IsStrEmpty(authenticator) {
-			var authcAlias string
-			importPath := path.Join(importPathPrefix, path.Dir(authenticator))
-			if alias, found := appImportPaths[importPath]; found {
-				authcAlias = alias
-			} else {
-				authcAlias = keyAuthScheme + "sec"
-				appImportPaths[importPath] = authcAlias
-			}
-			authSchemeInfo.Authenticator = authcAlias + "." + path.Base(authenticator)
+			authSchemeInfo.Authenticator = prepareAuthAlias(
+				keyAuthScheme+"sec", authenticator, importPathPrefix, appImportPaths)
 			isAuthSchemeCfg = true
 		}
 
 		// Authorizer
 		authorizer := appCfg.StringDefault(keyPrefixAuthSchemeCfg+".authorizer", "")
 		if !ess.IsStrEmpty(authorizer) {
-			var authzAlias string
-			importPath := path.Join(importPathPrefix, path.Dir(authorizer))
-			if alias, found := appImportPaths[importPath]; found {
-				authzAlias = alias
-			} else {
-				authzAlias = keyAuthScheme + "secz"
-				appImportPaths[importPath] = authzAlias
-			}
-			authSchemeInfo.Authorizer = authzAlias + "." + path.Base(authorizer)
+			authSchemeInfo.Authorizer = prepareAuthAlias(
+				keyAuthScheme+"secz", authorizer, importPathPrefix, appImportPaths)
 			isAuthSchemeCfg = true
 		}
 
@@ -277,6 +263,18 @@ func appSecurity(appCfg *config.Config, appImportPaths map[string]string) map[st
 	}
 
 	return securityInfo
+}
+
+func prepareAuthAlias(keyAuthAlias, auth, importPathPrefix string, appImportPaths map[string]string) string {
+	var authAlias string
+	importPath := path.Join(importPathPrefix, path.Dir(auth))
+	if alias, found := appImportPaths[importPath]; found {
+		authAlias = alias
+	} else {
+		authAlias = keyAuthAlias
+		appImportPaths[importPath] = authAlias
+	}
+	return authAlias + "." + path.Base(auth)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
