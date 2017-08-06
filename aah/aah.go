@@ -16,7 +16,7 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
@@ -30,15 +30,15 @@ import (
 )
 
 // Version no. of aah framework CLI tool
-const Version = "0.7"
+const Version = "0.8-dev"
 
 const (
 	header = `–––––––––––––––––––––––––––––––––––––––––––––––––––––
    aah framework v%s -  https://aahframework.org
 –––––––––––––––––––––––––––––––––––––––––––––––––––––
 `
-	aahImportPath    = "aahframework.org/aah.v0"
-	aahCLIImportPath = "aahframework.org/tools.v0/aah"
+	aahImportPath    = "aahframework.org/aah.v0-unstable"
+	aahCLIImportPath = "aahframework.org/tools.v0-unstable/aah"
 	permRWXRXRX      = 0755
 	permRWRWRW       = 0666
 )
