@@ -152,6 +152,23 @@ request {
 
   # Default value is `32mb`, choose your value based on your use case
   #multipart_size = "32mb"
+
+  # aah provides `Content Negotiation` feature for the incoming HTTP request.
+  # Read more about implementation and RFC details here Github #75.
+  # Perfect for REST API, also can be used for web application too if needed.
+  content_negotiation {
+    # For example: Client sends Accept header as `application/xml`.
+    # However server only supports serving JSON i.e. `application/json`.
+    # Then server responds with 406 Not Acceptable.
+    # Default value is empty list.
+    #offered = ["application/json", "text/json", "application/xml", "text/xml"]
+
+    # For example: Client sends Content-Type header as `application/xml`.
+    # However server only supports JSON payload as request body.
+    # Then server responds with 415 Unsupported Media Type.
+    # Default value is empty list.
+    #accepted = ["application/json", "text/json" "application/xml", "text/xml"]
+  }
 }
 
 # ---------------------------------------------------------------
