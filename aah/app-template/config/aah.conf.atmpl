@@ -150,6 +150,12 @@ request {
     #header = "X-Request-Id"
   }
 
+  # Maximum request body size for all incoming HTTP requests
+  # except `MultipartForm`, refer to `request.multipart_size` config.
+  # Also you can override individual route `max_body_size` in the `routes.conf` if need be.
+  # Default value is `5mb`.
+  #max_body_size = "5mb"
+
   # Default value is `32mb`, choose your value based on your use case
   #multipart_size = "32mb"
 
@@ -160,14 +166,14 @@ request {
     # For example: Client sends Accept header as `application/xml`.
     # However server only supports serving JSON i.e. `application/json`.
     # Then server responds with 406 Not Acceptable.
-    # Default value is empty list.
-    #offered = ["application/json", "text/json", "application/xml", "text/xml"]
+    # Default value is empty list and disabled.
+    #offered = ["application/json", "text/json"]
 
     # For example: Client sends Content-Type header as `application/xml`.
     # However server only supports JSON payload as request body.
     # Then server responds with 415 Unsupported Media Type.
-    # Default value is empty list.
-    #accepted = ["application/json", "text/json" "application/xml", "text/xml"]
+    # Default value is empty list and disabled.
+    #accepted = ["application/json", "text/json"]
   }
 }
 
