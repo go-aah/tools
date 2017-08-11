@@ -214,10 +214,10 @@ func createAahApp(appDir, appType string, data map[string]interface{}) error {
 	// config
 	processSection(appDir, appTemplatePath, "config", data)
 
-	// i18n
-	processSection(appDir, appTemplatePath, "i18n", data)
-
 	if typeWeb == appType {
+		// i18n
+		processSection(appDir, appTemplatePath, "i18n", data)
+
 		// static
 		processSection(appDir, appTemplatePath, "static", data)
 
