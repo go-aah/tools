@@ -129,7 +129,7 @@ func runAction(c *cli.Context) error {
 	if projectCfg.BoolDefault("hot_reload.enable", true) && envProfile == "dev" {
 		log.Infof("Hot-Reload enabled for environment profile: %s", aah.AppProfile())
 
-		address := firstNonEmpty(aah.AppHTTPAddress(), "localhost")
+		address := firstNonEmpty(aah.AppHTTPAddress(), "")
 		proxyPort := findAvailablePort()
 		scheme := "http"
 		if aah.AppIsSSLEnabled() {
