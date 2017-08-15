@@ -25,6 +25,10 @@ server {
   # Default value is 8080.
   #port = ""
 
+  # Header value written as response HTTP header.
+  # If you do not want to include `Server` header, comment it out.
+  header = "aah-go-server"
+
   # Valid time units are "s = seconds", "m = minutes"
   timeout {
     # Mapped to `http.Server.ReadTimeout`, is the maximum duration for reading
