@@ -46,6 +46,10 @@ var (
 		"uint8":      true,
 		"uintptr":    true,
 	}
+
+	errInvalidActionParam   = errors.New("aah: invalid action parameter")
+	errInterfaceActionParam = errors.New("aah: 'interface{}' is not supported in the action parameter")
+	errMapActionParam       = errors.New("aah: 'map' is not supported in the action parameter")
 )
 
 type (
@@ -272,21 +276,34 @@ func (prg *program) FindTypeByEmbeddedType(qualifiedTypeName string) []*typeInfo
 func (prg *program) CreateImportPaths(types []*typeInfo) map[string]string {
 	importPaths := map[string]string{}
 	for _, t := range types {
-		importPath := filepath.ToSlash(t.ImportPath)
-		if _, found := importPaths[importPath]; !found {
-			cnt := 0
-			pkgAlias := t.PackageName()
-
-			for isPkgAliasExists(importPaths, pkgAlias) {
-				pkgAlias = fmt.Sprintf("%s%d", t.PackageName(), cnt)
-				cnt++
+		createAlias(t.PackageName(), t.ImportPath, importPaths)
+		for _, m := range t.Methods {
+			for _, p := range m.Parameters {
+				if !p.Type.IsBuiltIn {
+					createAlias(p.Type.PackageName, p.ImportPath, importPaths)
+				}
 			}
-
-			importPaths[importPath] = pkgAlias
 		}
 	}
 
 	return importPaths
+}
+
+func createAlias(packageName, importPath string, importPaths map[string]string) {
+	importPath = filepath.ToSlash(importPath)
+	if _, found := importPaths[importPath]; !found {
+		cnt := 0
+		pkgAlias := packageName
+
+		for isPkgAliasExists(importPaths, pkgAlias) {
+			pkgAlias = fmt.Sprintf("%s%d", packageName, cnt)
+			cnt++
+		}
+
+		if !ess.IsStrEmpty(pkgAlias) && !ess.IsStrEmpty(importPath) {
+			importPaths[importPath] = pkgAlias
+		}
+	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -498,8 +515,9 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 		for _, fieldName := range field.Names {
 			te, err := parseParamFieldExpr(pkg.Name(), field.Type)
 			if err != nil {
-				log.Errorf("AST: Unable to parse parameter '%s' on action '%s.%s', ignoring it", fieldName.Name, controllerName, actionName)
-				return
+				log.Errorf("AST: %s, please fix the parameter '%s' on action '%s.%s'; "+
+					"otherwise your action may not work properly", err, fieldName.Name, controllerName, actionName)
+				continue
 			}
 
 			var importPath string
@@ -598,7 +616,11 @@ func parseParamFieldExpr(pkgName string, expr ast.Expr) (*typeExpr, error) {
 	case *ast.Ellipsis:
 		e, err := parseParamFieldExpr(pkgName, t.Elt)
 		return &typeExpr{Expr: "[]" + e.Expr, PackageName: e.PackageName, PackageIndex: e.PackageIndex + uint8(2)}, err
+	case *ast.InterfaceType:
+		return nil, errInterfaceActionParam
+	case *ast.MapType:
+		return nil, errMapActionParam
 	}
 
-	return nil, errors.New("not a valid fieldname/parameter name")
+	return nil, errInvalidActionParam
 }

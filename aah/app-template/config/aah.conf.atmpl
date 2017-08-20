@@ -179,6 +179,30 @@ request {
     # Default value is empty list and disabled.
     #accepted = ["application/json", "text/json"]
   }
+
+  # Auto Bind configuration used to bind request parameters to controller
+  # action parameters.
+  auto_bind {
+    # Priority is used to select the bind source priority.
+    #   P -> Path Parameter
+    #   F -> Form Parameter
+    #   Q -> Query Parameter
+    #
+    # For example: Let's say you have controller action named `OrderInfo` and its has
+    # parameter called `orderId`. So framework tries to parse and bind based
+    # on the priority. The `orderId` present in `Path` and `Form`, framework
+    # binds the value from `Path`. Typically recommended to have unique names
+    # in the request parameter though :)
+    #   Path -> Form -> Query
+    # If not found then it returns with default Go zero value.
+    #
+    # Default value is `PFQ`.
+    #priority = "PFQ"
+
+    # Tag Name is used for bind values to struct exported fields.
+    # Default value is `bind`.
+    #tag_name = "bind"
+  }
 }
 
 # ---------------------------------------------------------------
@@ -210,11 +234,15 @@ i18n {
 # Doc: https://docs.aahframework.org/app-config.html#section-format
 # -----------------------------------------------------------------
 format {
-  # Default value is `2006-01-02`.
-  #date = "2006-01-02"
-
-  # Default value is `2006-01-02 15:04:05`.
-  #datetime = "2006-01-02 15:04:05"
+  # Time format for auto parse and bind. aah try to parse the
+  # time value in the order they defined till it gets success
+  # otherwise returns the error.
+  time = [
+    "2006-01-02T15:04:05Z07:00",
+    "2006-01-02T15:04:05Z",
+    "2006-01-02 15:04:05",
+    "2006-01-02"
+  ]
 }
 
 # ------------------------------------------------------------------
