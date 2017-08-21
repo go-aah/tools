@@ -142,7 +142,6 @@ server {
 # Doc: https://docs.aahframework.org/app-config.html#section-request
 # ------------------------------------------------------------------
 request {
-
   # aah framework encourages to have unique `Request Id` for each incoming
   # request, it helps in traceability. If request has already `X-Request-Id`
   # HTTP header then it does not generate one.
@@ -167,6 +166,10 @@ request {
   # Read more about implementation and RFC details here Github #75.
   # Perfect for REST API, also can be used for web application too if needed.
   content_negotiation {
+    # To enable Content Negotiation for the application.
+    # Default value is `false`.
+    #enable = true
+
     # For example: Client sends Accept header as `application/xml`.
     # However server only supports serving JSON i.e. `application/json`.
     # Then server responds with 406 Not Acceptable.
