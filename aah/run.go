@@ -407,7 +407,7 @@ func (p *process) processWait() <-chan bool {
 // notifyWriter methods
 //___________________________________
 
-func (nw notifyWriter) Write(b []byte) (n int, err error) {
+func (nw *notifyWriter) Write(b []byte) (n int, err error) {
 	if nw.notify != nil && bytes.Contains(b, nw.checkBytes) {
 		nw.notify <- true
 		nw.notify = nil

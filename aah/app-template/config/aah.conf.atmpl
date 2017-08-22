@@ -213,6 +213,7 @@ request {
   }
 }
 
+{{ if eq .AppType "web" -}}
 # ---------------------------------------------------------------
 # i18n configuration
 # Doc: https://docs.aahframework.org/app-config.html#section-i18n
@@ -235,14 +236,14 @@ i18n {
     # Default value is `lang`.
     #query = "locale"
   }
-}
+}{{ end }}
 
 # -----------------------------------------------------------------
 # Format configuration
 # Doc: https://docs.aahframework.org/app-config.html#section-format
 # -----------------------------------------------------------------
 format {
-  # Time format for auto parse and bind. aah try to parse the
+  # Time format for auto parse and bind. aah tries to parse the
   # time value in the order they defined till it gets success
   # otherwise returns the error.
   time = [
