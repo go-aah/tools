@@ -12,6 +12,11 @@ name = "{{ .AppName }}"
 # Friendly description of application
 desc = "aah framework {{ .AppType }} application"
 
+# Providing file path of application PID file to be written.
+# Ensure application has appropriate permission and directory exists.
+# Default value is `<app-base-dir>/<app-binary-name>.pid`
+#pid_file = "/path/to/pidfile.pid"
+
 # -----------------------------------------------------------------
 # Server configuration - HTTP
 # Doc: https://docs.aahframework.org/app-config.html#section-server
