@@ -541,8 +541,6 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 	} else {
 		ty.Methods = append(ty.Methods, method)
 	}
-
-	return
 }
 
 func isInterceptorActioName(actionName string) bool {

@@ -7,6 +7,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,17 +27,11 @@ import (
 	"aahframework.org/router.v0"
 	"aahframework.org/security.v0"
 	"aahframework.org/test.v0"
+	"aahframework.org/valpar.v0"
 	"aahframework.org/view.v0"
 )
 
-// Version no. of aah framework CLI tool
-const Version = "0.8-dev"
-
 const (
-	header = `–––––––––––––––––––––––––––––––––––––––––––––––––––––
-   aah framework v%s -  https://aahframework.org
-–––––––––––––––––––––––––––––––––––––––––––––––––––––
-`
 	aahImportPath    = "aahframework.org/aah.v0-unstable"
 	aahCLIImportPath = "aahframework.org/tools.v0-unstable/aah"
 	permRWXRXRX      = 0755
@@ -111,7 +106,6 @@ func main() {
 
 	sort.Sort(cli.FlagsByName(app.Flags))
 	_ = app.Run(os.Args)
-	return
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -119,13 +113,36 @@ func main() {
 //___________________________________
 
 func printHeader(c *cli.Context) error {
-	if isWindowsOS() {
-		fmt.Fprintf(c.App.Writer, header, aah.Version)
-	} else {
-		fmt.Fprintf(c.App.Writer, fmt.Sprintf("\033[1;32m%v\033[0m", header), aah.Version)
+	hdr := fmt.Sprintf("aah framework v%s -  https://aahframework.org", aah.Version)
+	improveRpt := "# Report improvements/bugs at https://github.com/go-aah/aah/issues #"
+	cnt := len(improveRpt)
+	sp := (cnt - len(hdr)) / 2
+
+	if !isWindowsOS() {
+		fmt.Fprintf(c.App.Writer, "\033[1;32m")
 	}
-	fmt.Fprintf(c.App.Writer, "# Report improvements/bugs at https://github.com/go-aah/aah/issues\n\n")
+
+	printChr(c.App.Writer, "–", cnt)
+	fmt.Fprintf(c.App.Writer, "\n")
+	printChr(c.App.Writer, " ", sp)
+	fmt.Fprintf(c.App.Writer, hdr)
+	printChr(c.App.Writer, " ", sp)
+	fmt.Fprintf(c.App.Writer, "\n")
+	printChr(c.App.Writer, "–", cnt)
+	fmt.Fprintf(c.App.Writer, "\n")
+
+	if !isWindowsOS() {
+		fmt.Fprintf(c.App.Writer, "\033[0m")
+	}
+
+	fmt.Fprintf(c.App.Writer, improveRpt+"\n\n")
 	return nil
+}
+
+func printChr(w io.Writer, chr string, cnt int) {
+	for idx := 0; idx < cnt; idx++ {
+		fmt.Fprintf(w, chr)
+	}
 }
 
 func init() {
@@ -151,8 +168,8 @@ func init() {
 				"security v" + security.Version}, ", "))
 		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", "", strings.Join(
 			[]string{"i18n v" + i18n.Version, "view v" + view.Version,
-				"log v" + log.Version, "test v" + test.Version, "aruntime v" + aruntime.Version,
-			}, ", "))
+				"log v" + log.Version, "test v" + test.Version,
+				"aruntime v" + aruntime.Version, "valpar v" + valpar.Version}, ", "))
 		fmt.Println()
 		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", fmt.Sprintf("go[%s/%s]",
 			runtime.GOOS, runtime.GOARCH), runtime.Version()[2:])
