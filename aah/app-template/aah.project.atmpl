@@ -1,8 +1,8 @@
-########################################
+##############################################################
 # {{ .AppName }} - aah framework project
 #
 # Note: Add it to version control
-########################################
+##############################################################
 
 # Build section is used during aah application compile and build command.
 build {

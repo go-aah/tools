@@ -254,14 +254,15 @@ func (p *proxy) RefreshWatcher() {
 func (p *proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if p.ChangedOrError {
 		log.Info("Application file change(s) detected")
+		p.ChangedOrError = false
 		p.Watcher.Close()
 		p.Stop()
 		if err := p.CompileAndStart(); err != nil {
 			log.Error(err)
 			fmt.Fprintln(w, err.Error())
+			p.ChangedOrError = true
 			return
 		}
-		p.ChangedOrError = false
 	}
 	p.Server.ServeHTTP(w, r)
 }
@@ -390,6 +391,11 @@ func (p *process) Stop() {
 					return
 				}
 			}
+		}
+	} else {
+		proc, err := os.FindProcess(p.cmd.Process.Pid)
+		if err == nil {
+			_ = proc.Kill()
 		}
 	}
 }
