@@ -114,7 +114,7 @@ func runAction(c *cli.Context) error {
 		appStartArgs = append(appStartArgs, "-config", configPath)
 	}
 
-	envProfile := firstNonEmpty(c.String("e"), c.String("envprofile"), "dev")
+	envProfile := firstNonEmpty(c.String("e"), c.String("envprofile"))
 	if !ess.IsStrEmpty(envProfile) {
 		appStartArgs = append(appStartArgs, "-profile", envProfile)
 	}
@@ -123,6 +123,10 @@ func runAction(c *cli.Context) error {
 	projectCfg, err := loadAahProjectFile(aah.AppBaseDir())
 	if err != nil {
 		fatalf("aah project file error: %s", err)
+	}
+
+	if ess.IsStrEmpty(envProfile) {
+		envProfile = aah.AppProfile()
 	}
 
 	// Hot-Reload is applicable only to `dev` environment profile.
