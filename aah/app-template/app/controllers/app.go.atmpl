@@ -5,13 +5,13 @@ import (
   "{{.AppImportPath}}/app/models"
 )
 
-// App struct application controller
-type App struct {
+// AppController struct application controller
+type AppController struct {
   *aah.Context
 }
 
 // Index method is application {{ if eq .AppType "web" -}}home page.{{ else }}root API endpoint.{{- end }}
-func (a *App) Index() {
+func (a *AppController) Index() {
   {{- if eq .AppType "web" }}
   data := aah.Data{
     "Greet": models.Greet{

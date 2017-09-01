@@ -114,7 +114,7 @@ func runAction(c *cli.Context) error {
 		appStartArgs = append(appStartArgs, "-config", configPath)
 	}
 
-	envProfile := firstNonEmpty(c.String("e"), c.String("envprofile"), "dev")
+	envProfile := firstNonEmpty(c.String("e"), c.String("envprofile"))
 	if !ess.IsStrEmpty(envProfile) {
 		appStartArgs = append(appStartArgs, "-profile", envProfile)
 	}
@@ -125,11 +125,15 @@ func runAction(c *cli.Context) error {
 		fatalf("aah project file error: %s", err)
 	}
 
+	if ess.IsStrEmpty(envProfile) {
+		envProfile = aah.AppProfile()
+	}
+
 	// Hot-Reload is applicable only to `dev` environment profile.
 	if projectCfg.BoolDefault("hot_reload.enable", true) && envProfile == "dev" {
 		log.Infof("Hot-Reload enabled for environment profile: %s", aah.AppProfile())
 
-		address := firstNonEmpty(aah.AppHTTPAddress(), "localhost")
+		address := firstNonEmpty(aah.AppHTTPAddress(), "")
 		proxyPort := findAvailablePort()
 		scheme := "http"
 		if aah.AppIsSSLEnabled() {
@@ -254,14 +258,15 @@ func (p *proxy) RefreshWatcher() {
 func (p *proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if p.ChangedOrError {
 		log.Info("Application file change(s) detected")
+		p.ChangedOrError = false
 		p.Watcher.Close()
 		p.Stop()
 		if err := p.CompileAndStart(); err != nil {
 			log.Error(err)
 			fmt.Fprintln(w, err.Error())
+			p.ChangedOrError = true
 			return
 		}
-		p.ChangedOrError = false
 	}
 	p.Server.ServeHTTP(w, r)
 }
@@ -391,6 +396,11 @@ func (p *process) Stop() {
 				}
 			}
 		}
+	} else {
+		proc, err := os.FindProcess(p.cmd.Process.Pid)
+		if err == nil {
+			_ = proc.Kill()
+		}
 	}
 }
 
@@ -407,7 +417,7 @@ func (p *process) processWait() <-chan bool {
 // notifyWriter methods
 //___________________________________
 
-func (nw notifyWriter) Write(b []byte) (n int, err error) {
+func (nw *notifyWriter) Write(b []byte) (n int, err error) {
 	if nw.notify != nil && bytes.Contains(b, nw.checkBytes) {
 		nw.notify <- true
 		nw.notify = nil

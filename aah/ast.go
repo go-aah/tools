@@ -46,6 +46,10 @@ var (
 		"uint8":      true,
 		"uintptr":    true,
 	}
+
+	errInvalidActionParam   = errors.New("aah: invalid action parameter")
+	errInterfaceActionParam = errors.New("aah: 'interface{}' is not supported in the action parameter")
+	errMapActionParam       = errors.New("aah: 'map' is not supported in the action parameter")
 )
 
 type (
@@ -195,33 +199,18 @@ func (prg *program) Process() {
 		// Each source file
 		for name, file := range pkgInfo.Pkg.Files {
 			pkgInfo.Files = append(pkgInfo.Files, filepath.Base(name))
-			var fileImports map[string]string
+			fileImports := make(map[string]string)
 
-			// collecting imports
 			for _, decl := range file.Decls {
-				if genDecl, ok := decl.(*ast.GenDecl); ok {
-					if isImportTok(genDecl) {
-						fileImports = pkgInfo.processImports(genDecl)
-					}
-				}
-			}
+				// Processing imports
+				pkgInfo.processImports(decl, fileImports)
 
-			// collecting types
-			for _, decl := range file.Decls {
-				if genDecl, ok := decl.(*ast.GenDecl); ok {
-					if isTypeTok(genDecl) {
-						pkgInfo.processTypes(genDecl, fileImports)
-					}
-				}
-			}
+				// Processing types
+				pkgInfo.processTypes(decl, fileImports)
 
-			// collecting methods
-			for _, decl := range file.Decls {
-				if funcDecl, ok := decl.(*ast.FuncDecl); ok {
-					findMethods(pkgInfo, prg.RegisteredActions, funcDecl, fileImports)
-				}
+				// Processing methods
+				processMethods(pkgInfo, prg.RegisteredActions, decl, fileImports)
 			}
-
 		}
 	}
 }
@@ -272,21 +261,34 @@ func (prg *program) FindTypeByEmbeddedType(qualifiedTypeName string) []*typeInfo
 func (prg *program) CreateImportPaths(types []*typeInfo) map[string]string {
 	importPaths := map[string]string{}
 	for _, t := range types {
-		importPath := filepath.ToSlash(t.ImportPath)
-		if _, found := importPaths[importPath]; !found {
-			cnt := 0
-			pkgAlias := t.PackageName()
-
-			for isPkgAliasExists(importPaths, pkgAlias) {
-				pkgAlias = fmt.Sprintf("%s%d", t.PackageName(), cnt)
-				cnt++
+		createAlias(t.PackageName(), t.ImportPath, importPaths)
+		for _, m := range t.Methods {
+			for _, p := range m.Parameters {
+				if !p.Type.IsBuiltIn {
+					createAlias(p.Type.PackageName, p.ImportPath, importPaths)
+				}
 			}
-
-			importPaths[importPath] = pkgAlias
 		}
 	}
 
 	return importPaths
+}
+
+func createAlias(packageName, importPath string, importPaths map[string]string) {
+	importPath = filepath.ToSlash(importPath)
+	if _, found := importPaths[importPath]; !found {
+		cnt := 0
+		pkgAlias := packageName
+
+		for isPkgAliasExists(importPaths, pkgAlias) {
+			pkgAlias = fmt.Sprintf("%s%d", packageName, cnt)
+			cnt++
+		}
+
+		if !ess.IsStrEmpty(pkgAlias) && !ess.IsStrEmpty(importPath) {
+			importPaths[importPath] = pkgAlias
+		}
+	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -298,55 +300,65 @@ func (p *packageInfo) Name() string {
 	return filepath.Base(p.ImportPath)
 }
 
-func (p *packageInfo) processTypes(decl *ast.GenDecl, imports map[string]string) {
-	spec := decl.Specs[0].(*ast.TypeSpec)
+func (p *packageInfo) processTypes(decl ast.Decl, imports map[string]string) {
+	genDecl, ok := decl.(*ast.GenDecl)
+	if !ok || !isTypeTok(genDecl) || len(genDecl.Specs) == 0 {
+		return
+	}
+
+	spec := genDecl.Specs[0].(*ast.TypeSpec)
+	st, ok := spec.Type.(*ast.StructType)
+	if !ok {
+		// Not a struct type
+		return
+	}
+
 	typeName := spec.Name.Name
 	ty := &typeInfo{
 		Name:          typeName,
 		ImportPath:    filepath.ToSlash(p.ImportPath),
-		Methods:       []*methodInfo{},
-		EmbeddedTypes: []*typeInfo{},
+		Methods:       make([]*methodInfo, 0),
+		EmbeddedTypes: make([]*typeInfo, 0),
 	}
 
-	// struct type
-	st, ok := spec.Type.(*ast.StructType)
-	if ok {
-		// finding embedded type(s) and it's package
-		for _, field := range st.Fields.List {
-			// If field.Names is set, it's not an embedded type.
-			if field.Names != nil && len(field.Names) > 0 {
-				continue
-			}
-
-			fPkgName, fTypeName := parseStructFieldExpr(field.Type)
-			if ess.IsStrEmpty(fTypeName) {
-				continue
-			}
-
-			// Find the import path for embedded type. If it was referenced without
-			// a package name, use the current package import path otherwise
-			// get the import path by package name.
-			var eTypeImportPath string
-			if ess.IsStrEmpty(fPkgName) {
-				eTypeImportPath = ty.ImportPath
-			} else {
-				var found bool
-				if eTypeImportPath, found = imports[fPkgName]; !found {
-					log.Errorf("AST: Unable to find import path for %s.%s", fPkgName, fTypeName)
-					continue
-				}
-			}
-
-			ty.EmbeddedTypes = append(ty.EmbeddedTypes, &typeInfo{Name: fTypeName, ImportPath: eTypeImportPath})
+	for _, field := range st.Fields.List {
+		// If field.Names is set, it's not an embedded type.
+		if field.Names != nil && len(field.Names) > 0 {
+			continue
 		}
+
+		fPkgName, fTypeName := parseStructFieldExpr(field.Type)
+		if ess.IsStrEmpty(fTypeName) {
+			continue
+		}
+
+		// Find the import path for embedded type. If it was referenced without
+		// a package name, use the current package import path otherwise
+		// get the import path by package name.
+		var eTypeImportPath string
+		if ess.IsStrEmpty(fPkgName) {
+			eTypeImportPath = ty.ImportPath
+		} else {
+			var found bool
+			if eTypeImportPath, found = imports[fPkgName]; !found {
+				log.Errorf("AST: Unable to find import path for %s.%s", fPkgName, fTypeName)
+				continue
+			}
+		}
+
+		ty.EmbeddedTypes = append(ty.EmbeddedTypes, &typeInfo{Name: fTypeName, ImportPath: eTypeImportPath})
 	}
 
 	p.Types[typeName] = ty
 }
 
-func (p *packageInfo) processImports(decl *ast.GenDecl) map[string]string {
-	imports := map[string]string{}
-	for _, dspec := range decl.Specs {
+func (p *packageInfo) processImports(decl ast.Decl, imports map[string]string) {
+	genDecl, ok := decl.(*ast.GenDecl)
+	if !ok || !isImportTok(genDecl) {
+		return
+	}
+
+	for _, dspec := range genDecl.Specs {
 		spec := dspec.(*ast.ImportSpec)
 		var pkgAlias string
 		if spec.Name != nil {
@@ -374,8 +386,6 @@ func (p *packageInfo) processImports(decl *ast.GenDecl) map[string]string {
 
 		imports[pkgAlias] = importPath
 	}
-
-	return imports
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -465,12 +475,14 @@ func isPkgAliasExists(importPaths map[string]string, pkgAlias string) bool {
 	return found
 }
 
-func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn *ast.FuncDecl, imports map[string]string) {
-	// do not process if -
-	// 1. does not have receiver (only methods)
-	// 2. method is not exported/public
-	// 3. method returns result
-	if fn.Recv == nil || !fn.Name.IsExported() ||
+func processMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, decl ast.Decl, imports map[string]string) {
+	fn, ok := decl.(*ast.FuncDecl)
+
+	// Do not process if these met:
+	// 		1. does not have receiver, it means package function/method
+	// 		2. method is not exported
+	// 		3. method returns result
+	if !ok || fn.Recv == nil || !fn.Name.IsExported() ||
 		fn.Type.Results != nil {
 		return
 	}
@@ -498,8 +510,9 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 		for _, fieldName := range field.Names {
 			te, err := parseParamFieldExpr(pkg.Name(), field.Type)
 			if err != nil {
-				log.Errorf("AST: Unable to parse parameter '%s' on action '%s.%s', ignoring it", fieldName.Name, controllerName, actionName)
-				return
+				log.Errorf("AST: %s, please fix the parameter '%s' on action '%s.%s'; "+
+					"otherwise your action may not work properly", err, fieldName.Name, controllerName, actionName)
+				continue
 			}
 
 			var importPath string
@@ -519,12 +532,13 @@ func findMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, fn 
 	}
 
 	if ty := pkg.Types[controllerName]; ty == nil {
-		log.Errorf("AST: Type[%s] not found in package: %s", controllerName, pkg.ImportPath)
+		pos := pkg.Fset.Position(decl.Pos())
+		filename := stripGoPath(pos.Filename)
+		log.Errorf("AST: Method '%s' has incorrect struct recevier '%s' on file [%s] at line #%d",
+			actionName, controllerName, filename, pos.Line)
 	} else {
 		ty.Methods = append(ty.Methods, method)
 	}
-
-	return
 }
 
 func isInterceptorActioName(actionName string) bool {
@@ -598,7 +612,11 @@ func parseParamFieldExpr(pkgName string, expr ast.Expr) (*typeExpr, error) {
 	case *ast.Ellipsis:
 		e, err := parseParamFieldExpr(pkgName, t.Elt)
 		return &typeExpr{Expr: "[]" + e.Expr, PackageName: e.PackageName, PackageIndex: e.PackageIndex + uint8(2)}, err
+	case *ast.InterfaceType:
+		return nil, errInterfaceActionParam
+	case *ast.MapType:
+		return nil, errMapActionParam
 	}
 
-	return nil, errors.New("not a valid fieldname/parameter name")
+	return nil, errInvalidActionParam
 }
