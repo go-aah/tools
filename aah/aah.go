@@ -17,7 +17,7 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
-	"aahframework.org/aah.v0-unstable"
+	"aahframework.org/aah.v0"
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	aahImportPath    = "aahframework.org/aah.v0-unstable"
-	aahCLIImportPath = "aahframework.org/tools.v0-unstable/aah"
+	aahImportPath    = "aahframework.org/aah.v0"
+	aahCLIImportPath = "aahframework.org/tools.v0/aah"
 	permRWXRXRX      = 0755
 	permRWRWRW       = 0666
 )
