@@ -17,7 +17,7 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	aahImportPath    = "aahframework.org/aah.v0"
-	aahCLIImportPath = "aahframework.org/tools.v0/aah"
+	aahImportPath    = "aahframework.org/aah.v0-unstable"
+	aahCLIImportPath = "aahframework.org/tools.v0-unstable/aah"
 	permRWXRXRX      = 0755
 	permRWRWRW       = 0666
 )
@@ -113,7 +113,7 @@ func main() {
 //___________________________________
 
 func printHeader(c *cli.Context) error {
-	hdr := fmt.Sprintf("aah framework v%s -  https://aahframework.org", aah.Version)
+	hdr := fmt.Sprintf("aah framework v%s - https://aahframework.org", aah.Version)
 	improveRpt := "# Report improvements/bugs at https://github.com/go-aah/aah/issues #"
 	cnt := len(improveRpt)
 	sp := (cnt - len(hdr)) / 2

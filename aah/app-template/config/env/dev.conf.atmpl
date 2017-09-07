@@ -28,6 +28,10 @@ dev {
     # and format - https://docs.aahframework.org/log-config.html#pattern
     # Default value is `%time:2006-01-02 15:04:05.000 %level:-5 %message`
     pattern = "%time:2006-01-02 15:04:05.000 %level:-5 %message"
+
+    # Log colored output, applicable only to `console` receiver type.
+    # Default value is `true`.
+    #color = false
   }
 
   # -------------------------

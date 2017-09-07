@@ -17,7 +17,7 @@ import (
 	"text/template"
 	"time"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -36,13 +36,10 @@ func importPathRelwd() string {
 
 // loadAahProjectFile method loads build config from 'aah.project'
 func loadAahProjectFile(baseDir string) (*config.Config, error) {
-	// read build config from 'aah.project'
 	aahProjectFile := filepath.Join(baseDir, aahProjectIdentifier)
 	if !ess.IsFileExists(aahProjectFile) {
 		fatal("Missing 'aah.project' file, not a valid aah framework application.")
 	}
-
-	log.Infof("Loading aah project file: %s", aahProjectFile)
 	return config.LoadFile(aahProjectFile)
 }
 
@@ -214,4 +211,14 @@ func findAvailablePort() string {
 	defer ess.CloseQuietly(lstn)
 
 	return strconv.Itoa(lstn.Addr().(*net.TCPAddr).Port)
+}
+
+func initLogger(cfg *config.Config) {
+	logCfg, _ := config.ParseString("")
+	logCfg.SetString("log.receiver", "console")
+	logCfg.SetString("log.level", cfg.StringDefault("log.level", "info"))
+	logCfg.SetBool("log.color", cfg.BoolDefault("log.color", true))
+
+	cliLog, _ := log.New(logCfg)
+	log.SetDefaultLogger(cliLog)
 }

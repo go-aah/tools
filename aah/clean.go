@@ -5,13 +5,13 @@
 package main
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"gopkg.in/urfave/cli.v1"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 )
 
 var cleanCmd = cli.Command{
@@ -36,7 +36,6 @@ var cleanCmd = cli.Command{
 }
 
 func cleanAction(c *cli.Context) error {
-	_ = log.SetPattern("%message")
 	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
 	if ess.IsStrEmpty(importPath) {
 		importPath = importPathRelwd()
@@ -55,9 +54,8 @@ func cleanAction(c *cli.Context) error {
 		filepath.Join(appBaseDir, aah.AppName()+".pid"),
 	)
 
-	log.Infof("Import Path: '%v' clean successful.", importPath)
-	log.Info()
-	_ = log.SetPattern(log.DefaultPattern)
+	fmt.Printf("Import Path: '%v' clean successful.\n", importPath)
+	fmt.Println()
 
 	return nil
 }

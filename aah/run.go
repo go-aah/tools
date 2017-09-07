@@ -25,7 +25,7 @@ import (
 	"gopkg.in/radovskyb/watcher.v1"
 	"gopkg.in/urfave/cli.v1"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -124,6 +124,9 @@ func runAction(c *cli.Context) error {
 	if err != nil {
 		fatalf("aah project file error: %s", err)
 	}
+
+	initLogger(projectCfg)
+	log.Infof("Loading aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
 
 	if ess.IsStrEmpty(envProfile) {
 		envProfile = aah.AppProfile()

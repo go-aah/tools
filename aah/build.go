@@ -13,7 +13,7 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
-	"aahframework.org/aah.v0"
+	"aahframework.org/aah.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -31,7 +31,7 @@ var buildCmd = cli.Command{
 	Examples of short and long flags:
     aah build
     aah build -e dev
-    aah build -i github.com/user/appname -o /Users/jeeva -e qa    
+    aah build -i github.com/user/appname -o /Users/jeeva -e qa
 		aah build -i github.com/user/appname -o /Users/jeeva/aahwebsite.zip
 		aah build --importpath github.com/user/appname --output /Users/jeeva --envprofile qa`,
 	Action: buildAction,
@@ -70,8 +70,8 @@ func buildAction(c *cli.Context) error {
 		fatalf("aah project file error: %s", err)
 	}
 
-	_ = log.SetLevel(projectCfg.StringDefault("build.log_level", "info"))
-
+	initLogger(projectCfg)
+	log.Infof("Loading aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
 	log.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 
 	appBinay, err := compileApp(&compileArgs{
