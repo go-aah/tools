@@ -12,6 +12,14 @@ name = "{{ .AppName }}"
 # Friendly description of application
 desc = "aah framework {{ .AppType }} application"
 
+# Application instance name is used when you're running aah application cluster.
+# This value is used in the context based logging, it distinguishes your instance
+# log from other instances.
+#
+# Typically you have to pass this `instance_name` value via aah external config.
+# Here its documented for information perspective.
+#instance_name = "{{ .AppName }}"
+
 # Configure file path of application PID file to be written.
 # Ensure application has appropriate permission and directory exists.
 # Default value is `<app-base-dir>/<app-binary-name>.pid`
@@ -26,7 +34,7 @@ server {
   # Default value is `empty` string.
   #address = ""
 
-  # For port `80` and `443`, put empty string or a value
+  # For standard port `80` and `443`, put empty string or a value
   # Default value is 8080.
   #port = ""
 
@@ -78,6 +86,27 @@ server {
     # Disabling HTTP/2 set it true.
     # Default value is `false`.
     #disable_http2 = true
+
+    # Redirect HTTP => HTTPS functionality does protocol switch, so it works
+    # with domain and subdomains.
+    # For example:
+    #   http://aahframework.org      => https://aahframework.org
+    #   http://www.aahframework.org  => https://www.aahframework.org
+    #   http://docs.aahframework.org => https://docs.aahframework.org
+    redirect_http {
+      # Enabling HTTP => HTTPS redirects.
+      # Default is value is `false`.
+      #enable = true
+
+      # Port no. of HTTP requests to listen.
+      # For standard port `80` put empty string or a value
+      # No default value, it is required value.
+      port = "8080"
+
+      # Redirect code
+      # Default value is `307`.
+      #code = 307
+    }
 
     lets_encrypt {
       # To get SSL certificate from Let's Encrypt CA, enable it.
