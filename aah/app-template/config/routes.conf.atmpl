@@ -43,7 +43,6 @@ domains {
     # `anonymous` auth scheme.
     # Default value is empty string.
     #default_auth = ""
-
     {{ if eq .AppType "web" -}}
     #----------------------------------------------------------------------------
     # Static Routes Configuration
@@ -61,7 +60,6 @@ domains {
     # Doc: https://docs.aahframework.org/routes-config.html#section-static
     #----------------------------------------------------------------------------
     static {
-
       # Static route name, pick a unique one
       public_assets {
         # URL 'path' for serving directory
@@ -83,8 +81,7 @@ domains {
         # or an absolute path. If it's relative path '/static/' prefixed automatically
         file = "img/favicon.png"
       }
-    }
-    {{- end }}
+    }{{ end }}
 
     #-----------------------------------------------------------------------------
     # Application routes
@@ -132,7 +129,7 @@ domains {
         # When you want to define particular route as anonymous then define
         # `auth` attribute as `anonymous`.
         # Default value is empty string.
-        #auth = ""
+        auth = "anonymous"
 
         # Max request body size for this route. If its happen to be `MultipartForm`
         # then this value ignored since `request.multipart_size` config from `aah.conf`

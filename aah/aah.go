@@ -122,13 +122,13 @@ func printHeader(c *cli.Context) error {
 		fmt.Fprintf(c.App.Writer, "\033[1;32m")
 	}
 
-	printChr(c.App.Writer, "–", cnt)
+	printChr(c.App.Writer, "‾", cnt)
 	fmt.Fprintf(c.App.Writer, "\n")
 	printChr(c.App.Writer, " ", sp)
 	fmt.Fprintf(c.App.Writer, hdr)
 	printChr(c.App.Writer, " ", sp)
 	fmt.Fprintf(c.App.Writer, "\n")
-	printChr(c.App.Writer, "–", cnt)
+	printChr(c.App.Writer, "_", cnt)
 	fmt.Fprintf(c.App.Writer, "\n")
 
 	if !isWindowsOS() {
