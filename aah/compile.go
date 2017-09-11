@@ -267,7 +267,11 @@ func appSecurity(appCfg *config.Config, appImportPaths map[string]string) map[st
 
 func prepareAuthAlias(keyAuthAlias, auth, importPathPrefix string, appImportPaths map[string]string) string {
 	var authAlias string
-	importPath := path.Join(importPathPrefix, path.Dir(auth))
+	importPath := path.Dir(auth)
+	if strings.HasPrefix(auth, "security") {
+		importPath = path.Join(importPathPrefix, importPath)
+	}
+
 	if alias, found := appImportPaths[importPath]; found {
 		authAlias = alias
 	} else {

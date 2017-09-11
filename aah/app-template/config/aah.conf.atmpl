@@ -16,9 +16,9 @@ desc = "aah framework {{ .AppType }} application"
 # This value is used in the context based logging, it distinguishes your instance
 # log from other instances.
 #
-# Typically you have to pass this `instance_name` value via aah external config.
-# Here its documented for information perspective.
-#instance_name = "{{ .AppName }}"
+# Typically you can to pass `instance_name` value via aah external config
+# support or Environment variable.
+#instance_name = $AAH_INSTANCE_NAME
 
 # Configure file path of application PID file to be written.
 # Ensure application has appropriate permission and directory exists.

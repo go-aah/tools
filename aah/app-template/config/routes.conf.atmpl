@@ -141,6 +141,12 @@ domains {
         #max_body_size = "5mb"
       }
 
+      {{ if eq .AppAuthScheme "form" -}}login_submit {
+        path ="/login"
+        method = "POST"
+        controller = "VirtualFormController"
+      }{{ end }}
+
     } # end - routes
 
   } # end - localhost
