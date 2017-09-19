@@ -80,6 +80,8 @@ func newAction(c *cli.Context) error {
 		"AppSessionFileStorePath": appSessionFilepath,
 		"AppSessionSignKey":       ess.SecureRandomString(64),
 		"AppSessionEncKey":        ess.SecureRandomString(32),
+		"AppAntiCSRFSignKey":      ess.SecureRandomString(64),
+		"AppAntiCSRFEncKey":       ess.SecureRandomString(32),
 		"TmplDemils":              "{{.}}",
 	}
 

@@ -25,7 +25,7 @@ import (
 	"aahframework.org/i18n.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
-	"aahframework.org/security.v0"
+	"aahframework.org/security.v0-unstable"
 	"aahframework.org/test.v0"
 	"aahframework.org/valpar.v0"
 	"aahframework.org/view.v0"

@@ -33,6 +33,7 @@ security {
 
       # Password encoder is used to encode the given credential and then compares
       # it with application provide credential.
+      # Doc: https://docs.aahframework.org/password-encoders.html
       # Default value is `bcrypt`.
       password_encoder = "{{ .AppPasswordEncoder }}"
 
@@ -104,6 +105,7 @@ security {
 
       # Password encoder is used to encode the given credential and then compares
       # it with application provide credential.
+      # Doc: https://docs.aahframework.org/password-encoders.html
       # Default value is `bcrypt`.
       password_encoder = "{{ .AppPasswordEncoder }}"
     }{{ end -}}
@@ -119,7 +121,7 @@ security {
 
       # Framework calls `Authenticator` to get the Subject's authentication
       # information. The credential validation is not done by framework, it is
-      # left interface implementation.
+      # left to interface implementation.
       # It is required value, no default.
       authenticator = "security/AuthenticationProvider"
 
@@ -254,8 +256,8 @@ security {
     #ttl = "0"
 
     # Session cookie name prefix.
-    # Default value is `aah` For e.g.: `aah_session`
-    #prefix = "aah"
+    # Default value is `aah_<app-name>` For e.g.: `aah_myapp_session`
+    prefix = "aah_{{ .AppName }}"
 
     # Default value is `empty` string.
     #domain = ""
@@ -277,15 +279,13 @@ security {
     # HTTP session cookie value signing using `HMAC`. For server farm this
     # should be same in all instance. For HMAC sign & verify it recommend to use
     # key size is `32` or `64` bytes.
-    # Default value is `64` bytes (generated when application gets created
-    # using `aah new` command).
+    # Default value is `64` bytes (`aah new` generates strong one).
     sign_key = "{{ .AppSessionSignKey }}"
 
     # HTTP session cookie value encryption and decryption using `AES`. For server
     # farm this should be same in all instance. AES algorithm is used, valid
     # lengths are `16`, `24`, or `32` bytes to select `AES-128`, `AES-192`, or `AES-256`.
-    # Default value is `32` bytes (generated when application gets created
-    # using `aah new` command).
+    # Default value is `32` bytes (`aah new` generates strong one).
     enc_key = "{{ .AppSessionEncKey }}"
 
     # Cleanup Interval is used to clean the expired session objects from store.
@@ -294,6 +294,56 @@ security {
     # `m -> minutes`, `h -> hours`.
     # Default value is `30m`.
     #cleanup_interval = "30m"{{ end }}{{ end }}
+  }
+
+  # ------------------------------------------------------------
+  # Anti-CSRF Protection
+  # Doc: https://docs.aahframework.org/anti-csrf-protection.html
+  # ------------------------------------------------------------
+  anti_csrf {
+    # Enabling Anti-CSRF Protection.
+    # Default value is `true`.
+    enable = true
+
+    # Anti-CSRF secret length
+    # Default value is `32`.
+    #secret_length = 32
+
+    # HTTP Header name for cipher token
+    # Default value is `X-Anti-CSRF-Token`
+    #header_name = "X-Anti-CSRF-Token"
+
+    # Form field name for cipher token
+    #form_field_name = "anti_csrf_token"
+
+    # Anti-CSRF cookie settings
+    #
+    # Cookie prefix name.
+    # Default value is `aah`. Cookie name would be `aah_anti_csrf`.
+    #prefix = "aah"
+
+    # Default value is `empty` string.
+    #domain = ""
+
+    # Default value is `/`.
+    #path = "/"
+
+    # Time-to-live for Anti-CSRF secret. Valid time units are "m = minutes",
+    # "h = hours" and 0.
+    # Default value is `24h`.
+    #ttl = "24h"
+
+    # Anti-CSRF cookie value signing using `HMAC`. For server farm this
+    # should be same in all instance. For HMAC sign & verify it recommend to use
+    # key size is `32` or `64` bytes.
+    # Default value is `64` bytes (`aah new` generates strong one).
+    sign_key = "{{ .AppAntiCSRFSignKey }}"
+
+    # Anti-CSRF cookie value encryption and decryption using `AES`. For server
+    # farm this should be same in all instance. AES algorithm is used, valid
+    # lengths are `16`, `24`, or `32` bytes to select `AES-128`, `AES-192`, or `AES-256`.
+    # Default value is `32` bytes (`aah new` generates strong one).
+    enc_key = "{{ .AppAntiCSRFEncKey }}"
   }
 
   # ---------------------------------------------------------------------------

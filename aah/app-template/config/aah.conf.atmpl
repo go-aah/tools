@@ -18,7 +18,7 @@ desc = "aah framework {{ .AppType }} application"
 #
 # Typically you can to pass `instance_name` value via aah external config
 # support or Environment variable.
-#instance_name = $AAH_INSTANCE_NAME
+instance_name = $AAH_INSTANCE_NAME
 
 # Configure file path of application PID file to be written.
 # Ensure application has appropriate permission and directory exists.
@@ -99,7 +99,7 @@ server {
       #enable = true
 
       # Port no. of HTTP requests to listen.
-      # For standard port `80` put empty string or a value
+      # For standard port `80` put empty string or a value.
       # It is required value, no default.
       port = "8080"
 
