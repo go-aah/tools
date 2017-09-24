@@ -146,9 +146,12 @@ server {
     }
   }
 
+  # --------------------------------------------------------------------------
   # To manage aah server effectively it is necessary to know details about the
   # request, response, processing time, client IP address, etc. aah framework
   # provides the flexible and configurable access log capabilities.
+  # Doc: https://docs.aahframework.org/server-access-log.html
+  # --------------------------------------------------------------------------
   access_log {
     # Enabling server access log
     # Default value is `false`.
@@ -169,6 +172,31 @@ server {
     # Default value is `true`.
     #static_file = false
   }
+
+  # -------------------------------------------------------
+  # Dump Request & Response Details
+  # Such as URL, Proto, Headers, Body, etc.
+  # Note: Dump is not applicable for Static Files delivery.
+  # Doc: https://docs.aahframework.org/server-dump-log.html
+  # -------------------------------------------------------
+  dump_log {
+    # Default value is `false`.
+    #enable = true
+
+    # Absolute path to dump log file or relative path.
+    # Default location is application logs directory
+    #file = "{{ .AppName }}-dump.log"
+
+    # Log Request body into dump log. aah dumps body for JSON, XML, Form
+    # HTML and Plain Text content types.
+    # Default value is `false`.
+    #request_body = true
+
+    # Log Request body into dump log. aah dumps body for JSON, XML, Form
+    # HTML, and Plain Text content types.
+    # Default value is `false`.
+    #response_body = true
+  }
 }
 
 # ------------------------------------------------------------------
@@ -177,7 +205,7 @@ server {
 # ------------------------------------------------------------------
 request {
   # aah framework encourages to have unique `Request Id` for each incoming
-  # request, it helps in traceability. If request has already `X-Request-Id`
+  # request, it helps in traceability. If request has already `sX-Request-Id`
   # HTTP header then it does not generate one.
   id {
     # Default value is `true`.

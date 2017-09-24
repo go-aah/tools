@@ -6,16 +6,16 @@ dev {
 
   # --------------------------------------------------
   # Log Configuration
-  # Doc: https://docs.aahframework.org/log-config.html
+  # Doc: https://docs.aahframework.org/logging.html
   # --------------------------------------------------
   log {
-    # Receiver is where is log values gets logged. Currently framework
-    # supports `console` and `file`. Hooks for extension.
+    # Receiver is where is log values gets logged. Framework
+    # supports `console` and `file` receivers. Hooks for extension.
     # Default value is `console`.
     #receiver = "file"
 
-    # Level indicates the logging levels like `ERROR`, `WARN`, `INFO`, `DEBUG`
-    # and `TRACE`. Config value can be in lowercase or uppercase.
+    # Level indicates the logging levels like `ERROR`, `WARN`, `INFO`, `DEBUG`,
+    # `TRACE`, FATAL and PANIC. Config value can be in lowercase or uppercase.
     # Default value is `debug`.
     level = "info"
 
