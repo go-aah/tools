@@ -85,13 +85,11 @@ func getAppVersion(appBaseDir string, cfg *config.Config) string {
 
 	// git describe
 	if gitcmd, err := exec.LookPath("git"); err == nil {
-		appGitDir := filepath.Join(appBaseDir, ".git")
-		if !ess.IsFileExists(appGitDir) {
+		if !ess.IsFileExists(filepath.Join(appBaseDir, ".git")) {
 			return version
 		}
 
-		_ = os.Chdir(appBaseDir)
-		gitArgs := []string{fmt.Sprintf("--git-dir=%s", appGitDir), "describe", "--always", "--dirty"}
+		gitArgs := []string{"-C", appBaseDir, "describe", "--always", "--dirty"}
 		output, err := execCmd(gitcmd, gitArgs, false)
 		if err != nil {
 			return version
@@ -121,7 +119,7 @@ func getBuildDate() string {
 
 func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 	cmd := exec.Command(cmdName, args...)
-	log.Debug("Executing ", strings.Join(cmd.Args, " "))
+	log.Trace("Executing ", strings.Join(cmd.Args, " "))
 
 	if stdout {
 		cmd.Stdout = os.Stdout
@@ -221,4 +219,64 @@ func initLogger(cfg *config.Config) {
 
 	cliLog, _ := log.New(logCfg)
 	log.SetDefaultLogger(cliLog)
+}
+
+func gitCheckout(dir, branch string) error {
+	if gitcmd, err := exec.LookPath("git"); err == nil {
+		gitArgs := []string{"-C", dir, "checkout", branch}
+		_, err := execCmd(gitcmd, gitArgs, false)
+		return err
+	}
+	return nil
+}
+
+func libImportPath(name string) string {
+	return fmt.Sprintf("%s/%s.%s", importPrefix, name, versionSeries)
+}
+
+func libDir(name string) string {
+	importPath := libImportPath(name)
+	return filepath.FromSlash(filepath.Join(gopath, "src", importPath))
+}
+
+func gitBranchName(dir string) string {
+	if !ess.IsDir(dir) {
+		log.Tracef("Given path '%s' is not a directory", dir)
+		return ""
+	}
+
+	if gitcmd, err := exec.LookPath("git"); err == nil {
+		gitArgs := []string{"-C", dir, "rev-parse", "--abbrev-ref", "HEAD"}
+		output, _ := execCmd(gitcmd, gitArgs, false)
+		return strings.TrimSpace(output)
+	}
+	return ""
+}
+
+func gitPull(dir string) error {
+	if gitcmd, err := exec.LookPath("git"); err == nil {
+		gitArgs := []string{"-C", dir, "pull"}
+		_, err := execCmd(gitcmd, gitArgs, false)
+		return err
+	}
+	return nil
+}
+
+func enableGitRedirects() {
+	if gitcmd, err := exec.LookPath("git"); err == nil {
+		gitArgs := []string{"config", "--global", "http.https://aahframework.org.followRedirects", "true"}
+		_, _ = execCmd(gitcmd, gitArgs, false)
+		gitArgs = []string{"config", "--global", "http.https://gopkg.in.followRedirects", "true"}
+		_, _ = execCmd(gitcmd, gitArgs, false)
+	}
+}
+
+func goGet(pkgs ...string) error {
+	for _, pkg := range pkgs {
+		args := []string{"get", pkg}
+		if _, err := execCmd(gocmd, args, false); err != nil {
+			return err
+		}
+	}
+	return nil
 }

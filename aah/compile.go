@@ -199,11 +199,8 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 
 		if cfg.BoolDefault("build.dep_get", false) && len(notExistsPkgs) > 0 {
 			log.Info("Getting application dependencies ...")
-			for _, pkg := range notExistsPkgs {
-				args := []string{"get", pkg}
-				if _, err := execCmd(gocmd, args, false); err != nil {
-					return err
-				}
+			if err := goGet(notExistsPkgs...); err != nil {
+				return err
 			}
 		} else if len(notExistsPkgs) > 0 {
 			return fmt.Errorf("Below application dependencies does not exist, "+
