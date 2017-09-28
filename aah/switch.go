@@ -7,7 +7,6 @@ package main
 import (
 	"fmt"
 	"path"
-	"strings"
 
 	"gopkg.in/urfave/cli.v1"
 )
@@ -46,15 +45,10 @@ var switchCmd = cli.Command{
 
 func switchAction(c *cli.Context) error {
 	branchName := gitBranchName(libDir("aah"))
-	if !strings.Contains(edgeBranchName+" "+releaseBranchName, branchName) {
-		fmt.Printf("Unable to find out the version information.\n\n")
-		return nil
-	}
-
 	if c.Bool("w") || c.Bool("whoami") {
 		if branchName == releaseBranchName {
 			fmt.Printf("You're using aah 'release' version.\n\n")
-		} else {
+		} else { // treat every branch as 'edge' version expect branch 'master'.
 			fmt.Printf("You're using aah 'edge' version, your feedback is appreciated.\n\n")
 		}
 		return nil
