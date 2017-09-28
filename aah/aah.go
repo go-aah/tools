@@ -164,7 +164,7 @@ func init() {
 
 	cli.VersionPrinter = func(c *cli.Context) {
 		_ = printHeader(c)
-		fmt.Fprint(c.App.Writer, "Version(s):\n")
+		fmt.Fprint(c.App.Writer, "Version Info:\n")
 		fmt.Fprintf(c.App.Writer, "\t%-17s v%s\n", "aah framework", aah.Version)
 		fmt.Fprintf(c.App.Writer, "\t%-17s v%s\n", "aah cli tool", Version)
 		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", "Modules: ", strings.Join(
