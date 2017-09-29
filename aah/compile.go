@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/aah.v0-unstable"
+	"aahframework.org/aah.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -293,9 +293,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
 	"reflect"
+	"syscall"
 
-	"aahframework.org/aah.v0-unstable"
+	"aahframework.org/aah.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"{{ range $k, $v := $.AppImportPaths }}
@@ -407,6 +410,24 @@ func main() {
 	{{- end }}
 	{{- end }}
 
-  aah.Start()
+	go aah.Start()
+
+	// Listen to OS signal's SIGINT & SIGTERM for aah server Shutdown
+	sc := make(chan os.Signal, 1)
+	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
+	sig := <-sc
+	switch sig {
+	case os.Interrupt:
+		log.Warn("Interrupt signal received")
+	case syscall.SIGTERM:
+		log.Warn("Termination signal received")
+	}
+
+	// Call aah shutdown
+	aah.Shutdown()
+	log.Info("aah application shutdown successful")
+
+	// bye bye, see you later.
+	os.Exit(0)
 }
 `
