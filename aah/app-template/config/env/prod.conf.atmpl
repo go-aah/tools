@@ -9,7 +9,7 @@ prod {
   # Doc: https://docs.aahframework.org/logging.html
   # --------------------------------------------------
   log {
-    # Receiver is where is log values gets logged. Framework
+    # Receiver is where is log values gets logged. aah
     # supports `console` and `file` receivers. Hooks for extension.
     # Default value is `console`.
     receiver = "file"
@@ -36,7 +36,7 @@ prod {
     # Rotate config section is applicable only to `file` receiver type.
     # Default rotation is 'daily'.
     rotate {
-      # Policy is used to determine rotate policy. Currently it supports `daily`,
+      # Policy is used to determine rotate policy. aah supports `daily`,
       # `lines` and `size` policies.
       # Default value is `daily`.
       #policy = "daily"

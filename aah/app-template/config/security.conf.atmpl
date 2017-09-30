@@ -219,13 +219,13 @@ security {
     }{{ end }}
   }
 
+  {{ if eq .AppType "web" }}{{ if or (eq .AppAuthScheme "form") (eq .AppAuthScheme "basic") -}}
   # -----------------------------------------------------------------------
   # Session configuration
   # HTTP state management across multiple requests.
   # Doc: https://docs.aahframework.org/security-config.html#section-session
   # -----------------------------------------------------------------------
   session {
-    {{ if eq .AppType "web" }}{{ if or (eq .AppAuthScheme "form") (eq .AppAuthScheme "basic") -}}
     # Session mode to choose whether HTTP session should be persisted or
     # destroyed at the end of the request. Supported values are `stateless`
     # and `stateful`.
@@ -293,17 +293,17 @@ security {
     # Cleanup performed in dedicated goroutine. Valid time units are
     # `m -> minutes`, `h -> hours`.
     # Default value is `30m`.
-    #cleanup_interval = "30m"{{ end }}{{ end }}
-  }
+    #cleanup_interval = "30m"
+  }{{ end }}{{ end -}}
 
-  # ------------------------------------------------------------
+  {{ if eq .AppType "web" -}}# ------------------------------------------------------------
   # Anti-CSRF Protection
   # Doc: https://docs.aahframework.org/anti-csrf-protection.html
   # ------------------------------------------------------------
   anti_csrf {
     # Enabling Anti-CSRF Protection.
     # Default value is `true`.
-    {{ if eq .AppType "web" -}}#enable = true{{ else }}enable = false{{ end }}
+    #enable = true
 
     # Anti-CSRF secret length
     # Default value is `32`.
@@ -343,7 +343,7 @@ security {
     # lengths are `16`, `24`, or `32` bytes to select `AES-128`, `AES-192`, or `AES-256`.
     # Default value is `32` bytes (`aah new` generates strong one).
     enc_key = "{{ .AppAntiCSRFEncKey }}"
-  }
+  }{{ end -}}
 
   # ---------------------------------------------------------------------------
   # HTTP Secure Header(s)

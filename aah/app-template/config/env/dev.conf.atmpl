@@ -9,7 +9,7 @@ dev {
   # Doc: https://docs.aahframework.org/logging.html
   # --------------------------------------------------
   log {
-    # Receiver is where is log values gets logged. Framework
+    # Receiver is where is log values gets logged. aah
     # supports `console` and `file` receivers. Hooks for extension.
     # Default value is `console`.
     #receiver = "file"
