@@ -80,7 +80,7 @@ func compileApp(args *compileArgs) (string, error) {
 	}
 
 	// get all the types info referred aah framework context embedded
-	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", aahImportPath))
+	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", libImportPath("aah")))
 	appImportPaths := prg.CreateImportPaths(appControllers)
 	appSecurity := appSecurity(aah.AppConfig(), appImportPaths)
 

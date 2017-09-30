@@ -25,7 +25,7 @@ import (
 	"gopkg.in/radovskyb/watcher.v1"
 	"gopkg.in/urfave/cli.v1"
 
-	"aahframework.org/aah.v0-unstable"
+	"aahframework.org/aah.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -386,7 +386,7 @@ func (p *process) Stop() {
 			// so we have only option is to kill.
 			_ = p.cmd.Process.Kill()
 		} else {
-			p.nw.checkBytes = []byte("application stopped")
+			p.nw.checkBytes = []byte("shutdown successful")
 			p.nw.notify = make(chan bool)
 			_ = p.cmd.Process.Signal(os.Interrupt)
 			// wait for process to finish or return after grace time

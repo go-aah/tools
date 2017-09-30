@@ -11,12 +11,13 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"gopkg.in/urfave/cli.v1"
 
-	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
 
@@ -52,10 +53,9 @@ var (
 )
 
 func newAction(c *cli.Context) error {
-	_ = log.SetPattern("%message")
-	log.Info("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
-	log.Info()
-	log.Info("Based on your inputs, aah CLI tool generates the aah application structure for you.")
+	fmt.Println("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
+	fmt.Println()
+	fmt.Println("Based on your inputs, aah CLI tool generates the aah application structure for you.")
 
 	// Collect data
 	importPath := getImportPath(reader)
@@ -95,17 +95,16 @@ func newAction(c *cli.Context) error {
 		fatal(err)
 	}
 
-	log.Infof("\nYour aah %s application was created successfully at '%s'", appType, appDir)
-	log.Infof("You shall run your application via the command: 'aah run --importpath %s'\n", importPath)
-	log.Info("\nGo to https://docs.aahframework.org to learn more and customize your aah application.")
+	fmt.Printf("\nYour aah %s application was created successfully at '%s'\n", appType, appDir)
+	fmt.Printf("You shall run your application via the command: 'aah run --importpath %s'\n", importPath)
+	fmt.Println("\nGo to https://docs.aahframework.org to learn more and customize your aah application.")
 
 	if basicAuthMode == basicFileRealm {
-		log.Infof("\nNext step:")
-		log.Infof("\tCreate basic auth realm file per your application requirements.")
-		log.Infof("\tRefer to 'https://docs.aahframework.org/authentication.html#basic-auth-file-realm-format' to create basic auth realm file.")
+		fmt.Println("\nNext step:")
+		fmt.Println("\tCreate basic auth realm file per your application requirements.")
+		fmt.Println("\tRefer to 'https://docs.aahframework.org/authentication.html#basic-auth-file-realm-format' to create basic auth realm file.")
 	}
 	fmt.Println()
-	_ = log.SetPattern(log.DefaultPattern)
 	return nil
 }
 
@@ -255,7 +254,7 @@ func getSessionInfo(reader *bufio.Reader, appType, authScheme string) string {
 }
 
 func createAahApp(appDir, appType string, data map[string]interface{}) error {
-	aahToolsPath, err := build.Import(aahCLIImportPath, "", build.FindOnly)
+	aahToolsPath, err := build.Import(path.Join(libImportPath("tools"), "aah"), "", build.FindOnly)
 	if err != nil {
 		fatal(err)
 	}

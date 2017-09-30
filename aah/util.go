@@ -17,7 +17,7 @@ import (
 	"text/template"
 	"time"
 
-	"aahframework.org/aah.v0-unstable"
+	"aahframework.org/aah.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -212,9 +212,17 @@ func findAvailablePort() string {
 }
 
 func initLogger(cfg *config.Config) {
+	logLevel := cfg.StringDefault("log.level", "info")
+	if level, found := cfg.String("build.log_level"); found {
+		logLevel = level
+
+		// DEPRECATED
+		log.Warnf("DEPRECATED: Config 'build.log_level' is deprecated in v0.9, use 'log.level = \"%s\"' instead. Deprecated config will not break your functionality, its good to update to latest config.", logLevel)
+	}
+
 	logCfg, _ := config.ParseString("")
 	logCfg.SetString("log.receiver", "console")
-	logCfg.SetString("log.level", cfg.StringDefault("log.level", "info"))
+	logCfg.SetString("log.level", logLevel)
 	logCfg.SetBool("log.color", cfg.BoolDefault("log.color", true))
 
 	cliLog, _ := log.New(logCfg)
