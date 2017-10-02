@@ -66,13 +66,6 @@ func switchAction(c *cli.Context) error {
 
 	fmt.Printf("Switching aah version to '%s' ...\n\n", friendlyName)
 
-	// Enables git redirects for:
-	// 	git config --global http.https://aahframework.org.followRedirects true
-	// 	git config --global http.https://gopkg.in.followRedirects true
-	//
-	// Know more: https://github.com/git/git/commit/50d3413740d1da599cdc0106e6e916741394cc98
-	enableGitRedirects()
-
 	// Switch between release and edge version
 	for _, lib := range libNames {
 		dir := libDir(lib)

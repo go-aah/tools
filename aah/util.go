@@ -270,15 +270,6 @@ func gitPull(dir string) error {
 	return nil
 }
 
-func enableGitRedirects() {
-	if gitcmd, err := exec.LookPath("git"); err == nil {
-		gitArgs := []string{"config", "--global", "http.https://aahframework.org.followRedirects", "true"}
-		_, _ = execCmd(gitcmd, gitArgs, false)
-		gitArgs = []string{"config", "--global", "http.https://gopkg.in.followRedirects", "true"}
-		_, _ = execCmd(gitcmd, gitArgs, false)
-	}
-}
-
 func goGet(pkgs ...string) error {
 	for _, pkg := range pkgs {
 		args := []string{"get", pkg}
