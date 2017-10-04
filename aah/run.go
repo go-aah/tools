@@ -69,7 +69,7 @@ var runCmd = cli.Command{
 }
 
 type (
-	proxy struct {
+	hotReload struct {
 		ProxyURL       *url.URL
 		ProxyPort      string
 		BaseDir        string
@@ -79,7 +79,7 @@ type (
 		SSLCert        string
 		SSLKey         string
 		Args           []string
-		Server         *httputil.ReverseProxy
+		Proxy          *httputil.ReverseProxy
 		Process        *process
 		ProjectConfig  *config.Config
 		ChangedOrError bool
@@ -144,7 +144,7 @@ func runAction(c *cli.Context) error {
 		}
 
 		appURL, _ := url.Parse(fmt.Sprintf("%s://%s:%s", scheme, address, proxyPort))
-		appProxy := &proxy{
+		appHotReload := &hotReload{
 			ProxyURL:      appURL,
 			ProxyPort:     proxyPort,
 			BaseDir:       aah.AppBaseDir(),
@@ -154,11 +154,11 @@ func runAction(c *cli.Context) error {
 			SSLCert:       aah.AppConfig().StringDefault("server.ssl.cert", ""),
 			SSLKey:        aah.AppConfig().StringDefault("server.ssl.key", ""),
 			Args:          appStartArgs,
-			Server:        httputil.NewSingleHostReverseProxy(appURL),
+			Proxy:         httputil.NewSingleHostReverseProxy(appURL),
 			ProjectConfig: projectCfg,
 		}
 
-		appProxy.Start()
+		appHotReload.Start()
 		return nil
 	}
 
@@ -180,22 +180,26 @@ func runAction(c *cli.Context) error {
 	return nil
 }
 
-func (p *proxy) Start() {
-	// starting proxy server
+func (hr *hotReload) Start() {
+	// Starting Hot-Reload server
 	go func() {
-		p.Server.ErrorLog = log.ToGoLogger()
-		p.Server.ErrorLog.SetOutput(ioutil.Discard)
+		hr.Proxy.ErrorLog = log.ToGoLogger()
+		hr.Proxy.ErrorLog.SetOutput(ioutil.Discard)
+		hr.Proxy.Transport = http.DefaultTransport
 
 		var err error
-		address := fmt.Sprintf("%s:%s", p.Addr, p.Port)
-		server := &http.Server{Addr: address, Handler: p}
-		server.ErrorLog = p.Server.ErrorLog
+		address := fmt.Sprintf("%s:%s", hr.Addr, hr.Port)
+		server := &http.Server{
+			Addr:         address,
+			Handler:      hr,
+			ReadTimeout:  30 * time.Second,
+			WriteTimeout: 30 * time.Second,
+		}
+		server.ErrorLog = hr.Proxy.ErrorLog
 
-		if p.IsSSL {
-			p.Server.Transport = &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}
-			err = server.ListenAndServeTLS(p.SSLCert, p.SSLKey)
+		if hr.IsSSL {
+			hr.Proxy.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+			err = server.ListenAndServeTLS(hr.SSLCert, hr.SSLKey)
 		} else {
 			err = server.ListenAndServe()
 		}
@@ -204,29 +208,29 @@ func (p *proxy) Start() {
 		}
 	}()
 
-	if err := p.CompileAndStart(); err != nil {
+	if err := hr.CompileAndStart(); err != nil {
 		fatal(err)
 	}
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
 	<-sc
-	p.Stop()
+	hr.Stop()
 }
 
-func (p *proxy) CompileAndStart() error {
+func (hr *hotReload) CompileAndStart() error {
 	appBinary, err := compileApp(&compileArgs{
 		Cmd:        "RunCmd",
-		ProxyPort:  p.ProxyPort,
-		ProjectCfg: p.ProjectConfig,
+		ProxyPort:  hr.ProxyPort,
+		ProjectCfg: hr.ProjectConfig,
 		AppPack:    false,
 	})
 	if err != nil {
 		return err
 	}
 
-	p.Process = &process{
-		cmd: exec.Command(appBinary, p.Args...),
+	hr.Process = &process{
+		cmd: exec.Command(appBinary, hr.Args...),
 		nw: &notifyWriter{
 			w:          os.Stdout,
 			notify:     make(chan bool),
@@ -234,44 +238,45 @@ func (p *proxy) CompileAndStart() error {
 		},
 	}
 
-	if err = p.Process.Start(); err != nil {
+	if err = hr.Process.Start(); err != nil {
 		return err
 	}
 
-	p.RefreshWatcher()
+	hr.RefreshWatcher()
 
 	return nil
 }
 
-func (p *proxy) Stop() {
-	p.Process.Stop()
+func (hr *hotReload) Stop() {
+	hr.Process.Stop()
 }
 
-func (p *proxy) RefreshWatcher() {
-	p.Watcher = watcher.New()
+func (hr *hotReload) RefreshWatcher() {
+	hr.Watcher = watcher.New()
 	watch := make(chan bool)
-	go startWatcher(p.ProjectConfig, p.BaseDir, p.Watcher, watch)
+	go startWatcher(hr.ProjectConfig, hr.BaseDir, hr.Watcher, watch)
 	go func() {
 		for {
-			p.ChangedOrError = <-watch
+			hr.ChangedOrError = <-watch
 		}
 	}()
 }
 
-func (p *proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if p.ChangedOrError {
+func (hr *hotReload) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if hr.ChangedOrError {
 		log.Info("Application file change(s) detected")
-		p.ChangedOrError = false
-		p.Watcher.Close()
-		p.Stop()
-		if err := p.CompileAndStart(); err != nil {
+		hr.ChangedOrError = false
+		hr.Watcher.Close()
+		hr.Stop()
+		if err := hr.CompileAndStart(); err != nil {
 			log.Error(err)
 			fmt.Fprintln(w, err.Error())
-			p.ChangedOrError = true
+			hr.ChangedOrError = true
 			return
 		}
+		waitForConnReady(hr.ProxyPort)
 	}
-	p.Server.ServeHTTP(w, r)
+	hr.Proxy.ServeHTTP(w, r)
 }
 
 func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher, watch chan<- bool) {

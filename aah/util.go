@@ -279,3 +279,14 @@ func goGet(pkgs ...string) error {
 	}
 	return nil
 }
+
+func waitForConnReady(port string) {
+	port = ":" + port
+	for {
+		if _, err := net.Dial("tcp", port); err != nil {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+		return
+	}
+}
