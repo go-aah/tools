@@ -12,6 +12,14 @@ name = "{{ .AppName }}"
 # Friendly description of application
 desc = "aah framework {{ .AppType }} application"
 
+# Application instance name is used when you're running aah application cluster.
+# This value is used in the context based logging, it distinguishes your instance
+# log from other instances.
+#
+# Typically you can to pass `instance_name` value via aah external config
+# support or Environment variable.
+instance_name = $AAH_INSTANCE_NAME
+
 # Configure file path of application PID file to be written.
 # Ensure application has appropriate permission and directory exists.
 # Default value is `<app-base-dir>/<app-binary-name>.pid`
@@ -26,7 +34,7 @@ server {
   # Default value is `empty` string.
   #address = ""
 
-  # For port `80` and `443`, put empty string or a value
+  # For standard port `80` and `443`, put empty string or a value
   # Default value is 8080.
   #port = ""
 
@@ -79,6 +87,27 @@ server {
     # Default value is `false`.
     #disable_http2 = true
 
+    # Redirect HTTP => HTTPS functionality does protocol switch, so it works
+    # with domain and subdomains.
+    # For example:
+    #   http://aahframework.org      => https://aahframework.org
+    #   http://www.aahframework.org  => https://www.aahframework.org
+    #   http://docs.aahframework.org => https://docs.aahframework.org
+    redirect_http {
+      # Enabling HTTP => HTTPS redirects.
+      # Default is value is `false`.
+      #enable = true
+
+      # Port no. of HTTP requests to listen.
+      # For standard port `80` put empty string or a value.
+      # It is required value, no default.
+      port = "8080"
+
+      # Redirect code
+      # Default value is `307`.
+      #code = 307
+    }
+
     lets_encrypt {
       # To get SSL certificate from Let's Encrypt CA, enable it.
       # Don't forget to enable `server.ssl.enable=true`.
@@ -117,9 +146,12 @@ server {
     }
   }
 
+  # --------------------------------------------------------------------------
   # To manage aah server effectively it is necessary to know details about the
   # request, response, processing time, client IP address, etc. aah framework
   # provides the flexible and configurable access log capabilities.
+  # Doc: https://docs.aahframework.org/server-access-log.html
+  # --------------------------------------------------------------------------
   access_log {
     # Enabling server access log
     # Default value is `false`.
@@ -140,6 +172,31 @@ server {
     # Default value is `true`.
     #static_file = false
   }
+
+  # -------------------------------------------------------
+  # Dump Request & Response Details
+  # Such as URL, Proto, Headers, Body, etc.
+  # Note: Dump is not applicable for Static Files delivery.
+  # Doc: https://docs.aahframework.org/server-dump-log.html
+  # -------------------------------------------------------
+  dump_log {
+    # Default value is `false`.
+    #enable = true
+
+    # Absolute path to dump log file or relative path.
+    # Default location is application logs directory
+    #file = "{{ .AppName }}-dump.log"
+
+    # Log Request body into dump log. aah dumps body for JSON, XML, Form
+    # HTML and Plain Text content types.
+    # Default value is `false`.
+    #request_body = true
+
+    # Log Request body into dump log. aah dumps body for JSON, XML, Form
+    # HTML, and Plain Text content types.
+    # Default value is `false`.
+    #response_body = true
+  }
 }
 
 # ------------------------------------------------------------------
@@ -148,7 +205,7 @@ server {
 # ------------------------------------------------------------------
 request {
   # aah framework encourages to have unique `Request Id` for each incoming
-  # request, it helps in traceability. If request has already `X-Request-Id`
+  # request, it helps in traceability. If request has already `sX-Request-Id`
   # HTTP header then it does not generate one.
   id {
     # Default value is `true`.
@@ -212,7 +269,6 @@ request {
     #tag_name = "bind"
   }
 }
-
 {{ if eq .AppType "web" -}}
 # ---------------------------------------------------------------
 # i18n configuration
@@ -309,7 +365,6 @@ render {
     #level = 4
   }
 }
-
 {{ if eq .AppType "web" -}}
 # ------------------------------------------------------------------
 # Cache configuration
@@ -369,8 +424,7 @@ view {
   # So option to disable the default layout for HTML.
   # Default value is `true`. Available since v0.6
   #default_layout = false
-}
-{{- end }}
+}{{ end }}
 
 # --------------------------------------------------------------
 # Application Security

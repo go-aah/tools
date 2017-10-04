@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -21,15 +22,16 @@ import (
 )
 
 const (
-	typeWeb     = "web"
-	typeAPI     = "api"
-	storeCookie = "cookie"
-	storeFile   = "file"
-	aahTmplExt  = ".atmpl"
-	authForm    = "form"
-	authBasic   = "basic"
-	authGeneric = "generic"
-	authNone    = "none"
+	typeWeb        = "web"
+	typeAPI        = "api"
+	storeCookie    = "cookie"
+	storeFile      = "file"
+	aahTmplExt     = ".atmpl"
+	authForm       = "form"
+	authBasic      = "basic"
+	authGeneric    = "generic"
+	authNone       = "none"
+	basicFileRealm = "file-realm"
 )
 
 var (
@@ -51,16 +53,17 @@ var (
 )
 
 func newAction(c *cli.Context) error {
-	_ = log.SetPattern("%message")
-	log.Info("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
-	log.Info()
-	log.Info("Based on your inputs, aah CLI tool generates the aah application structure for you.")
+	fmt.Println("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
+	fmt.Println()
+	fmt.Println("Based on your inputs, aah CLI tool generates the aah application structure for you.")
 
 	// Collect data
 	importPath := getImportPath(reader)
 	appType := getAppType(reader)
 	authScheme := getAuthScheme(reader, appType)
-	sessionStore := getSessionInfo(reader, appType)
+	basicAuthMode := getBasicAuthMode(reader, authScheme)
+	passwordEncoder := getPasswordHashAlgorithm(reader, authScheme)
+	sessionStore := getSessionInfo(reader, appType, authScheme)
 
 	// Process it
 	appDir := filepath.Join(gosrcDir, filepath.FromSlash(importPath))
@@ -71,21 +74,37 @@ func newAction(c *cli.Context) error {
 		"AppType":                 appType,
 		"AppImportPath":           importPath,
 		"AppAuthScheme":           authScheme,
+		"AppBasicAuthMode":        basicAuthMode,
+		"AppPasswordEncoder":      passwordEncoder,
 		"AppSessionStore":         sessionStore,
 		"AppSessionFileStorePath": appSessionFilepath,
-		"AppSessionSignKey":       ess.RandomString(64),
-		"AppSessionEncKey":        ess.RandomString(32),
+		"AppSessionSignKey":       ess.SecureRandomString(64),
+		"AppSessionEncKey":        ess.SecureRandomString(32),
+		"AppAntiCSRFSignKey":      ess.SecureRandomString(64),
+		"AppAntiCSRFEncKey":       ess.SecureRandomString(32),
 		"TmplDemils":              "{{.}}",
+	}
+
+	if basicAuthMode == basicFileRealm {
+		data["AppBasicAuthFileRealmPath"] = filepath.Join(appDir, "config", "basic-realm.conf")
+	} else {
+		data["AppBasicAuthFileRealmPath"] = "/path/to/basic-realm.conf"
 	}
 
 	if err := createAahApp(appDir, appType, data); err != nil {
 		fatal(err)
 	}
 
-	log.Infof("\nYour aah %s application was created successfully at '%s'", appType, appDir)
-	log.Infof("You shall run your application via the command: 'aah run --importpath %s'\n", importPath)
-	log.Info("\nGo to https://docs.aahframework.org to learn more and customize your aah application.\n")
-	_ = log.SetPattern(log.DefaultPattern)
+	fmt.Printf("\nYour aah %s application was created successfully at '%s'\n", appType, appDir)
+	fmt.Printf("You shall run your application via the command: 'aah run --importpath %s'\n", importPath)
+	fmt.Println("\nGo to https://docs.aahframework.org to learn more and customize your aah application.")
+
+	if basicAuthMode == basicFileRealm {
+		fmt.Println("\nNext step:")
+		fmt.Println("\tCreate basic auth realm file per your application requirements.")
+		fmt.Println("\tRefer to 'https://docs.aahframework.org/authentication.html#basic-auth-file-realm-format' to create basic auth realm file.")
+	}
+	fmt.Println()
 	return nil
 }
 
@@ -156,7 +175,7 @@ func getAuthScheme(reader *bufio.Reader, appType string) string {
 				authScheme = ""
 			}
 		} else {
-			log.Error("Unsupported Auth Scheme, choose either 'form', 'basic', 'generic' or 'none'")
+			log.Errorf("Unsupported Auth Scheme, choose either %v or 'none'", schemeNames)
 			authScheme = ""
 		}
 	}
@@ -164,13 +183,57 @@ func getAuthScheme(reader *bufio.Reader, appType string) string {
 	if authScheme == authNone {
 		authScheme = ""
 	}
+
 	return authScheme
 }
 
-func getSessionInfo(reader *bufio.Reader, appType string) string {
+func getBasicAuthMode(reader *bufio.Reader, authScheme string) string {
+	var basicAuthMode string
+	if authScheme == authBasic {
+		for {
+			basicAuthMode = readInput(reader, "\nChoose your basic auth mode (file-realm, dynamic), default is 'file-realm': ")
+			if ess.IsStrEmpty(basicAuthMode) || basicAuthMode == "dynamic" {
+				break
+			} else {
+				log.Error("Unsupported Basic auth mode")
+				basicAuthMode = ""
+			}
+		}
+
+		if ess.IsStrEmpty(basicAuthMode) {
+			basicAuthMode = basicFileRealm
+		}
+	}
+
+	return basicAuthMode
+}
+
+func getPasswordHashAlgorithm(reader *bufio.Reader, authScheme string) string {
+	var authPasswordAlgorithm string
+	if authScheme == authForm || authScheme == authBasic {
+		for {
+			authPasswordAlgorithm = readInput(reader, "\nChoose your password hash algorithm (bcrypt, scrypt, pbkdf2), default is 'bcrypt': ")
+
+			if ess.IsStrEmpty(authPasswordAlgorithm) || authPasswordAlgorithm == "bcrypt" ||
+				authPasswordAlgorithm == "scrypt" || authPasswordAlgorithm == "pbkdf2" {
+				break
+			} else {
+				log.Error("Unsupported Password hash algorithm")
+				authPasswordAlgorithm = ""
+			}
+		}
+
+		if ess.IsStrEmpty(authPasswordAlgorithm) {
+			authPasswordAlgorithm = "bcrypt"
+		}
+	}
+	return authPasswordAlgorithm
+}
+
+func getSessionInfo(reader *bufio.Reader, appType, authScheme string) string {
 	sessionStore := storeCookie
 
-	if appType == typeWeb {
+	if appType == typeWeb && (authScheme == authForm || authScheme == authBasic) {
 		// Session Store
 		for {
 			sessionStore = readInput(reader, "\nChoose your session store (cookie or file), default is 'cookie': ")
@@ -181,6 +244,7 @@ func getSessionInfo(reader *bufio.Reader, appType string) string {
 				sessionStore = ""
 			}
 		}
+
 		if ess.IsStrEmpty(sessionStore) {
 			sessionStore = storeCookie
 		}
@@ -190,7 +254,7 @@ func getSessionInfo(reader *bufio.Reader, appType string) string {
 }
 
 func createAahApp(appDir, appType string, data map[string]interface{}) error {
-	aahToolsPath, err := build.Import(aahCLIImportPath, "", build.FindOnly)
+	aahToolsPath, err := build.Import(path.Join(libImportPath("tools"), "aah"), "", build.FindOnly)
 	if err != nil {
 		fatal(err)
 	}
@@ -231,7 +295,21 @@ func createAahApp(appDir, appType string, data map[string]interface{}) error {
 func processSection(destDir, srcDir, dir string, data map[string]interface{}) {
 	files, _ := ess.FilesPath(filepath.Join(srcDir, dir), true)
 	for _, v := range files {
-		processFile(destDir, srcDir, v, data)
+		if strings.Contains(v, "/app/security/") {
+			authScheme := data["AppAuthScheme"].(string)
+			if !ess.IsStrEmpty(authScheme) && authScheme != authNone {
+				if authScheme == authBasic {
+					basicAuthMode := data["AppBasicAuthMode"].(string)
+					if basicAuthMode == "dynamic" {
+						processFile(destDir, srcDir, v, data)
+					}
+				} else {
+					processFile(destDir, srcDir, v, data)
+				}
+			}
+		} else {
+			processFile(destDir, srcDir, v, data)
+		}
 	}
 }
 

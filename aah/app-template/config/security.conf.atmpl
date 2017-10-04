@@ -24,20 +24,18 @@ security {
       # information. Then framework validates the credential using password
       # encoder.
       # It is required value, no default.
-      #authenticator = "security/Authentication"
+      authenticator = "security/AuthenticationProvider"
 
       # Framework calls `Authorizer` to get Subject's authorization information,
       # such as Roles, Permissions. Then it populates the Subject instance.
       # It is required value, no default.
-      #authorizer = "security/Authorization"
+      authorizer = "security/AuthorizationProvider"
 
       # Password encoder is used to encode the given credential and then compares
       # it with application provide credential.
-      # Currently supported hashing is `bcrypt`, additional hash types (upcoming).
-      password_encoder {
-        # Default value is `bcrypt`.
-        #type = "bcrypt"
-      }
+      # Doc: https://docs.aahframework.org/password-encoders.html
+      # Default value is `bcrypt`.
+      password_encoder = "{{ .AppPasswordEncoder }}"
 
       # Field names are used to extract `AuthenticationToken` from request.
       field {
@@ -89,31 +87,27 @@ security {
       # However aah framework does its due diligence.
       realm_name = "Protected"
 
+      {{ if eq .AppBasicAuthMode "file-realm" -}}
       # Basic auth realm file path. You can use absolute path or
       # environment variable to provide path.
-      # No default value.
-      file_realm = "/path/to/basic-realm-file.conf"
-
-      ## NOTE: you can use either file realm or dynamic
-
+      # It is required value, no default.
+      file_realm = "{{ .AppBasicAuthFileRealmPath }}"{{ else -}}
       # Framework calls `Authenticator` to get the Subject's authentication
       # information. Then framework validates the credential using password
       # encoder.
       # It is required value when `file_realm` not configured, no default.
-      #authenticator = "security/Authentication"
+      authenticator = "security/AuthenticationProvider"
 
       # Framework calls `Authorizer` to get Subject's authorization information,
       # such as Roles and Permissions. Then it populates the Subject instance.
       # It is required value when `file_realm` not configured, no default.
-      #authorizer = "security/Authorization"
+      authorizer = "security/AuthorizationProvider"{{ end }}
 
       # Password encoder is used to encode the given credential and then compares
       # it with application provide credential.
-      # Currently supported hashing is `bcrypt`, additional hash types (upcoming).
-      password_encoder {
-        # Default value is `bcrypt`.
-        #type = "bcrypt"
-      }
+      # Doc: https://docs.aahframework.org/password-encoders.html
+      # Default value is `bcrypt`.
+      password_encoder = "{{ .AppPasswordEncoder }}"
     }{{ end -}}
 
     {{ if eq .AppAuthScheme "generic" -}}
@@ -127,14 +121,14 @@ security {
 
       # Framework calls `Authenticator` to get the Subject's authentication
       # information. The credential validation is not done by framework, it is
-      # left interface implementation.
+      # left to interface implementation.
       # It is required value, no default.
-      #authenticator = "security/Authentication"
+      authenticator = "security/AuthenticationProvider"
 
       # Framework calls `Authorizer` to get Subject's authorization information,
       # such as Roles and Permissions. Then it populates the Subject instance.
       # It is required value, no default.
-      #authorizer = "security/Authorization"
+      authorizer = "security/AuthorizationProvider"
 
       # Header names are used to extract `AuthenticationToken` from request.
       header {
@@ -149,13 +143,89 @@ security {
     }{{ end }}
   }
 
+  # ------------------------------------------------------------
+  # Password Encoders Configuration
+  # aah supports `bcrypt`, `scrypt`, `pbkdf2` password algorithm
+  # Doc: https://docs.aahframework.org/password-encoders.html
+  # ------------------------------------------------------------
+  password_encoder { {{ if eq .AppPasswordEncoder "bcrypt" }}
+    # bcrypt algorithm
+    #
+    # Learn more:
+    #   https://crackstation.net/hashing-security.htm
+    #   https://security.stackexchange.com/a/6415
+    #   https://en.wikipedia.org/wiki/Bcrypt
+    bcrypt {
+      # Default value is `true`
+      enable = true
+
+      # https://godoc.org/golang.org/x/crypto/bcrypt#pkg-constants
+      # Default value is `12`.
+      cost = 12
+    }{{ end }}
+    {{ if eq .AppPasswordEncoder "scrypt" }}
+    # scrypt algorithm
+    #
+    # Learn more:
+    #   https://crackstation.net/hashing-security.htm
+    #   https://pthree.org/2016/06/28/lets-talk-password-hashing/
+    #   https://www.owasp.org/index.php/Password_Storage_Cheat_Sheet
+    # Default values are chosen carefully to provide secure password.
+    scrypt {
+      # Default value is `false`
+      enable = true
+
+      # CPU/Memory Cost
+      # Default value is `2^15`
+      #cpu_memory_cost = 32768
+
+      # Default value is `8`
+      #block_size = 8
+
+      # Default value is `1`
+      #parallelization = 1
+
+      # Default value is `32`
+      #derived_key_length = 32
+
+      # Default value is `24`
+      #salt_length = 24
+    }{{ end }}
+    {{ if eq .AppPasswordEncoder "pbkdf2" }}
+    # pbkdf2 algorithm
+    #
+    # Learn more:
+    #   https://crackstation.net/hashing-security.htm
+    #   https://cryptosense.com/parameter-choice-for-pbkdf2/
+    #   https://pthree.org/2016/06/28/lets-talk-password-hashing/
+    #   https://www.owasp.org/index.php/Password_Storage_Cheat_Sheet
+    # Default values are chosen carefully to provide secure password.
+    pbkdf2 {
+      # Default value is `false`
+      enable = true
+
+      # Default value is `10000`
+      #iteration = 10000
+
+      # Default value is `32`
+      #derived_key_length = 32
+
+      # Default value is `24`
+      #salt_length = 24
+
+      # Supported SHA's are `sha-1`, `sha-224`, `sha-256`, `sha-384`, `sha-512`.
+      # Default value is `sha-512`
+      #hash_algorithm = "sha-512"
+    }{{ end }}
+  }
+
+  {{ if eq .AppType "web" }}{{ if or (eq .AppAuthScheme "form") (eq .AppAuthScheme "basic") -}}
   # -----------------------------------------------------------------------
   # Session configuration
   # HTTP state management across multiple requests.
   # Doc: https://docs.aahframework.org/security-config.html#section-session
   # -----------------------------------------------------------------------
   session {
-    {{ if eq .AppAuthScheme "form" -}}
     # Session mode to choose whether HTTP session should be persisted or
     # destroyed at the end of the request. Supported values are `stateless`
     # and `stateful`.
@@ -169,13 +239,11 @@ security {
       # add custom session store.
       # Default value is `cookie`.
       type = "{{ .AppSessionStore }}"
-
       {{ if eq .AppSessionStore "file" -}}
       # Filepath is used for file store to store session file in the file system.
       # This is only applicable for `type = "file"`, make sure application has
       # Read/Write access to the directory. Provide absolute path.
-      filepath = "{{ .AppSessionFileStorePath }}"
-      {{- end }}
+      filepath = "{{ .AppSessionFileStorePath }}"{{ end }}
     }
 
     # Session ID length
@@ -188,8 +256,8 @@ security {
     #ttl = "0"
 
     # Session cookie name prefix.
-    # Default value is `aah` For e.g.: `aah_session`
-    #prefix = "aah"
+    # Default value is `aah_<app-name>` For e.g.: `aah_myapp_session`
+    prefix = "aah_{{ .AppName }}"
 
     # Default value is `empty` string.
     #domain = ""
@@ -211,15 +279,13 @@ security {
     # HTTP session cookie value signing using `HMAC`. For server farm this
     # should be same in all instance. For HMAC sign & verify it recommend to use
     # key size is `32` or `64` bytes.
-    # Default value is `64` bytes (generated when application gets created
-    # using `aah new` command).
+    # Default value is `64` bytes (`aah new` generates strong one).
     sign_key = "{{ .AppSessionSignKey }}"
 
     # HTTP session cookie value encryption and decryption using `AES`. For server
     # farm this should be same in all instance. AES algorithm is used, valid
     # lengths are `16`, `24`, or `32` bytes to select `AES-128`, `AES-192`, or `AES-256`.
-    # Default value is `32` bytes (generated when application gets created
-    # using `aah new` command).
+    # Default value is `32` bytes (`aah new` generates strong one).
     enc_key = "{{ .AppSessionEncKey }}"
 
     # Cleanup Interval is used to clean the expired session objects from store.
@@ -228,8 +294,56 @@ security {
     # `m -> minutes`, `h -> hours`.
     # Default value is `30m`.
     #cleanup_interval = "30m"
-    {{- end }}
-  }
+  }{{ end }}{{ end -}}
+
+  {{ if eq .AppType "web" -}}# ------------------------------------------------------------
+  # Anti-CSRF Protection
+  # Doc: https://docs.aahframework.org/anti-csrf-protection.html
+  # ------------------------------------------------------------
+  anti_csrf {
+    # Enabling Anti-CSRF Protection.
+    # Default value is `true`.
+    #enable = true
+
+    # Anti-CSRF secret length
+    # Default value is `32`.
+    #secret_length = 32
+
+    # HTTP Header name for cipher token
+    # Default value is `X-Anti-CSRF-Token`.
+    #header_name = "X-Anti-CSRF-Token"
+
+    # Form field name for cipher token
+    # Default value is `anti_csrf_token`.
+    #form_field_name = "anti_csrf_token"
+
+    #Anti-CSRF secure cookie prefix
+    # Default value is `aah`. Cookie name would be `aah_anti_csrf`.
+    #prefix = "aah"
+
+    # Default value is `empty` string.
+    #domain = ""
+
+    # Default value is `/`.
+    #path = "/"
+
+    # Time-to-live for Anti-CSRF secret. Valid time units are "m = minutes",
+    # "h = hours" and 0.
+    # Default value is `24h`.
+    #ttl = "24h"
+
+    # Anti-CSRF cookie value signing using `HMAC`. For server farm this
+    # should be same in all instance. For HMAC sign & verify it recommend to use
+    # key size is `32` or `64` bytes.
+    # Default value is `64` bytes (`aah new` generates strong one).
+    sign_key = "{{ .AppAntiCSRFSignKey }}"
+
+    # Anti-CSRF cookie value encryption and decryption using `AES`. For server
+    # farm this should be same in all instance. AES algorithm is used, valid
+    # lengths are `16`, `24`, or `32` bytes to select `AES-128`, `AES-192`, or `AES-256`.
+    # Default value is `32` bytes (`aah new` generates strong one).
+    enc_key = "{{ .AppAntiCSRFEncKey }}"
+  }{{ end -}}
 
   # ---------------------------------------------------------------------------
   # HTTP Secure Header(s)
@@ -251,7 +365,7 @@ security {
     # Encouraged to make use of header `Content-Security-Policy` with enhanced
     # policy to reduce XSS risk along with header `X-XSS-Protection`.
     # Default values is `1; mode=block`.
-    #xxssp = "1; mode=block"
+    {{ if eq .AppType "web" -}}#xxssp = "1; mode=block"{{ else }}xxssp = ""{{ end }}
 
     # X-Content-Type-Options
     # Prevent Content Sniffing or MIME sniffing.
@@ -269,7 +383,7 @@ security {
     #   https://www.owasp.org/index.php/OWASP_Secure_Headers_Project#xfo
     #   https://www.keycdn.com/blog/x-frame-options/
     # Default value is `SAMEORIGIN`.
-    #xfo = "SAMEORIGIN"
+    {{ if eq .AppType "web" -}}#xfo = "SAMEORIGIN"{{ else }}xfo = "DENY"{{ end }}
 
     # Referrer-Policy
     # This header governs which referrer information, sent in the Referer header, should
@@ -281,7 +395,7 @@ security {
     #   https://scotthelme.co.uk/a-new-security-header-referrer-policy/
     #   https://www.w3.org/TR/referrer-policy/
     # Default value is `no-referrer-when-downgrade`.
-    #rp = "no-referrer-when-downgrade"
+    {{ if eq .AppType "web" -}}#rp = "no-referrer-when-downgrade"{{ else }}rp = ""{{ end }}
 
     # Strict-Transport-Security (STS, aka HSTS)
     # STS header that lets a web site tell browsers that it should only be communicated
@@ -389,6 +503,6 @@ security {
     #   https://www.owasp.org/index.php/OWASP_Secure_Headers_Project#xpcdp
     #   https://www.adobe.com/devnet/adobe-media-server/articles/cross-domain-xml-for-streaming.html
     # Default value is `master-only`.
-    #xpcdp = "master-only"
+    {{ if eq .AppType "web" -}}#xpcdp = "master-only"{{ else }}xpcdp = ""{{ end }}
   }
 }

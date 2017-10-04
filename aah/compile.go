@@ -80,7 +80,7 @@ func compileApp(args *compileArgs) (string, error) {
 	}
 
 	// get all the types info referred aah framework context embedded
-	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", aahImportPath))
+	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", libImportPath("aah")))
 	appImportPaths := prg.CreateImportPaths(appControllers)
 	appSecurity := appSecurity(aah.AppConfig(), appImportPaths)
 
@@ -199,11 +199,8 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 
 		if cfg.BoolDefault("build.dep_get", false) && len(notExistsPkgs) > 0 {
 			log.Info("Getting application dependencies ...")
-			for _, pkg := range notExistsPkgs {
-				args := []string{"get", pkg}
-				if _, err := execCmd(gocmd, args, false); err != nil {
-					return err
-				}
+			if err := goGet(notExistsPkgs...); err != nil {
+				return err
 			}
 		} else if len(notExistsPkgs) > 0 {
 			return fmt.Errorf("Below application dependencies does not exist, "+
@@ -267,7 +264,11 @@ func appSecurity(appCfg *config.Config, appImportPaths map[string]string) map[st
 
 func prepareAuthAlias(keyAuthAlias, auth, importPathPrefix string, appImportPaths map[string]string) string {
 	var authAlias string
-	importPath := path.Join(importPathPrefix, path.Dir(auth))
+	importPath := path.Dir(auth)
+	if strings.HasPrefix(auth, "security") {
+		importPath = path.Join(importPathPrefix, importPath)
+	}
+
 	if alias, found := appImportPaths[importPath]; found {
 		authAlias = alias
 	} else {
@@ -292,7 +293,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
 	"reflect"
+	"syscall"
 
 	"aahframework.org/aah.v0"
 	"aahframework.org/config.v0"
@@ -406,6 +410,24 @@ func main() {
 	{{- end }}
 	{{- end }}
 
-  aah.Start()
+	go aah.Start()
+
+	// Listen to OS signal's SIGINT & SIGTERM for aah server Shutdown
+	sc := make(chan os.Signal, 1)
+	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
+	sig := <-sc
+	switch sig {
+	case os.Interrupt:
+		log.Warn("Interrupt signal received")
+	case syscall.SIGTERM:
+		log.Warn("Termination signal received")
+	}
+
+	// Call aah shutdown
+	aah.Shutdown()
+	log.Info("aah application shutdown successful")
+
+	// bye bye, see you later.
+	os.Exit(0)
 }
 `

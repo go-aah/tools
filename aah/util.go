@@ -36,13 +36,10 @@ func importPathRelwd() string {
 
 // loadAahProjectFile method loads build config from 'aah.project'
 func loadAahProjectFile(baseDir string) (*config.Config, error) {
-	// read build config from 'aah.project'
 	aahProjectFile := filepath.Join(baseDir, aahProjectIdentifier)
 	if !ess.IsFileExists(aahProjectFile) {
 		fatal("Missing 'aah.project' file, not a valid aah framework application.")
 	}
-
-	log.Infof("Loading aah project file: %s", aahProjectFile)
 	return config.LoadFile(aahProjectFile)
 }
 
@@ -88,13 +85,11 @@ func getAppVersion(appBaseDir string, cfg *config.Config) string {
 
 	// git describe
 	if gitcmd, err := exec.LookPath("git"); err == nil {
-		appGitDir := filepath.Join(appBaseDir, ".git")
-		if !ess.IsFileExists(appGitDir) {
+		if !ess.IsFileExists(filepath.Join(appBaseDir, ".git")) {
 			return version
 		}
 
-		_ = os.Chdir(appBaseDir)
-		gitArgs := []string{fmt.Sprintf("--git-dir=%s", appGitDir), "describe", "--always", "--dirty"}
+		gitArgs := []string{"-C", appBaseDir, "describe", "--always", "--dirty"}
 		output, err := execCmd(gitcmd, gitArgs, false)
 		if err != nil {
 			return version
@@ -124,7 +119,7 @@ func getBuildDate() string {
 
 func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 	cmd := exec.Command(cmdName, args...)
-	log.Debug("Executing ", strings.Join(cmd.Args, " "))
+	log.Trace("Executing ", strings.Join(cmd.Args, " "))
 
 	if stdout {
 		cmd.Stdout = os.Stdout
@@ -214,4 +209,84 @@ func findAvailablePort() string {
 	defer ess.CloseQuietly(lstn)
 
 	return strconv.Itoa(lstn.Addr().(*net.TCPAddr).Port)
+}
+
+func initLogger(cfg *config.Config) {
+	logLevel := cfg.StringDefault("log.level", "info")
+	if level, found := cfg.String("build.log_level"); found {
+		logLevel = level
+
+		// DEPRECATED
+		log.Warnf("DEPRECATED: Config 'build.log_level' is deprecated in v0.9, use 'log.level = \"%s\"' instead. Deprecated config will not break your functionality, its good to update to latest config.", logLevel)
+	}
+
+	logCfg, _ := config.ParseString("")
+	logCfg.SetString("log.receiver", "console")
+	logCfg.SetString("log.level", logLevel)
+	logCfg.SetBool("log.color", cfg.BoolDefault("log.color", true))
+
+	cliLog, _ := log.New(logCfg)
+	log.SetDefaultLogger(cliLog)
+}
+
+func gitCheckout(dir, branch string) error {
+	if gitcmd, err := exec.LookPath("git"); err == nil {
+		gitArgs := []string{"-C", dir, "checkout", branch}
+		_, err := execCmd(gitcmd, gitArgs, false)
+		return err
+	}
+	return nil
+}
+
+func libImportPath(name string) string {
+	return fmt.Sprintf("%s/%s.%s", importPrefix, name, versionSeries)
+}
+
+func libDir(name string) string {
+	importPath := libImportPath(name)
+	return filepath.FromSlash(filepath.Join(gopath, "src", importPath))
+}
+
+func gitBranchName(dir string) string {
+	if !ess.IsDir(dir) {
+		log.Tracef("Given path '%s' is not a directory", dir)
+		return ""
+	}
+
+	if gitcmd, err := exec.LookPath("git"); err == nil {
+		gitArgs := []string{"-C", dir, "rev-parse", "--abbrev-ref", "HEAD"}
+		output, _ := execCmd(gitcmd, gitArgs, false)
+		return strings.TrimSpace(output)
+	}
+	return ""
+}
+
+func gitPull(dir string) error {
+	if gitcmd, err := exec.LookPath("git"); err == nil {
+		gitArgs := []string{"-C", dir, "pull"}
+		_, err := execCmd(gitcmd, gitArgs, false)
+		return err
+	}
+	return nil
+}
+
+func goGet(pkgs ...string) error {
+	for _, pkg := range pkgs {
+		args := []string{"get", pkg}
+		if _, err := execCmd(gocmd, args, false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func waitForConnReady(port string) {
+	port = ":" + port
+	for {
+		if _, err := net.Dial("tcp", port); err != nil {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+		return
+	}
 }

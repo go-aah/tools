@@ -32,16 +32,19 @@ import (
 )
 
 const (
-	aahImportPath    = "aahframework.org/aah.v0"
-	aahCLIImportPath = "aahframework.org/tools.v0/aah"
-	permRWXRXRX      = 0755
-	permRWRWRW       = 0666
+	permRWXRXRX   = 0755
+	permRWRWRW    = 0666
+	versionSeries = "v0"
+	importPrefix  = "aahframework.org"
 )
 
 var (
 	gopath   string
 	gocmd    string
 	gosrcDir string
+
+	libNames = []string{"aah", "ahttp", "aruntime", "config", "essentials", "forge", "i18n",
+		"log", "router", "security", "test", "tools", "valpar", "view"}
 
 	// abstract it, so we can do unit test
 	fatal  = log.Fatal
@@ -102,6 +105,7 @@ func main() {
 		buildCmd,
 		listCmd,
 		cleanCmd,
+		switchCmd,
 	}
 
 	sort.Sort(cli.FlagsByName(app.Flags))
@@ -113,7 +117,7 @@ func main() {
 //___________________________________
 
 func printHeader(c *cli.Context) error {
-	hdr := fmt.Sprintf("aah framework v%s -  https://aahframework.org", aah.Version)
+	hdr := fmt.Sprintf("aah framework v%s - https://aahframework.org", aah.Version)
 	improveRpt := "# Report improvements/bugs at https://github.com/go-aah/aah/issues #"
 	cnt := len(improveRpt)
 	sp := (cnt - len(hdr)) / 2
@@ -122,13 +126,13 @@ func printHeader(c *cli.Context) error {
 		fmt.Fprintf(c.App.Writer, "\033[1;32m")
 	}
 
-	printChr(c.App.Writer, "–", cnt)
+	printChr(c.App.Writer, "‾", cnt)
 	fmt.Fprintf(c.App.Writer, "\n")
 	printChr(c.App.Writer, " ", sp)
 	fmt.Fprintf(c.App.Writer, hdr)
 	printChr(c.App.Writer, " ", sp)
 	fmt.Fprintf(c.App.Writer, "\n")
-	printChr(c.App.Writer, "–", cnt)
+	printChr(c.App.Writer, "_", cnt)
 	fmt.Fprintf(c.App.Writer, "\n")
 
 	if !isWindowsOS() {
@@ -158,18 +162,16 @@ func init() {
 
 	cli.VersionPrinter = func(c *cli.Context) {
 		_ = printHeader(c)
-		fmt.Fprint(c.App.Writer, "Version(s):\n")
+		fmt.Fprint(c.App.Writer, "Version Info:\n")
 		fmt.Fprintf(c.App.Writer, "\t%-17s v%s\n", "aah framework", aah.Version)
 		fmt.Fprintf(c.App.Writer, "\t%-17s v%s\n", "aah cli tool", Version)
 		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", "Modules: ", strings.Join(
 			[]string{
-				"config v" + config.Version, "essentials v" + ess.Version,
-				"ahttp v" + ahttp.Version, "router v" + router.Version,
-				"security v" + security.Version}, ", "))
+				"ahttp v" + ahttp.Version, "aruntime v" + aruntime.Version, "config v" + config.Version,
+				"essentials v" + ess.Version, "i18n v" + i18n.Version, "log v" + log.Version}, ", "))
 		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", "", strings.Join(
-			[]string{"i18n v" + i18n.Version, "view v" + view.Version,
-				"log v" + log.Version, "test v" + test.Version,
-				"aruntime v" + aruntime.Version, "valpar v" + valpar.Version}, ", "))
+			[]string{"router v" + router.Version, "security v" + security.Version,
+				"test v" + test.Version, "valpar v" + valpar.Version, "view v" + view.Version}, ", "))
 		fmt.Println()
 		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", fmt.Sprintf("go[%s/%s]",
 			runtime.GOOS, runtime.GOARCH), runtime.Version()[2:])

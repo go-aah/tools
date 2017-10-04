@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 )
 
 const aahProjectIdentifier = "aah.project"
@@ -27,9 +27,8 @@ var listCmd = cli.Command{
 }
 
 func listAction(c *cli.Context) error {
-	_ = log.SetPattern("%message")
-	log.Infof("Scanning GOPATH: %s", filepath.Join(gopath, "..."))
-	log.Info()
+	fmt.Println("Scanning GOPATH:", filepath.Join(gopath, "..."))
+	fmt.Println()
 
 	var aahProjects []string
 	_ = ess.Walk(gopath, func(path string, info os.FileInfo, err error) error {
@@ -49,17 +48,16 @@ func listAction(c *cli.Context) error {
 	})
 
 	if count := len(aahProjects); count > 0 {
-		log.Infof("%d aah projects were found, import paths are:", count)
+		fmt.Printf("%d aah projects were found, import paths are:\n", count)
 		prefix := gosrcDir + string(filepath.Separator)
 		for _, p := range aahProjects {
-			log.Infof("    %s", filepath.ToSlash(strings.TrimPrefix(p, prefix)))
+			fmt.Printf("    %s\n", filepath.ToSlash(strings.TrimPrefix(p, prefix)))
 		}
-		log.Info()
+		fmt.Println()
 		return nil
 	}
 
-	log.Info(`No aah projects was found, you can create one with 'aah new'`)
-	log.Info()
-	_ = log.SetPattern(log.DefaultPattern)
+	fmt.Println(`No aah projects was found, you can create one with 'aah new'`)
+	fmt.Println()
 	return nil
 }
