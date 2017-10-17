@@ -6,7 +6,6 @@ package main
 
 import (
 	"fmt"
-	"path"
 
 	"gopkg.in/urfave/cli.v1"
 )
@@ -30,6 +29,10 @@ var switchCmd = cli.Command{
 		aah s -w
 		aah switch --whoami
 
+	To refresh currently active aah codebase version to the latest:
+		aah s -r
+		aah switch --refresh
+
 	Note:
 		- Currently it works with only GOPATH. Gradually I will add vendorize support too.
 		- Currently it is in beta, help with your feedback for improvements.
@@ -39,6 +42,10 @@ var switchCmd = cli.Command{
 			Name:  "w, whoami",
 			Usage: "To know which version is currently active",
 		},
+		cli.BoolFlag{
+			Name:  "r, refresh",
+			Usage: "To refresh currently active aah codebase version to the latest",
+		},
 	},
 	Action: switchAction,
 }
@@ -46,56 +53,76 @@ var switchCmd = cli.Command{
 func switchAction(c *cli.Context) error {
 	branchName := gitBranchName(libDir("aah"))
 	if c.Bool("w") || c.Bool("whoami") {
-		if branchName == releaseBranchName {
-			fmt.Printf("You're using aah 'release' version.\n\n")
-		} else { // treat every branch as 'edge' version expect branch 'master'.
-			fmt.Printf("You're using aah 'edge' version, your feedback is appreciated.\n\n")
-		}
+		return whoami(branchName)
+	}
+
+	if c.Bool("r") || c.Bool("refresh") {
+		fname := friendlyName(branchName)
+		fmt.Printf("Refreshing aah '%s' version ...\n\n", fname)
+		_ = refresh(branchName)
+		fmt.Printf("aah '%s' version refreshed successfully.\n\n", fname)
 		return nil
 	}
 
-	var toBranch string
-	var friendlyName string
+	return doSwitch(branchName)
+}
+
+func whoami(branchName string) error {
 	if branchName == releaseBranchName {
-		toBranch = edgeBranchName
-		friendlyName = "edge"
-	} else {
-		toBranch = releaseBranchName
-		friendlyName = "release"
+		fmt.Printf("You're using aah 'release' version.\n\n")
+	} else { // treat every branch as 'edge' version expect branch 'master'.
+		fmt.Printf("You're using aah 'edge' version, your feedback is appreciated.\n\n")
 	}
+	return nil
+}
 
-	fmt.Printf("Switching aah version to '%s' ...\n\n", friendlyName)
-
-	// Switch between release and edge version
+func refresh(branchName string) error {
 	for _, lib := range libNames {
-		dir := libDir(lib)
-		// Checkout the branch
-		if err := gitCheckout(dir, toBranch); err != nil {
-			fatalf("Error occurred which switching aah version: %s", err)
-		}
-
 		// Refresh the branch codebase
-		if err := gitPull(dir); err != nil {
+		if err := gitPull(libDir(lib)); err != nil {
 			fatalf("Unable to refresh library: %s.%s", lib, versionSeries)
 		}
 	}
 
 	// Refresh dependencies in grace mode
-	if err := goGet(path.Join(importPrefix, "aah.v0", "...")); err != nil {
-		fatalf("Unable to refresh dependencies: %s", err)
+	fetchAahDeps()
+
+	// Install aah CLI for the currently version
+	installAahCLI()
+
+	return nil
+}
+
+func doSwitch(branchName string) error {
+	var toBranch string
+	if branchName == releaseBranchName {
+		toBranch = edgeBranchName
+	} else {
+		toBranch = releaseBranchName
 	}
 
-	// Install aah CLI for the switched version
-	args := []string{"install", path.Join(importPrefix, "tools.v0", "aah")}
-	if _, err := execCmd(gocmd, args, false); err != nil {
-		fatalf("Unable to compile CLI tool: %s", err)
+	fmt.Printf("Switching aah version to '%s' ...\n\n", friendlyName(toBranch))
+
+	// Checkout the branch
+	for _, lib := range libNames {
+		if err := gitCheckout(libDir(lib), toBranch); err != nil {
+			fatalf("Error occurred which switching aah version: %s", err)
+		}
 	}
+
+	_ = refresh(branchName)
 
 	if toBranch == releaseBranchName {
 		fmt.Printf("You have successfully switched to aah 'release' version.\n\n")
 	} else {
 		fmt.Printf("You have successfully switched to aah 'edge' version, your feedback is appreciated.\n\n")
 	}
-
 	return nil
+}
+
+func friendlyName(branchName string) string {
+	if branchName == edgeBranchName {
+		return "edge"
+	}
+	return "release"
 }

@@ -418,9 +418,9 @@ func main() {
 	sig := <-sc
 	switch sig {
 	case os.Interrupt:
-		log.Warn("Interrupt signal received")
+		log.Warn("Interrupt signal (SIGINT) received")
 	case syscall.SIGTERM:
-		log.Warn("Termination signal received")
+		log.Warn("Termination signal (SIGTERM) received")
 	}
 
 	// Call aah shutdown

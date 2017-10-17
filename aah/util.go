@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -282,11 +283,29 @@ func goGet(pkgs ...string) error {
 
 func waitForConnReady(port string) {
 	port = ":" + port
+	startTime := time.Now()
 	for {
 		if _, err := net.Dial("tcp", port); err != nil {
+			if time.Since(startTime).Seconds() > (30 * time.Second).Seconds() {
+				return
+			}
+
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
 		return
+	}
+}
+
+func installAahCLI() {
+	args := []string{"install", path.Join(importPrefix, "tools.v0", "aah")}
+	if _, err := execCmd(gocmd, args, false); err != nil {
+		fatalf("Unable to compile CLI tool: %s", err)
+	}
+}
+
+func fetchAahDeps() {
+	if err := goGet(path.Join(importPrefix, "aah.v0", "...")); err != nil {
+		fatalf("Unable to refresh dependencies: %s", err)
 	}
 }
