@@ -106,6 +106,7 @@ func main() {
 		listCmd,
 		cleanCmd,
 		switchCmd,
+		updateCmd,
 	}
 
 	sort.Sort(cli.FlagsByName(app.Flags))

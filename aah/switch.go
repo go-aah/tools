@@ -90,7 +90,7 @@ func doRefresh(branchName string) error {
 	// Install aah CLI for the currently version
 	installAahCLI()
 
-	fmt.Printf("aah '%s' version refreshed successfully.\n\n", fname)
+	fmt.Printf("You have successfully refreshed aah '%s' version.\n", fname)
 	return nil
 }
 
@@ -111,7 +111,7 @@ func doSwitch(branchName string) error {
 		}
 	}
 
-	if toBranch == edgeBranchName {
+	if toBranch != releaseBranchName {
 		refreshCodebase(libNames...)
 	}
 
