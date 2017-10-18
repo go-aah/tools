@@ -18,8 +18,8 @@ const (
 var switchCmd = cli.Command{
 	Name:    "switch",
 	Aliases: []string{"s"},
-	Usage:   "Switch between aah release and edge version (beta)",
-	Description: `Provides an ability to switch between aah release and edge version.
+	Usage:   "Switch between aah release and edge version",
+	Description: `Provides an ability to switch between aah release (currently on your GOPATH) and latest edge version.
 
 	Examples of short and long flags:
 		aah s
@@ -29,14 +29,13 @@ var switchCmd = cli.Command{
 		aah s -w
 		aah switch --whoami
 
-	To refresh currently active aah codebase version to the latest:
+	To refresh edge version to the latest codebase:
 		aah s -r
 		aah switch --refresh
 
 	Note:
 		- Currently it works with only GOPATH. Gradually I will add vendorize support too.
-		- Currently it is in beta, help with your feedback for improvements.
-		- It always operates on latest version, specific version is not supported.`,
+		- It always operates on latest edge version and current release version on your GOPATH, specific version is not supported.`,
 	Flags: []cli.Flag{
 		cli.BoolFlag{
 			Name:  "w, whoami",
@@ -44,7 +43,7 @@ var switchCmd = cli.Command{
 		},
 		cli.BoolFlag{
 			Name:  "r, refresh",
-			Usage: "To refresh currently active aah codebase version to the latest",
+			Usage: "To refresh edge version to the latest codebase",
 		},
 	},
 	Action: switchAction,
@@ -57,11 +56,7 @@ func switchAction(c *cli.Context) error {
 	}
 
 	if c.Bool("r") || c.Bool("refresh") {
-		fname := friendlyName(branchName)
-		fmt.Printf("Refreshing aah '%s' version ...\n\n", fname)
-		_ = refresh(branchName)
-		fmt.Printf("aah '%s' version refreshed successfully.\n\n", fname)
-		return nil
+		return doRefresh(branchName)
 	}
 
 	return doSwitch(branchName)
@@ -76,13 +71,18 @@ func whoami(branchName string) error {
 	return nil
 }
 
-func refresh(branchName string) error {
-	for _, lib := range libNames {
-		// Refresh the branch codebase
-		if err := gitPull(libDir(lib)); err != nil {
-			fatalf("Unable to refresh library: %s.%s", lib, versionSeries)
-		}
+func doRefresh(branchName string) error {
+	fname := friendlyName(branchName)
+	if branchName == releaseBranchName {
+		fmt.Printf("Refresh is only applicable to edge version, currently you're on '%s' version.\n", fname)
+		fmt.Printf("Use 'aah update' command to update your aah to the latest release version on your GOPATH.\n\n")
+		return nil
 	}
+
+	fmt.Printf("Refreshing aah '%s' version ...\n\n", fname)
+
+	// Refresh to latest edge codebase
+	refreshCodebase(libNames...)
 
 	// Refresh dependencies in grace mode
 	fetchAahDeps()
@@ -90,6 +90,7 @@ func refresh(branchName string) error {
 	// Install aah CLI for the currently version
 	installAahCLI()
 
+	fmt.Printf("aah '%s' version refreshed successfully.\n\n", fname)
 	return nil
 }
 
@@ -110,7 +111,15 @@ func doSwitch(branchName string) error {
 		}
 	}
 
-	_ = refresh(branchName)
+	if toBranch == edgeBranchName {
+		refreshCodebase(libNames...)
+	}
+
+	// Refresh dependencies in grace mode
+	fetchAahDeps()
+
+	// Install aah CLI for the currently version
+	installAahCLI()
 
 	if toBranch == releaseBranchName {
 		fmt.Printf("You have successfully switched to aah 'release' version.\n\n")

@@ -305,7 +305,15 @@ func installAahCLI() {
 }
 
 func fetchAahDeps() {
-	if err := goGet(path.Join(importPrefix, "aah.v0", "...")); err != nil {
+	if err := goGet(path.Join(importPrefix, "tools.v0", "aah", "...")); err != nil {
 		fatalf("Unable to refresh dependencies: %s", err)
+	}
+}
+
+func refreshCodebase(names ...string) {
+	for _, lib := range names {
+		if err := gitPull(libDir(lib)); err != nil {
+			fatalf("Unable to refresh library: %s.%s", lib, versionSeries)
+		}
 	}
 }
