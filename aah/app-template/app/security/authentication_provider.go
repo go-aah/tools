@@ -12,8 +12,7 @@ var _ authc.Authenticator = (*AuthenticationProvider)(nil)
 type AuthenticationProvider struct {
 }
 
-// Init method initializes the AuthenticationProvider, this method gets called
-// during server start up.
+// Init method initializes the AuthenticationProvider.
 func (a *AuthenticationProvider) Init(cfg *config.Config) error {
 
 	// NOTE: Init is called on application startup
