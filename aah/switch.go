@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"gopkg.in/urfave/cli.v1"
 )
@@ -37,6 +38,11 @@ var switchCmd = cli.Command{
 		- Currently it works with only GOPATH. Gradually I will add vendorize support too.
 		- It always operates on latest edge version and current release version on your GOPATH, specific version is not supported.`,
 	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "v, version",
+			Usage: "To mention latest release or edge version",
+			Value: "edge",
+		},
 		cli.BoolFlag{
 			Name:  "w, whoami",
 			Usage: "To know which version is currently active",
@@ -59,7 +65,7 @@ func switchAction(c *cli.Context) error {
 		return doRefresh(branchName)
 	}
 
-	return doSwitch(branchName)
+	return doSwitch(branchName, strings.ToLower(firstNonEmpty(c.String("v"), c.String("version"))))
 }
 
 func whoami(branchName string) error {
@@ -94,7 +100,14 @@ func doRefresh(branchName string) error {
 	return nil
 }
 
-func doSwitch(branchName string) error {
+func doSwitch(branchName, target string) error {
+	fname := friendlyName(branchName)
+	if target == fname {
+		fmt.Printf("You're already on '%s' version.\n", fname)
+		fmt.Printf("\nTo switch to latest release version. Run 'aah switch -v release'\n\n")
+		return nil
+	}
+
 	var toBranch string
 	if branchName == releaseBranchName {
 		toBranch = edgeBranchName
