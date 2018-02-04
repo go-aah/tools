@@ -97,6 +97,7 @@ func main() {
 	app.Author = "Jeevanandam M."
 	app.Email = "jeeva@myjeeva.com"
 	app.Copyright = "Copyright (c) Jeevanandam M. <jeeva@myjeeva.com>"
+	app.EnableBashCompletion = true
 
 	app.Before = printHeader
 	app.Commands = []cli.Command{
