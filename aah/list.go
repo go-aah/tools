@@ -31,12 +31,17 @@ func listAction(c *cli.Context) error {
 	fmt.Println()
 
 	var aahProjects []string
-	_ = ess.Walk(gopath, func(path string, info os.FileInfo, err error) error {
+	_ = ess.Walk(gosrcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		if info.IsDir() {
+			return nil
+		}
+
+		// Skip Git Directory
+		if strings.Contains(path, "/.git/") || strings.Contains(path, "\\.git\\") {
 			return nil
 		}
 
