@@ -254,11 +254,7 @@ func getSessionInfo(reader *bufio.Reader, appType, authScheme string) string {
 }
 
 func createAahApp(appDir, appType string, data map[string]interface{}) error {
-	aahToolsPath, err := build.Import(path.Join(libImportPath("tools"), "aah"), "", build.FindOnly)
-	if err != nil {
-		fatal(err)
-	}
-
+	aahToolsPath := getAahToolsPath()
 	appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
 
 	// app directory creation
@@ -348,4 +344,32 @@ func getDestPath(destDir, srcDir, v string) string {
 func isAuthSchemeSupported(authScheme string) bool {
 	return ess.IsStrEmpty(authScheme) || authScheme == authForm || authScheme == authBasic ||
 		authScheme == authGeneric || authScheme == authNone
+}
+
+func checkAndGenerateInitgoFile(importPath, baseDir string) {
+	initGoFile := filepath.Join(baseDir, "app", "init.go")
+	if !ess.IsFileExists(initGoFile) {
+		log.Warn("In v0.10 'init.go' file introduced for evolving aah framework." +
+			" Since its not found, generating 'init.go' file. Please add it to your version control.")
+
+		aahToolsPath := getAahToolsPath()
+		appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
+		appType := typeAPI
+		if ess.IsFileExists(filepath.Join(baseDir, "views")) {
+			appType = typeWeb
+		}
+		data := map[string]interface{}{
+			"AppType": appType,
+		}
+
+		processFile(baseDir, appTemplatePath, filepath.Join(appTemplatePath, "app", "init.go"+aahTmplExt), data)
+	}
+}
+
+func getAahToolsPath() *build.Package {
+	aahToolsPath, err := build.Import(path.Join(libImportPath("tools"), "aah"), "", build.FindOnly)
+	if err != nil {
+		fatal(err)
+	}
+	return aahToolsPath
 }

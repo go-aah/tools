@@ -125,6 +125,7 @@ func runAction(c *cli.Context) error {
 		fatalf("aah project file error: %s", err)
 	}
 
+	checkAndGenerateInitgoFile(importPath, aah.AppBaseDir())
 	initLogger(projectCfg)
 	log.Infof("Loading aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
 
