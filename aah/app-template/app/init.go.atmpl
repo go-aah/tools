@@ -52,8 +52,9 @@ func init() {
 	//__________________________________________________________________________
 	aah.Middlewares(
 		aah.RouteMiddleware,
-		aah.BindMiddleware,
-		aah.AntiCSRFMiddleware,
+		aah.CORSMiddleware,
+		aah.BindMiddleware,{{ if eq .AppType "web" }}
+		aah.AntiCSRFMiddleware,{{ end }}
 		aah.AuthcAuthzMiddleware,
 
 		//
