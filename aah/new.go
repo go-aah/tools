@@ -64,6 +64,7 @@ func newAction(c *cli.Context) error {
 	basicAuthMode := getBasicAuthMode(reader, authScheme)
 	passwordEncoder := getPasswordHashAlgorithm(reader, authScheme)
 	sessionStore := getSessionInfo(reader, appType, authScheme)
+	cors := getCORSInfo(reader)
 
 	// Process it
 	appDir := filepath.Join(gosrcDir, filepath.FromSlash(importPath))
@@ -82,6 +83,7 @@ func newAction(c *cli.Context) error {
 		"AppSessionEncKey":        ess.SecureRandomString(32),
 		"AppAntiCSRFSignKey":      ess.SecureRandomString(64),
 		"AppAntiCSRFEncKey":       ess.SecureRandomString(32),
+		"AppCORSEnable":           cors,
 		"TmplDemils":              "{{.}}",
 	}
 
@@ -158,9 +160,9 @@ func getAuthScheme(reader *bufio.Reader, appType string) string {
 	)
 
 	if appType == typeWeb {
-		schemeNames = "form, basic"
+		schemeNames = "'form', 'basic'"
 	} else if appType == typeAPI {
-		schemeNames = "basic, generic"
+		schemeNames = "'basic', 'generic'"
 	}
 
 	for {
@@ -251,6 +253,32 @@ func getSessionInfo(reader *bufio.Reader, appType, authScheme string) string {
 	}
 
 	return sessionStore
+}
+
+func getCORSInfo(reader *bufio.Reader) bool {
+	enable := false
+	var input string
+	for {
+		input = readInput(reader, "\nWould you like to enable CORS (yes or no), default is 'no': ")
+		if ess.IsStrEmpty(input) {
+			input = "no"
+		} else {
+			input = strings.ToLower(strings.TrimSpace(input))
+		}
+
+		if input == "yes" || input == "no" {
+			break
+		} else {
+			log.Error("Invalid choice, please provide 'yes' or 'no'")
+			input = ""
+		}
+	}
+
+	if input == "yes" {
+		enable = true
+	}
+
+	return enable
 }
 
 func createAahApp(appDir, appType string, data map[string]interface{}) error {
