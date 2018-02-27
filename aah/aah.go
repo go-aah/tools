@@ -50,6 +50,9 @@ var (
 	fatal  = log.Fatal
 	fatalf = log.Fatalf
 	exit   = os.Exit
+
+	// cli logger
+	cliLog *log.Logger
 )
 
 func checkPrerequisites() error {
@@ -87,7 +90,7 @@ func main() {
 	}()
 
 	if err := checkPrerequisites(); err != nil {
-		fatal(err)
+		logFatal(err)
 	}
 
 	app := cli.NewApp()
@@ -108,6 +111,7 @@ func main() {
 		cleanCmd,
 		switchCmd,
 		updateCmd,
+		generateCmd,
 	}
 
 	sort.Sort(cli.FlagsByName(app.Flags))
