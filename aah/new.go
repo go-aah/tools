@@ -160,9 +160,9 @@ func getAuthScheme(reader *bufio.Reader, appType string) string {
 	)
 
 	if appType == typeWeb {
-		schemeNames = "'form', 'basic'"
+		schemeNames = "form, basic"
 	} else if appType == typeAPI {
-		schemeNames = "'basic', 'generic'"
+		schemeNames = "basic, generic"
 	}
 
 	for {
@@ -259,7 +259,7 @@ func getCORSInfo(reader *bufio.Reader) bool {
 	enable := false
 	var input string
 	for {
-		input = readInput(reader, "\nWould you like to enable CORS [Y]es or [N]o, default is 'N': ")
+		input = readInput(reader, "\nWould you like to enable CORS ([Y]es or [N]o), default is 'N': ")
 		input = strings.ToLower(strings.TrimSpace(input))
 		if ess.IsStrEmpty(input) {
 			input = "n"
