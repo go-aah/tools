@@ -27,8 +27,8 @@ var listCmd = cli.Command{
 }
 
 func listAction(c *cli.Context) error {
-	fmt.Println("Scanning GOPATH:", filepath.Join(gopath, "..."))
-	fmt.Println()
+	cliLog = initCLILogger(nil)
+	cliLog.Infof("Scanning GOPATH: %s\n", filepath.Join(gopath, "..."))
 
 	var aahProjects []string
 	_ = ess.Walk(gosrcDir, func(path string, info os.FileInfo, err error) error {
@@ -53,7 +53,7 @@ func listAction(c *cli.Context) error {
 	})
 
 	if count := len(aahProjects); count > 0 {
-		fmt.Printf("%d aah projects were found, import paths are:\n", count)
+		cliLog.Infof("%d aah projects were found, import paths are:\n", count)
 		prefix := gosrcDir + string(filepath.Separator)
 		for _, p := range aahProjects {
 			fmt.Printf("    %s\n", filepath.ToSlash(strings.TrimPrefix(p, prefix)))
@@ -62,7 +62,6 @@ func listAction(c *cli.Context) error {
 		return nil
 	}
 
-	fmt.Println(`No aah projects was found, you can create one with 'aah new'`)
-	fmt.Println()
+	cliLog.Info("No aah projects was found, you can create one with 'aah new'\n")
 	return nil
 }

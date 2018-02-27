@@ -40,7 +40,7 @@ func updateAction(c *cli.Context) error {
 
 	args := []string{"get", "-u", path.Join(importPrefix, "tools.v0", "aah")}
 	if _, err := execCmd(gocmd, args, false); err != nil {
-		fatalf("Unable to update aah to the latest release version: %s", err)
+		logFatalf("Unable to update aah to the latest release version: %s", err)
 	}
 
 	fmt.Printf("You have successfully updated aah to the latest release version.\n\n")

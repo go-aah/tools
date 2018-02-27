@@ -296,7 +296,8 @@ security {
     #cleanup_interval = "30m"
   }{{ end }}{{ end -}}
 
-  {{ if eq .AppType "web" -}}# ------------------------------------------------------------
+  {{ if eq .AppType "web" -}}
+  # ------------------------------------------------------------
   # Anti-CSRF Protection
   # Doc: https://docs.aahframework.org/anti-csrf-protection.html
   # ------------------------------------------------------------
@@ -343,7 +344,7 @@ security {
     # lengths are `16`, `24`, or `32` bytes to select `AES-128`, `AES-192`, or `AES-256`.
     # Default value is `32` bytes (`aah new` generates strong one).
     enc_key = "{{ .AppAntiCSRFEncKey }}"
-  }{{ end -}}
+  }{{ end }}
 
   # ---------------------------------------------------------------------------
   # HTTP Secure Header(s)

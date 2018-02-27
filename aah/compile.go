@@ -16,7 +16,6 @@ import (
 	"aahframework.org/aah.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
 )
 
@@ -44,7 +43,7 @@ func compileApp(args *compileArgs) (string, error) {
 	appBuildDir := filepath.Join(appBaseDir, "build")
 
 	appName := projectCfg.StringDefault("name", aah.AppName())
-	log.Infof("Compile starts for '%s' [%s]", appName, appImportPath)
+	cliLog.Infof("Compile starts for '%s' [%s]", appName, appImportPath)
 
 	// excludes for Go AST processing
 	excludes, _ := projectCfg.StringList("build.ast_excludes")
@@ -75,7 +74,7 @@ func compileApp(args *compileArgs) (string, error) {
 		}
 	}
 	if len(missingActions) > 0 {
-		log.Error("Following actions are configured in 'routes.conf', however not implemented in Controller:\n\t",
+		cliLog.Error("Following actions are configured in 'routes.conf', however not implemented in Controller:\n\t",
 			strings.Join(missingActions, "\n\t"))
 	}
 
@@ -112,8 +111,8 @@ func compileApp(args *compileArgs) (string, error) {
 
 	// clean previous main.go and binary file up before we start the build
 	appMainGoFile := filepath.Join(appCodeDir, "aah.go")
-	log.Debugf("Cleaning %s", appMainGoFile)
-	log.Debugf("Cleaning build directory %s", appBuildDir)
+	cliLog.Debugf("Cleaning %s", appMainGoFile)
+	cliLog.Debugf("Cleaning build directory %s", appBuildDir)
 	ess.DeleteFiles(appMainGoFile, appBuildDir)
 
 	if err := generateSource(appCodeDir, "aah.go", aahMainTemplate, map[string]interface{}{
@@ -142,7 +141,7 @@ func compileApp(args *compileArgs) (string, error) {
 		return "", err
 	}
 
-	log.Infof("Compile successful for '%s' [%s]", appName, appImportPath)
+	cliLog.Infof("Compile successful for '%s' [%s]", appName, appImportPath)
 
 	return appBinary, nil
 }
@@ -198,7 +197,7 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 		}
 
 		if cfg.BoolDefault("build.dep_get", false) && len(notExistsPkgs) > 0 {
-			log.Info("Getting application dependencies ...")
+			cliLog.Info("Getting application dependencies ...")
 			if err := goGet(notExistsPkgs...); err != nil {
 				return err
 			}

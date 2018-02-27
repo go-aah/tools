@@ -18,7 +18,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 )
 
 const (
@@ -53,6 +52,7 @@ var (
 )
 
 func newAction(c *cli.Context) error {
+	cliLog = initCLILogger(nil)
 	fmt.Println("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
 	fmt.Println()
 	fmt.Println("Based on your inputs, aah CLI tool generates the aah application structure for you.")
@@ -94,7 +94,7 @@ func newAction(c *cli.Context) error {
 	}
 
 	if err := createAahApp(appDir, appType, data); err != nil {
-		fatal(err)
+		logFatal(err)
 	}
 
 	fmt.Printf("\nYour aah %s application was created successfully at '%s'\n", appType, appDir)
@@ -114,7 +114,7 @@ func readInput(reader *bufio.Reader, prompt string) string {
 	fmt.Print(prompt)
 	input, err := reader.ReadString('\n')
 	if err != nil {
-		log.Error(err)
+		cliLog.Error(err)
 		return ""
 	}
 	return strings.TrimSpace(input)
@@ -126,7 +126,7 @@ func getImportPath(reader *bufio.Reader) string {
 		importPath = filepath.ToSlash(readInput(reader, "\nEnter your application import path: "))
 		if !ess.IsStrEmpty(importPath) {
 			if ess.IsImportPathExists(importPath) {
-				log.Errorf("Given import path '%s' already exists", importPath)
+				cliLog.Errorf("Given import path '%s' already exists", importPath)
 				importPath = ""
 				continue
 			}
@@ -143,7 +143,7 @@ func getAppType(reader *bufio.Reader) string {
 		if ess.IsStrEmpty(appType) || appType == typeWeb || appType == typeAPI {
 			break
 		} else {
-			log.Error("Unsupported new aah application type, choose either 'web or 'api'")
+			cliLog.Error("Unsupported new aah application type, choose either 'web or 'api'")
 			appType = ""
 		}
 	}
@@ -173,11 +173,11 @@ func getAuthScheme(reader *bufio.Reader, appType string) string {
 				(appType == typeAPI && (authScheme == authGeneric || authScheme == authBasic)) {
 				break
 			} else {
-				log.Errorf("Application type '%v' is not applicable with auth scheme '%v'", appType, authScheme)
+				cliLog.Errorf("Application type '%v' is not applicable with auth scheme '%v'", appType, authScheme)
 				authScheme = ""
 			}
 		} else {
-			log.Errorf("Unsupported Auth Scheme, choose either %v or 'none'", schemeNames)
+			cliLog.Errorf("Unsupported Auth Scheme, choose either %v or 'none'", schemeNames)
 			authScheme = ""
 		}
 	}
@@ -197,7 +197,7 @@ func getBasicAuthMode(reader *bufio.Reader, authScheme string) string {
 			if ess.IsStrEmpty(basicAuthMode) || basicAuthMode == "dynamic" {
 				break
 			} else {
-				log.Error("Unsupported Basic auth mode")
+				cliLog.Error("Unsupported Basic auth mode")
 				basicAuthMode = ""
 			}
 		}
@@ -220,7 +220,7 @@ func getPasswordHashAlgorithm(reader *bufio.Reader, authScheme string) string {
 				authPasswordAlgorithm == "scrypt" || authPasswordAlgorithm == "pbkdf2" {
 				break
 			} else {
-				log.Error("Unsupported Password hash algorithm")
+				cliLog.Error("Unsupported Password hash algorithm")
 				authPasswordAlgorithm = ""
 			}
 		}
@@ -242,7 +242,7 @@ func getSessionInfo(reader *bufio.Reader, appType, authScheme string) string {
 			if ess.IsStrEmpty(sessionStore) || sessionStore == storeCookie || sessionStore == storeFile {
 				break
 			} else {
-				log.Error("Unsupported session store type, choose either 'cookie or 'file")
+				cliLog.Error("Unsupported session store type, choose either 'cookie or 'file")
 				sessionStore = ""
 			}
 		}
@@ -259,17 +259,16 @@ func getCORSInfo(reader *bufio.Reader) bool {
 	enable := false
 	var input string
 	for {
-		input = readInput(reader, "\nWould you like to enable CORS (yes or no), default is 'no': ")
+		input = readInput(reader, "\nWould you like to enable CORS [Y]es or [N]o, default is 'N': ")
+		input = strings.ToLower(strings.TrimSpace(input))
 		if ess.IsStrEmpty(input) {
-			input = "no"
-		} else {
-			input = strings.ToLower(strings.TrimSpace(input))
+			input = "n"
 		}
 
-		if input == "yes" || input == "no" {
+		if input == "y" || input == "n" {
 			break
 		} else {
-			log.Error("Invalid choice, please provide 'yes' or 'no'")
+			cliLog.Error("Invalid choice, please provide [Y]es or [N]o")
 			input = ""
 		}
 	}
@@ -287,7 +286,7 @@ func createAahApp(appDir, appType string, data map[string]interface{}) error {
 
 	// app directory creation
 	if err := ess.MkDirAll(appDir, permRWXRXRX); err != nil {
-		fatal(err)
+		logFatal(err)
 	}
 
 	// aah.project
@@ -350,7 +349,7 @@ func processFile(destDir, srcDir, f string, data map[string]interface{}) {
 	if strings.HasSuffix(f, aahTmplExt) {
 		sfbytes, _ := ioutil.ReadAll(sf)
 		if err := renderTmpl(df, string(sfbytes), data); err != nil {
-			fatalf("Unable to process file '%s': %s", dfPath, err)
+			logFatalf("Unable to process file '%s': %s", dfPath, err)
 		}
 	} else {
 		_, _ = io.Copy(df, sf)
@@ -377,7 +376,7 @@ func isAuthSchemeSupported(authScheme string) bool {
 func checkAndGenerateInitgoFile(importPath, baseDir string) {
 	initGoFile := filepath.Join(baseDir, "app", "init.go")
 	if !ess.IsFileExists(initGoFile) {
-		log.Warn("In v0.10 'init.go' file introduced for evolving aah framework." +
+		cliLog.Warn("In v0.10 'init.go' file introduced for evolving aah framework." +
 			" Since its not found, generating 'init.go' file. Please add it to your version control.")
 
 		aahToolsPath := getAahToolsPath()
@@ -397,7 +396,7 @@ func checkAndGenerateInitgoFile(importPath, baseDir string) {
 func getAahToolsPath() *build.Package {
 	aahToolsPath, err := build.Import(path.Join(libImportPath("tools"), "aah"), "", build.FindOnly)
 	if err != nil {
-		fatal(err)
+		logFatal(err)
 	}
 	return aahToolsPath
 }

@@ -5,7 +5,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	"gopkg.in/urfave/cli.v1"
@@ -56,6 +55,7 @@ var switchCmd = cli.Command{
 }
 
 func switchAction(c *cli.Context) error {
+	cliLog = initCLILogger(nil)
 	branchName := gitBranchName(libDir("aah"))
 	if c.Bool("w") || c.Bool("whoami") {
 		return whoami(branchName)
@@ -70,9 +70,9 @@ func switchAction(c *cli.Context) error {
 
 func whoami(branchName string) error {
 	if branchName == releaseBranchName {
-		fmt.Printf("You're using aah 'release' version.\n\n")
+		cliLog.Infof("You're using aah 'release' version.\n")
 	} else { // treat every branch as 'edge' version expect branch 'master'.
-		fmt.Printf("You're using aah 'edge' version, your feedback is appreciated.\n\n")
+		cliLog.Infof("You're using aah 'edge' version, your feedback is highly appreciated.\n")
 	}
 	return nil
 }
@@ -80,12 +80,12 @@ func whoami(branchName string) error {
 func doRefresh(branchName string) error {
 	fname := friendlyName(branchName)
 	if branchName == releaseBranchName {
-		fmt.Printf("Refresh is only applicable to edge version, currently you're on '%s' version.\n", fname)
-		fmt.Printf("Use 'aah update' command to update your aah to the latest release version on your GOPATH.\n\n")
+		cliLog.Infof("Refresh is only applicable to edge version, currently you're on '%s' version.\n", fname)
+		cliLog.Infof("Use 'aah update' command to update your aah to the latest release version on your GOPATH.\n")
 		return nil
 	}
 
-	fmt.Printf("Refreshing aah '%s' version ...\n\n", fname)
+	cliLog.Infof("Refreshing aah '%s' version ...\n\n", fname)
 
 	// Refresh to latest edge codebase
 	refreshCodebase(libNames...)
@@ -96,15 +96,15 @@ func doRefresh(branchName string) error {
 	// Install aah CLI for the currently version
 	installAahCLI()
 
-	fmt.Printf("You have successfully refreshed aah '%s' version.\n", fname)
+	cliLog.Infof("You have successfully refreshed aah '%s' version.\n", fname)
 	return nil
 }
 
 func doSwitch(branchName, target string) error {
 	fname := friendlyName(branchName)
 	if target == fname {
-		fmt.Printf("You're already on '%s' version.\n", fname)
-		fmt.Printf("\nTo switch to latest release version. Run 'aah switch -v release'\n\n")
+		cliLog.Infof("You're already on '%s' version.\n", fname)
+		cliLog.Infof("To switch to latest release version. Run 'aah switch -v release'\n")
 		return nil
 	}
 
@@ -115,12 +115,12 @@ func doSwitch(branchName, target string) error {
 		toBranch = releaseBranchName
 	}
 
-	fmt.Printf("Switching aah version to '%s' ...\n\n", friendlyName(toBranch))
+	cliLog.Infof("Switching aah version to '%s' ...\n", friendlyName(toBranch))
 
 	// Checkout the branch
 	for _, lib := range libNames {
 		if err := gitCheckout(libDir(lib), toBranch); err != nil {
-			fatalf("Error occurred which switching aah version: %s", err)
+			logFatalf("Error occurred which switching aah version: %s", err)
 		}
 	}
 
@@ -135,9 +135,9 @@ func doSwitch(branchName, target string) error {
 	installAahCLI()
 
 	if toBranch == releaseBranchName {
-		fmt.Printf("You have successfully switched to aah 'release' version.\n\n")
+		cliLog.Infof("You have successfully switched to aah 'release' version.\n")
 	} else {
-		fmt.Printf("You have successfully switched to aah 'edge' version, your feedback is appreciated.\n\n")
+		cliLog.Infof("You have successfully switched to aah 'edge' version, your feedback is appreciated.\n")
 	}
 	return nil
 }
