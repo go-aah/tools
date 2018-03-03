@@ -117,7 +117,7 @@ func runAction(c *cli.Context) error {
 
 	checkAndGenerateInitgoFile(importPath, aah.AppBaseDir())
 
-	cliLog.Infof("Loading aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
+	cliLog.Infof("Loaded aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
 
 	if ess.IsStrEmpty(envProfile) {
 		envProfile = aah.AppProfile()
@@ -260,7 +260,7 @@ func (hr *hotReload) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		hr.Watcher.Close()
 		hr.Stop()
 		if err := hr.CompileAndStart(); err != nil {
-			cliLog.Error(err)
+			logError(err)
 			fmt.Fprintln(w, err.Error())
 			hr.ChangedOrError = true
 			return
@@ -306,7 +306,7 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 	}
 
 	if err := w.Start(time.Millisecond * 100); err != nil {
-		cliLog.Error(err)
+		logError(err)
 	}
 }
 
@@ -336,20 +336,20 @@ func loadWatchFiles(projectCfg *config.Config, baseDir string, w *watcher.Watche
 	// dirs = excludeAndCreateSlice(dirs, filepath.Join(baseDir, "app"))
 	for _, d := range dirs {
 		if err := w.Add(d); err != nil {
-			cliLog.Errorf("Unable add watch for '%v'", d)
+			logErrorf("Unable add watch for '%v'", d)
 		}
 
 		files, _ := ess.FilesPathExcludes(d, false, fileExcludes)
 		for _, f := range files {
 			if err := w.Add(f); err != nil {
-				cliLog.Errorf("Unable add watch for '%v'", f)
+				logErrorf("Unable add watch for '%v'", f)
 			}
 		}
 	}
 
 	// Add ignore list
 	if err := w.Ignore(stdIgnoreList...); err != nil {
-		cliLog.Error(err)
+		logError(err)
 	}
 }
 

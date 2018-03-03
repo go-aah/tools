@@ -114,7 +114,7 @@ func readInput(reader *bufio.Reader, prompt string) string {
 	fmt.Print(prompt)
 	input, err := reader.ReadString('\n')
 	if err != nil {
-		cliLog.Error(err)
+		logError(err)
 		return ""
 	}
 	return strings.TrimSpace(input)
@@ -126,7 +126,7 @@ func getImportPath(reader *bufio.Reader) string {
 		importPath = filepath.ToSlash(readInput(reader, "\nEnter your application import path: "))
 		if !ess.IsStrEmpty(importPath) {
 			if ess.IsImportPathExists(importPath) {
-				cliLog.Errorf("Given import path '%s' already exists", importPath)
+				logErrorf("Given import path '%s' already exists", importPath)
 				importPath = ""
 				continue
 			}
@@ -143,7 +143,7 @@ func getAppType(reader *bufio.Reader) string {
 		if ess.IsStrEmpty(appType) || appType == typeWeb || appType == typeAPI {
 			break
 		} else {
-			cliLog.Error("Unsupported new aah application type, choose either 'web or 'api'")
+			logError("Unsupported new aah application type, choose either 'web or 'api'")
 			appType = ""
 		}
 	}
@@ -173,11 +173,11 @@ func getAuthScheme(reader *bufio.Reader, appType string) string {
 				(appType == typeAPI && (authScheme == authGeneric || authScheme == authBasic)) {
 				break
 			} else {
-				cliLog.Errorf("Application type '%v' is not applicable with auth scheme '%v'", appType, authScheme)
+				logErrorf("Application type '%v' is not applicable with auth scheme '%v'", appType, authScheme)
 				authScheme = ""
 			}
 		} else {
-			cliLog.Errorf("Unsupported Auth Scheme, choose either %v or 'none'", schemeNames)
+			logErrorf("Unsupported Auth Scheme, choose either %v or 'none'", schemeNames)
 			authScheme = ""
 		}
 	}
@@ -197,7 +197,7 @@ func getBasicAuthMode(reader *bufio.Reader, authScheme string) string {
 			if ess.IsStrEmpty(basicAuthMode) || basicAuthMode == "dynamic" {
 				break
 			} else {
-				cliLog.Error("Unsupported Basic auth mode")
+				logError("Unsupported Basic auth mode")
 				basicAuthMode = ""
 			}
 		}
@@ -220,7 +220,7 @@ func getPasswordHashAlgorithm(reader *bufio.Reader, authScheme string) string {
 				authPasswordAlgorithm == "scrypt" || authPasswordAlgorithm == "pbkdf2" {
 				break
 			} else {
-				cliLog.Error("Unsupported Password hash algorithm")
+				logError("Unsupported Password hash algorithm")
 				authPasswordAlgorithm = ""
 			}
 		}
@@ -242,7 +242,7 @@ func getSessionInfo(reader *bufio.Reader, appType, authScheme string) string {
 			if ess.IsStrEmpty(sessionStore) || sessionStore == storeCookie || sessionStore == storeFile {
 				break
 			} else {
-				cliLog.Error("Unsupported session store type, choose either 'cookie or 'file")
+				logError("Unsupported session store type, choose either 'cookie or 'file")
 				sessionStore = ""
 			}
 		}
@@ -268,7 +268,7 @@ func getCORSInfo(reader *bufio.Reader) bool {
 		if input == "y" || input == "n" {
 			break
 		} else {
-			cliLog.Error("Invalid choice, please provide [Y]es or [N]o")
+			logError("Invalid choice, please provide [Y]es or [N]o")
 			input = ""
 		}
 	}

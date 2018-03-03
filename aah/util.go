@@ -36,15 +36,6 @@ func importPathRelwd() string {
 	return filepath.ToSlash(importPath)
 }
 
-// loadAahProjectFile method loads build config from 'aah.project'
-func loadAahProjectFile(baseDir string) (*config.Config, error) {
-	aahProjectFile := filepath.Join(baseDir, aahProjectIdentifier)
-	if !ess.IsFileExists(aahProjectFile) {
-		logFatal("Missing 'aah.project' file, not a valid aah framework application.")
-	}
-	return config.LoadFile(aahProjectFile)
-}
-
 func aahProjectCfg(baseDir string) *config.Config {
 	projectFile := filepath.Join(baseDir, aahProjectIdentifier)
 	if !ess.IsFileExists(projectFile) {
@@ -218,7 +209,7 @@ func isAahProject(file string) bool {
 func findAvailablePort() string {
 	lstn, err := net.Listen("tcp", ":0")
 	if err != nil {
-		cliLog.Error(err)
+		logError(err)
 		return "0"
 	}
 	defer ess.CloseQuietly(lstn)
@@ -241,7 +232,7 @@ func initCLILogger(cfg *config.Config) *log.Logger {
 	logCfg, _ := config.ParseString("")
 	logCfg.SetString("log.receiver", "console")
 	logCfg.SetString("log.level", logLevel)
-	logCfg.SetString("log.pattern", "%level %message")
+	logCfg.SetString("log.pattern", "%message")
 	logCfg.SetBool("log.color", cfg.BoolDefault("log.color", true))
 	l, _ := log.New(logCfg)
 
@@ -355,13 +346,21 @@ func getAppImportPath(c *cli.Context) string {
 }
 
 func logFatal(v ...interface{}) {
-	log.SetPattern("%level %message")
+	_ = log.SetPattern("%level %message")
 	fatal(v...)
-	log.SetPattern(log.DefaultPattern)
+	_ = log.SetPattern(log.DefaultPattern)
 }
 
 func logFatalf(format string, v ...interface{}) {
-	log.SetPattern("%level %message")
+	_ = log.SetPattern("%level %message")
 	fatalf(format, v...)
-	log.SetPattern(log.DefaultPattern)
+	_ = log.SetPattern(log.DefaultPattern)
+}
+
+func logError(v ...interface{}) {
+	cliLog.Error(append([]interface{}{"ERROR"}, v...))
+}
+
+func logErrorf(format string, v ...interface{}) {
+	cliLog.Errorf("ERROR "+format, v...)
 }

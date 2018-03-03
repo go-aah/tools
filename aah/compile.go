@@ -74,7 +74,7 @@ func compileApp(args *compileArgs) (string, error) {
 		}
 	}
 	if len(missingActions) > 0 {
-		cliLog.Error("Following actions are configured in 'routes.conf', however not implemented in Controller:\n\t",
+		logError("Following actions are configured in 'routes.conf', however not implemented in Controller:\n\t",
 			strings.Join(missingActions, "\n\t"))
 	}
 

@@ -59,7 +59,7 @@ func buildAction(c *cli.Context) error {
 	projectCfg := aahProjectCfg(appBaseDir)
 	cliLog = initCLILogger(projectCfg)
 
-	cliLog.Infof("Loading aah project file: %s", filepath.Join(appBaseDir, aahProjectIdentifier))
+	cliLog.Infof("Loaded aah project file: %s", filepath.Join(appBaseDir, aahProjectIdentifier))
 	cliLog.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 
 	appBinay, err := compileApp(&compileArgs{
