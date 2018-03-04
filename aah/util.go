@@ -27,12 +27,25 @@ import (
 
 func importPathRelwd() string {
 	pwd, _ := os.Getwd()
+
 	var importPath string
-	if strings.HasPrefix(pwd, gosrcDir) {
-		importPath, _ = filepath.Rel(gosrcDir, pwd)
-	} else if idx := strings.Index(pwd, "src"); idx > 0 {
-		importPath = pwd[idx+4:]
+	if idx := strings.Index(pwd, "src"); idx > 0 {
+		srcDir := pwd[:idx+3]
+		appDir := pwd
+		for {
+			if ess.IsFileExists(filepath.Join(appDir, aahProjectIdentifier)) {
+				importPath, _ = filepath.Rel(srcDir, appDir)
+				break
+			} else {
+				appDir = filepath.Dir(appDir)
+			}
+
+			if appDir == srcDir {
+				break
+			}
+		}
 	}
+
 	return filepath.ToSlash(importPath)
 }
 
