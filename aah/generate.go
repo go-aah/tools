@@ -22,9 +22,9 @@ import (
 var generateCmd = cli.Command{
 	Name:    "generate",
 	Aliases: []string{"g"},
-	Usage:   "Generates boilerplate code, configurations and complement scripts",
+	Usage:   "Generates boilerplate code, configurations and complement scripts (systemd, docker), etc.",
 	Description: `Generate command increases productivity and helps developer on tedious tasks during application development.
-  It generates boilerplate code, configuration files and complement scripts, etc.
+  It generates boilerplate code, configuration files and complement scripts (systemd, docker), etc.
 
 	To know more about available 'generate' sub commands:
 		aah g h

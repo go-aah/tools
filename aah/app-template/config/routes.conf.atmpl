@@ -124,8 +124,11 @@ domains {
         path = "/favicon.png"
 
         # Direct file mapping, It can be relative to application base directory
-        # or an absolute path. If it's relative path '/static/' prefixed automatically
+        # or an absolute path. For relative path, it uses below `base_dir` config value.
         file = "img/favicon.png"
+
+        # Default value for relative path file mapping is `public_assets.dir`
+        #base_dir = "static"
       }
 
       # Robots Configuration file.
