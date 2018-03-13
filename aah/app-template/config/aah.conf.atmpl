@@ -324,6 +324,10 @@ runtime {
     # Whether to collect all the Go routines details or not.
     # Default value is `false`.
     #all_goroutines = true
+
+    # Whether to strip source `src` base path from file path.
+    # Default value is `false`.
+    #strip_src_base = true
   }
 }
 
