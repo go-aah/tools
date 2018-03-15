@@ -128,7 +128,7 @@ domains {
         file = "img/favicon.png"
 
         # Default value for relative path file mapping is `public_assets.dir`
-        #base_dir = "static"
+        #base_dir = "assets"
       }
 
       # Robots Configuration file.

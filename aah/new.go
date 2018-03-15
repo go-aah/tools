@@ -376,8 +376,8 @@ func isAuthSchemeSupported(authScheme string) bool {
 func checkAndGenerateInitgoFile(importPath, baseDir string) {
 	initGoFile := filepath.Join(baseDir, "app", "init.go")
 	if !ess.IsFileExists(initGoFile) {
-		cliLog.Warn("In v0.10 'init.go' file introduced for evolving aah framework." +
-			" Since its not found, generating 'init.go' file. Please add it to your version control.")
+		cliLog.Warn("In v0.10 'init.go' file introduced to evolve aah framework." +
+			" Since its not found, generating 'init.go' file. Please add it to your version control.\n")
 
 		aahToolsPath := getAahToolsPath()
 		appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
