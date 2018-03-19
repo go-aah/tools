@@ -60,6 +60,7 @@ func newAction(c *cli.Context) error {
 	// Collect data
 	importPath := getImportPath(reader)
 	appType := getAppType(reader)
+	viewEngineInfo := getViewEngine(reader, appType)
 	authScheme := getAuthScheme(reader, appType)
 	basicAuthMode := getBasicAuthMode(reader, authScheme)
 	passwordEncoder := getPasswordHashAlgorithm(reader, authScheme)
@@ -74,6 +75,8 @@ func newAction(c *cli.Context) error {
 		"AppName":                 appName,
 		"AppType":                 appType,
 		"AppImportPath":           importPath,
+		"AppViewEngine":           viewEngineInfo[0],
+		"AppViewFileExt":          viewEngineInfo[1],
 		"AppAuthScheme":           authScheme,
 		"AppBasicAuthMode":        basicAuthMode,
 		"AppPasswordEncoder":      passwordEncoder,
@@ -93,7 +96,7 @@ func newAction(c *cli.Context) error {
 		data["AppBasicAuthFileRealmPath"] = "/path/to/basic-realm.conf"
 	}
 
-	if err := createAahApp(appDir, appType, data); err != nil {
+	if err := createAahApp(appDir, data); err != nil {
 		logFatal(err)
 	}
 
@@ -151,6 +154,32 @@ func getAppType(reader *bufio.Reader) string {
 		appType = typeWeb
 	}
 	return appType
+}
+
+func getViewEngine(reader *bufio.Reader, appType string) []string {
+	if appType != typeWeb {
+		return []string{"go", ".html"}
+	}
+
+	builtInViewEngines := []string{"go", "pug"}
+	var engine string
+	for {
+		engine = strings.ToLower(readInput(reader, fmt.Sprintf("\nChoose your application View Engine (%s), default is 'go': ",
+			strings.Join(builtInViewEngines, ", "))))
+		if ess.IsStrEmpty(engine) || ess.IsSliceContainsString(builtInViewEngines, engine) {
+			break
+		} else {
+			logErrorf("Unsupported View Engine, choose either %s", strings.Join(builtInViewEngines, " or "))
+			engine = ""
+		}
+	}
+
+	switch engine {
+	case "pug":
+		return []string{"pug", ".pug"}
+	default:
+		return []string{"go", ".html"}
+	}
 }
 
 func getAuthScheme(reader *bufio.Reader, appType string) string {
@@ -280,7 +309,9 @@ func getCORSInfo(reader *bufio.Reader) bool {
 	return enable
 }
 
-func createAahApp(appDir, appType string, data map[string]interface{}) error {
+func createAahApp(appDir string, data map[string]interface{}) error {
+	appType := data["AppType"].(string)
+	viewEngine := data["AppViewEngine"].(string)
 	aahToolsPath := getAahToolsPath()
 	appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
 
@@ -309,7 +340,12 @@ func createAahApp(appDir, appType string, data map[string]interface{}) error {
 		processSection(appDir, appTemplatePath, "static", data)
 
 		// views
-		processSection(appDir, appTemplatePath, "views", data)
+		switch viewEngine {
+		case "pug":
+			processSection(appDir, appTemplatePath, filepath.Join("views", "pug"), data)
+		default: // go
+			processSection(appDir, appTemplatePath, filepath.Join("views", "go"), data)
+		}
 	}
 
 	return nil
@@ -361,10 +397,19 @@ func processFile(destDir, srcDir, f string, data map[string]interface{}) {
 
 func getDestPath(destDir, srcDir, v string) string {
 	dpath := v[len(srcDir):]
+
+	// Handle specific - views files for multiple engine
+	if strings.HasPrefix(dpath[1:], "views") {
+		r := strings.SplitAfterN(dpath, string(filepath.Separator), 4)
+		dpath = filepath.Join(r[1], r[3])
+	}
+
 	dpath = filepath.Join(destDir, dpath)
+
 	if strings.HasSuffix(v, aahTmplExt) {
 		dpath = dpath[:len(dpath)-len(aahTmplExt)]
 	}
+
 	return dpath
 }
 

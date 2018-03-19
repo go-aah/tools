@@ -7,7 +7,10 @@ import (
 	"aahframework.org/aah.v0"{{ if eq .AppType "web" }}
 
 	// Registering HTML minifier for web application
-	_ "github.com/aah-cb/minify"{{ end }}
+	_ "github.com/aah-cb/minify"{{ end }}{{ if eq .AppViewEngine "pug" }}
+
+	// Registering Pug View Engine (formerly known as Jade)
+	_ "github.com/aah-cb/ve-pug"{{ end }}
 )
 
 func init() {
@@ -16,7 +19,7 @@ func init() {
 	// Server Extensions
 	// Doc: https://docs.aahframework.org/server-extension.html
 	//
-	// Recommended: Define a function with meaningful name on a package and
+	// Best Practice: Define a function with meaningful name in a package and
 	// register it here. Extensions function name gets logged in the log,
 	// its very helpful to have meaningful log information.
 	//

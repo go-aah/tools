@@ -12,6 +12,9 @@ name = "{{ .AppName }}"
 # Friendly description of application
 desc = "aah framework {{ .AppType }} application"
 
+# Application type, typically either Web or API.
+type = "{{ .AppType }}"
+
 # Application instance name is used when you're running aah application cluster.
 # This value is used in the context based logging, it distinguishes your instance
 # log from other instances.
@@ -404,15 +407,15 @@ cache {
 # Doc: https://docs.aahframework.org/app-config.html#section-view
 # ---------------------------------------------------------------
 view {
-  # Choosing view engine for application. In the upcoming release framework
-  # will provide support to amber, pongo2, and jade. However you can implement
-  # on your own with simple `view.Enginer` interface.
-  # Default value is `go`. Currently only `go` is supported.
-  #engine = "go"
+  # Choosing view engine for application. You could implement
+  # on your own with simple interface `view.Enginer`.
+  # Default value is `go`.
+  engine = "{{ .AppViewEngine }}"
 
   # Choose your own view file extension.
-  # Default value is `.html`.
-  #ext = ".html"
+  # Default value is chosen based on `view.engine`,
+  # while creating a new app using command `aah new`.
+  ext = "{{ .AppViewFileExt }}"
 
   # Choose whether you need a case sensitive view file resolve or not.
   # For e.g.: "/views/pages/app/login.tmpl" == "/views/pages/App/Login.tmpl"

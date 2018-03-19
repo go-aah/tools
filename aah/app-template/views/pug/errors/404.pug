@@ -1,0 +1,12 @@
+//- 404.pug
+doctype html
+html
+  include "error_header.pug" .
+body
+  .container
+    | {{ with .Error }}
+      .content
+        .title
+          | {{ .Code }} {{ .Message }}
+      | {{ end }}
+  include "error_footer.pug" .
