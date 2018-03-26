@@ -13,7 +13,7 @@ import (
 
 const (
 	releaseBranchName = "master"
-	edgeBranchName    = "v0-unstable"
+	edgeBranchName    = "v0-edge"
 )
 
 var switchCmd = cli.Command{
