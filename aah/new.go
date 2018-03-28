@@ -17,6 +17,7 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
+	aah "aahframework.org/aah.v0"
 	"aahframework.org/essentials.v0"
 )
 
@@ -421,8 +422,8 @@ func isAuthSchemeSupported(authScheme string) bool {
 func checkAndGenerateInitgoFile(importPath, baseDir string) {
 	initGoFile := filepath.Join(baseDir, "app", "init.go")
 	if !ess.IsFileExists(initGoFile) {
-		cliLog.Warn("In v0.10 'init.go' file introduced to evolve aah framework." +
-			" Since its not found, generating 'init.go' file. Please add it to your version control.\n")
+		cliLog.Warn("***** In v0.10 'init.go' file introduced to evolve aah framework." +
+			" Since its not found, generating 'init.go' file. Please add it to your version control. *****\n")
 
 		aahToolsPath := getAahToolsPath()
 		appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
@@ -431,7 +432,8 @@ func checkAndGenerateInitgoFile(importPath, baseDir string) {
 			appType = typeWeb
 		}
 		data := map[string]interface{}{
-			"AppType": appType,
+			"AppType":       appType,
+			"AppViewEngine": aah.AppConfig().StringDefault("view.engine", "go"),
 		}
 
 		processFile(baseDir, appTemplatePath, filepath.Join(appTemplatePath, "app", "init.go"+aahTmplExt), data)
