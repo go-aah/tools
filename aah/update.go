@@ -29,6 +29,7 @@ var updateCmd = cli.Command{
 }
 
 func updateAction(c *cli.Context) error {
+	cliLog = initCLILogger(nil)
 	branchName := gitBranchName(libDir("aah"))
 	if branchName != releaseBranchName {
 		fmt.Printf("Update command only applicable to aah release version.\n")
