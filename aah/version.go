@@ -5,4 +5,4 @@
 package main
 
 // Version no. of aah framework CLI tool
-const Version = "0.10"
+const Version = "0.10.1"
