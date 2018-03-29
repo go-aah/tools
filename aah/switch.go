@@ -125,7 +125,7 @@ func doSwitch(branchName, target string) error {
 	}
 
 	if toBranch == edgeBranchName {
-		cliLog.Infof("Refreshing aah version to latest '%s' ...\n", fname)
+		cliLog.Infof("Refreshing aah version to latest '%s' ...\n", friendlyName(toBranch))
 		refreshCodebase(libNames...)
 	}
 
