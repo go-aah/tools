@@ -1,0 +1,10 @@
+//- pages/app/index.pug
+
+block title
+  title {{ i18n . "label.pages.app.index.title" }}
+
+block content
+  .container
+    .row.text-center.welcome-msg
+      img(src='/static/img/aah-framework-logo.png', alt='aah framework logo')
+      h1 {{ .Greet.Message }}

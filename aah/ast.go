@@ -17,7 +17,6 @@ import (
 	"strings"
 
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 )
 
 var (
@@ -341,7 +340,7 @@ func (p *packageInfo) processTypes(decl ast.Decl, imports map[string]string) {
 		} else {
 			var found bool
 			if eTypeImportPath, found = imports[fPkgName]; !found {
-				log.Errorf("AST: Unable to find import path for %s.%s", fPkgName, fTypeName)
+				logErrorf("AST: Unable to find import path for %s.%s", fPkgName, fTypeName)
 				continue
 			}
 		}
@@ -376,7 +375,7 @@ func (p *packageInfo) processImports(decl ast.Decl, imports map[string]string) {
 			} else { // build cache
 				pkg, err := build.Import(importPath, p.FilePath, 0)
 				if err != nil {
-					log.Errorf("AST: Unable to find import path: %s", importPath)
+					logErrorf("AST: Unable to find import path: %s", importPath)
 					continue
 				}
 				pkgAlias = pkg.Name
@@ -510,7 +509,7 @@ func processMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, 
 		for _, fieldName := range field.Names {
 			te, err := parseParamFieldExpr(pkg.Name(), field.Type)
 			if err != nil {
-				log.Errorf("AST: %s, please fix the parameter '%s' on action '%s.%s'; "+
+				logErrorf("AST: %s, please fix the parameter '%s' on action '%s.%s'; "+
 					"otherwise your action may not work properly", err, fieldName.Name, controllerName, actionName)
 				continue
 			}
@@ -534,7 +533,7 @@ func processMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, 
 	if ty := pkg.Types[controllerName]; ty == nil {
 		pos := pkg.Fset.Position(decl.Pos())
 		filename := stripGoPath(pos.Filename)
-		log.Errorf("AST: Method '%s' has incorrect struct recevier '%s' on file [%s] at line #%d",
+		logErrorf("AST: Method '%s' has incorrect struct recevier '%s' on file [%s] at line #%d",
 			actionName, controllerName, filename, pos.Line)
 	} else {
 		ty.Methods = append(ty.Methods, method)

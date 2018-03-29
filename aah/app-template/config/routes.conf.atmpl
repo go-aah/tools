@@ -43,6 +43,52 @@ domains {
     # `anonymous` auth scheme.
     # Default value is empty string.
     #default_auth = ""
+
+    {{ if .AppCORSEnable -}}
+    #----------------------------------------------------------------------------
+    # CORS (Cross-Origin Resource Sharing)
+    # Doc: https://docs.aahframework.org/cors.html
+    #----------------------------------------------------------------------------
+    cors {
+      # Default value is `false`.
+      enable = true
+
+      # Specify `Access-Control-Allow-Origin` header values.
+      # # Default value is `*`.
+      #allow_origins = [
+      #  "https://www.example.com",
+      #  "http://sample.com"
+      #]
+
+      # Specify `Access-Control-Allow-Headers` header values.
+      # Default values are `Accept`, `AcceptLanguage`, `Authorization`, `Origin`.
+      #allow_headers = [
+      #  "Accept",
+      #  "Authorization",
+      #  "Content-Type",
+      #  "Origin"
+      #]
+
+      # Specify `Access-Control-Allow-Methods` header values.
+      # Default values are `GET`, `POST`, `HEAD`.
+      #allow_methods = ["GET", "POST", "HEAD"]
+
+      # Specify `Access-Control-Expose-Headers` header values.
+      # Default value - `cors.allow_headers` values are used if not provided.
+      #expose_headers = [
+      #  "X-Custom-Header1",
+      #  "X-Custom-Header2"
+      #]
+
+      # Specify `Access-Control-Max-Age` header value.
+      # Default value is `24h`.
+      #max_age = "48h"
+
+      # Specify `Access-Control-Allow-Credentials` header value.
+      # Default value is `false`.
+      #allow_credentials = true
+    }{{ end }}
+
     {{ if eq .AppType "web" -}}
     #----------------------------------------------------------------------------
     # Static Routes Configuration
@@ -75,11 +121,14 @@ domains {
 
       # serving single file
       favicon {
-        path = "/favicon.png"
+        path = "/favicon.ico"
 
         # Direct file mapping, It can be relative to application base directory
-        # or an absolute path. If it's relative path '/static/' prefixed automatically
-        file = "img/favicon.png"
+        # or an absolute path. For relative path, it uses below `base_dir` config value.
+        file = "img/favicon.ico"
+
+        # Default value for relative path file mapping is `public_assets.dir`
+        #base_dir = "assets"
       }
 
       # Robots Configuration file.

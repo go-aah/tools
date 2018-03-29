@@ -17,8 +17,8 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
+	aah "aahframework.org/aah.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 )
 
 const (
@@ -53,6 +53,7 @@ var (
 )
 
 func newAction(c *cli.Context) error {
+	cliLog = initCLILogger(nil)
 	fmt.Println("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
 	fmt.Println()
 	fmt.Println("Based on your inputs, aah CLI tool generates the aah application structure for you.")
@@ -60,10 +61,12 @@ func newAction(c *cli.Context) error {
 	// Collect data
 	importPath := getImportPath(reader)
 	appType := getAppType(reader)
+	viewEngineInfo := getViewEngine(reader, appType)
 	authScheme := getAuthScheme(reader, appType)
 	basicAuthMode := getBasicAuthMode(reader, authScheme)
 	passwordEncoder := getPasswordHashAlgorithm(reader, authScheme)
 	sessionStore := getSessionInfo(reader, appType, authScheme)
+	cors := getCORSInfo(reader)
 
 	// Process it
 	appDir := filepath.Join(gosrcDir, filepath.FromSlash(importPath))
@@ -73,6 +76,8 @@ func newAction(c *cli.Context) error {
 		"AppName":                 appName,
 		"AppType":                 appType,
 		"AppImportPath":           importPath,
+		"AppViewEngine":           viewEngineInfo[0],
+		"AppViewFileExt":          viewEngineInfo[1],
 		"AppAuthScheme":           authScheme,
 		"AppBasicAuthMode":        basicAuthMode,
 		"AppPasswordEncoder":      passwordEncoder,
@@ -82,6 +87,7 @@ func newAction(c *cli.Context) error {
 		"AppSessionEncKey":        ess.SecureRandomString(32),
 		"AppAntiCSRFSignKey":      ess.SecureRandomString(64),
 		"AppAntiCSRFEncKey":       ess.SecureRandomString(32),
+		"AppCORSEnable":           cors,
 		"TmplDemils":              "{{.}}",
 	}
 
@@ -91,8 +97,8 @@ func newAction(c *cli.Context) error {
 		data["AppBasicAuthFileRealmPath"] = "/path/to/basic-realm.conf"
 	}
 
-	if err := createAahApp(appDir, appType, data); err != nil {
-		fatal(err)
+	if err := createAahApp(appDir, data); err != nil {
+		logFatal(err)
 	}
 
 	fmt.Printf("\nYour aah %s application was created successfully at '%s'\n", appType, appDir)
@@ -112,7 +118,7 @@ func readInput(reader *bufio.Reader, prompt string) string {
 	fmt.Print(prompt)
 	input, err := reader.ReadString('\n')
 	if err != nil {
-		log.Error(err)
+		logError(err)
 		return ""
 	}
 	return strings.TrimSpace(input)
@@ -124,7 +130,7 @@ func getImportPath(reader *bufio.Reader) string {
 		importPath = filepath.ToSlash(readInput(reader, "\nEnter your application import path: "))
 		if !ess.IsStrEmpty(importPath) {
 			if ess.IsImportPathExists(importPath) {
-				log.Errorf("Given import path '%s' already exists", importPath)
+				logErrorf("Given import path '%s' already exists", importPath)
 				importPath = ""
 				continue
 			}
@@ -141,7 +147,7 @@ func getAppType(reader *bufio.Reader) string {
 		if ess.IsStrEmpty(appType) || appType == typeWeb || appType == typeAPI {
 			break
 		} else {
-			log.Error("Unsupported new aah application type, choose either 'web or 'api'")
+			logError("Unsupported new aah application type, choose either 'web or 'api'")
 			appType = ""
 		}
 	}
@@ -149,6 +155,32 @@ func getAppType(reader *bufio.Reader) string {
 		appType = typeWeb
 	}
 	return appType
+}
+
+func getViewEngine(reader *bufio.Reader, appType string) []string {
+	if appType != typeWeb {
+		return []string{"go", ".html"}
+	}
+
+	builtInViewEngines := []string{"go", "pug"}
+	var engine string
+	for {
+		engine = strings.ToLower(readInput(reader, fmt.Sprintf("\nChoose your application View Engine (%s), default is 'go': ",
+			strings.Join(builtInViewEngines, ", "))))
+		if ess.IsStrEmpty(engine) || ess.IsSliceContainsString(builtInViewEngines, engine) {
+			break
+		} else {
+			logErrorf("Unsupported View Engine, choose either %s", strings.Join(builtInViewEngines, " or "))
+			engine = ""
+		}
+	}
+
+	switch engine {
+	case "pug":
+		return []string{"pug", ".pug"}
+	default:
+		return []string{"go", ".html"}
+	}
 }
 
 func getAuthScheme(reader *bufio.Reader, appType string) string {
@@ -171,11 +203,11 @@ func getAuthScheme(reader *bufio.Reader, appType string) string {
 				(appType == typeAPI && (authScheme == authGeneric || authScheme == authBasic)) {
 				break
 			} else {
-				log.Errorf("Application type '%v' is not applicable with auth scheme '%v'", appType, authScheme)
+				logErrorf("Application type '%v' is not applicable with auth scheme '%v'", appType, authScheme)
 				authScheme = ""
 			}
 		} else {
-			log.Errorf("Unsupported Auth Scheme, choose either %v or 'none'", schemeNames)
+			logErrorf("Unsupported Auth Scheme, choose either %v or 'none'", schemeNames)
 			authScheme = ""
 		}
 	}
@@ -195,7 +227,7 @@ func getBasicAuthMode(reader *bufio.Reader, authScheme string) string {
 			if ess.IsStrEmpty(basicAuthMode) || basicAuthMode == "dynamic" {
 				break
 			} else {
-				log.Error("Unsupported Basic auth mode")
+				logError("Unsupported Basic auth mode")
 				basicAuthMode = ""
 			}
 		}
@@ -218,7 +250,7 @@ func getPasswordHashAlgorithm(reader *bufio.Reader, authScheme string) string {
 				authPasswordAlgorithm == "scrypt" || authPasswordAlgorithm == "pbkdf2" {
 				break
 			} else {
-				log.Error("Unsupported Password hash algorithm")
+				logError("Unsupported Password hash algorithm")
 				authPasswordAlgorithm = ""
 			}
 		}
@@ -240,7 +272,7 @@ func getSessionInfo(reader *bufio.Reader, appType, authScheme string) string {
 			if ess.IsStrEmpty(sessionStore) || sessionStore == storeCookie || sessionStore == storeFile {
 				break
 			} else {
-				log.Error("Unsupported session store type, choose either 'cookie or 'file")
+				logError("Unsupported session store type, choose either 'cookie or 'file")
 				sessionStore = ""
 			}
 		}
@@ -253,17 +285,40 @@ func getSessionInfo(reader *bufio.Reader, appType, authScheme string) string {
 	return sessionStore
 }
 
-func createAahApp(appDir, appType string, data map[string]interface{}) error {
-	aahToolsPath, err := build.Import(path.Join(libImportPath("tools"), "aah"), "", build.FindOnly)
-	if err != nil {
-		fatal(err)
+func getCORSInfo(reader *bufio.Reader) bool {
+	enable := false
+	var input string
+	for {
+		input = readInput(reader, "\nWould you like to enable CORS ([Y]es or [N]o), default is 'N': ")
+		input = strings.ToLower(strings.TrimSpace(input))
+		if ess.IsStrEmpty(input) {
+			input = "n"
+		}
+
+		if input == "y" || input == "n" {
+			break
+		} else {
+			logError("Invalid choice, please provide [Y]es or [N]o")
+			input = ""
+		}
 	}
 
+	if input == "yes" {
+		enable = true
+	}
+
+	return enable
+}
+
+func createAahApp(appDir string, data map[string]interface{}) error {
+	appType := data["AppType"].(string)
+	viewEngine := data["AppViewEngine"].(string)
+	aahToolsPath := getAahToolsPath()
 	appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
 
 	// app directory creation
 	if err := ess.MkDirAll(appDir, permRWXRXRX); err != nil {
-		fatal(err)
+		logFatal(err)
 	}
 
 	// aah.project
@@ -286,7 +341,12 @@ func createAahApp(appDir, appType string, data map[string]interface{}) error {
 		processSection(appDir, appTemplatePath, "static", data)
 
 		// views
-		processSection(appDir, appTemplatePath, "views", data)
+		switch viewEngine {
+		case "pug":
+			processSection(appDir, appTemplatePath, filepath.Join("views", "pug"), data)
+		default: // go
+			processSection(appDir, appTemplatePath, filepath.Join("views", "go"), data)
+		}
 	}
 
 	return nil
@@ -326,7 +386,7 @@ func processFile(destDir, srcDir, f string, data map[string]interface{}) {
 	if strings.HasSuffix(f, aahTmplExt) {
 		sfbytes, _ := ioutil.ReadAll(sf)
 		if err := renderTmpl(df, string(sfbytes), data); err != nil {
-			fatalf("Unable to process file '%s': %s", dfPath, err)
+			logFatalf("Unable to process file '%s': %s", dfPath, err)
 		}
 	} else {
 		_, _ = io.Copy(df, sf)
@@ -338,14 +398,52 @@ func processFile(destDir, srcDir, f string, data map[string]interface{}) {
 
 func getDestPath(destDir, srcDir, v string) string {
 	dpath := v[len(srcDir):]
+
+	// Handle specific - views files for multiple engine
+	if strings.HasPrefix(dpath[1:], "views") {
+		r := strings.SplitAfterN(dpath, string(filepath.Separator), 4)
+		dpath = filepath.Join(r[1], r[3])
+	}
+
 	dpath = filepath.Join(destDir, dpath)
+
 	if strings.HasSuffix(v, aahTmplExt) {
 		dpath = dpath[:len(dpath)-len(aahTmplExt)]
 	}
+
 	return dpath
 }
 
 func isAuthSchemeSupported(authScheme string) bool {
 	return ess.IsStrEmpty(authScheme) || authScheme == authForm || authScheme == authBasic ||
 		authScheme == authGeneric || authScheme == authNone
+}
+
+func checkAndGenerateInitgoFile(importPath, baseDir string) {
+	initGoFile := filepath.Join(baseDir, "app", "init.go")
+	if !ess.IsFileExists(initGoFile) {
+		cliLog.Warn("***** In v0.10 'init.go' file introduced to evolve aah framework." +
+			" Since its not found, generating 'init.go' file. Please add it to your version control. *****\n")
+
+		aahToolsPath := getAahToolsPath()
+		appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
+		appType := typeAPI
+		if ess.IsFileExists(filepath.Join(baseDir, "views")) {
+			appType = typeWeb
+		}
+		data := map[string]interface{}{
+			"AppType":       appType,
+			"AppViewEngine": aah.AppConfig().StringDefault("view.engine", "go"),
+		}
+
+		processFile(baseDir, appTemplatePath, filepath.Join(appTemplatePath, "app", "init.go"+aahTmplExt), data)
+	}
+}
+
+func getAahToolsPath() *build.Package {
+	aahToolsPath, err := build.Import(path.Join(libImportPath("tools"), "aah"), "", build.FindOnly)
+	if err != nil {
+		logFatal(err)
+	}
+	return aahToolsPath
 }

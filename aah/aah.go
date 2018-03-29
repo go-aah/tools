@@ -43,13 +43,16 @@ var (
 	gocmd    string
 	gosrcDir string
 
-	libNames = []string{"aah", "ahttp", "aruntime", "config", "essentials", "forge", "i18n",
-		"log", "router", "security", "test", "tools", "valpar", "view"}
+	libNames = []string{"tools", "aah", "ahttp", "aruntime", "config", "essentials", "forge", "i18n",
+		"log", "router", "security", "test", "valpar", "view"}
 
 	// abstract it, so we can do unit test
 	fatal  = log.Fatal
 	fatalf = log.Fatalf
 	exit   = os.Exit
+
+	// cli logger
+	cliLog *log.Logger
 )
 
 func checkPrerequisites() error {
@@ -87,7 +90,7 @@ func main() {
 	}()
 
 	if err := checkPrerequisites(); err != nil {
-		fatal(err)
+		logFatal(err)
 	}
 
 	app := cli.NewApp()
@@ -97,6 +100,7 @@ func main() {
 	app.Author = "Jeevanandam M."
 	app.Email = "jeeva@myjeeva.com"
 	app.Copyright = "Copyright (c) Jeevanandam M. <jeeva@myjeeva.com>"
+	app.EnableBashCompletion = true
 
 	app.Before = printHeader
 	app.Commands = []cli.Command{
@@ -106,6 +110,8 @@ func main() {
 		listCmd,
 		cleanCmd,
 		switchCmd,
+		updateCmd,
+		generateCmd,
 	}
 
 	sort.Sort(cli.FlagsByName(app.Flags))

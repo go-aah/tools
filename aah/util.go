@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -21,26 +22,44 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
+	"gopkg.in/urfave/cli.v1"
 )
 
 func importPathRelwd() string {
 	pwd, _ := os.Getwd()
+
 	var importPath string
-	if strings.HasPrefix(pwd, gosrcDir) {
-		importPath, _ = filepath.Rel(gosrcDir, pwd)
-	} else if idx := strings.Index(pwd, "src"); idx > 0 {
-		importPath = pwd[idx+4:]
+	if idx := strings.Index(pwd, "src"); idx > 0 {
+		srcDir := pwd[:idx+3]
+		appDir := pwd
+		for {
+			if ess.IsFileExists(filepath.Join(appDir, aahProjectIdentifier)) {
+				importPath, _ = filepath.Rel(srcDir, appDir)
+				break
+			} else {
+				appDir = filepath.Dir(appDir)
+			}
+
+			if appDir == srcDir {
+				break
+			}
+		}
 	}
+
 	return filepath.ToSlash(importPath)
 }
 
-// loadAahProjectFile method loads build config from 'aah.project'
-func loadAahProjectFile(baseDir string) (*config.Config, error) {
-	aahProjectFile := filepath.Join(baseDir, aahProjectIdentifier)
-	if !ess.IsFileExists(aahProjectFile) {
-		fatal("Missing 'aah.project' file, not a valid aah framework application.")
+func aahProjectCfg(baseDir string) *config.Config {
+	projectFile := filepath.Join(baseDir, aahProjectIdentifier)
+	if !ess.IsFileExists(projectFile) {
+		logFatal("Missing 'aah.project' file, not a valid aah framework application.")
 	}
-	return config.LoadFile(aahProjectFile)
+
+	cfg, err := config.LoadFile(projectFile)
+	if err != nil {
+		logFatalf("aah project file error: %s", err)
+	}
+	return cfg
 }
 
 func getNonEmptyAbsPath(patha, pathb string) string {
@@ -51,7 +70,7 @@ func getNonEmptyAbsPath(patha, pathb string) string {
 
 	configPath, err := filepath.Abs(v)
 	if err != nil {
-		fatal(err)
+		logFatal(err)
 	}
 
 	return configPath
@@ -119,7 +138,7 @@ func getBuildDate() string {
 
 func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 	cmd := exec.Command(cmdName, args...)
-	log.Trace("Executing ", strings.Join(cmd.Args, " "))
+	cliLog.Trace("Executing ", strings.Join(cmd.Args, " "))
 
 	if stdout {
 		cmd.Stdout = os.Stdout
@@ -203,7 +222,7 @@ func isAahProject(file string) bool {
 func findAvailablePort() string {
 	lstn, err := net.Listen("tcp", ":0")
 	if err != nil {
-		log.Error(err)
+		logError(err)
 		return "0"
 	}
 	defer ess.CloseQuietly(lstn)
@@ -211,22 +230,31 @@ func findAvailablePort() string {
 	return strconv.Itoa(lstn.Addr().(*net.TCPAddr).Port)
 }
 
-func initLogger(cfg *config.Config) {
+func initCLILogger(cfg *config.Config) *log.Logger {
+	if cfg == nil {
+		cfg, _ = config.ParseString("")
+	}
+
+	printDeprecateInfo := false
 	logLevel := cfg.StringDefault("log.level", "info")
 	if level, found := cfg.String("build.log_level"); found {
 		logLevel = level
-
-		// DEPRECATED
-		log.Warnf("DEPRECATED: Config 'build.log_level' is deprecated in v0.9, use 'log.level = \"%s\"' instead. Deprecated config will not break your functionality, its good to update to latest config.", logLevel)
+		printDeprecateInfo = true
 	}
 
 	logCfg, _ := config.ParseString("")
 	logCfg.SetString("log.receiver", "console")
 	logCfg.SetString("log.level", logLevel)
+	logCfg.SetString("log.pattern", "%message")
 	logCfg.SetBool("log.color", cfg.BoolDefault("log.color", true))
+	l, _ := log.New(logCfg)
 
-	cliLog, _ := log.New(logCfg)
-	log.SetDefaultLogger(cliLog)
+	if printDeprecateInfo {
+		// DEPRECATED
+		l.Warnf("DEPRECATED: Config 'build.log_level' is deprecated in v0.9, use 'log.level = \"%s\"' instead. Deprecated config will not break your functionality, its good to update to latest config.", logLevel)
+	}
+
+	return l
 }
 
 func gitCheckout(dir, branch string) error {
@@ -249,7 +277,7 @@ func libDir(name string) string {
 
 func gitBranchName(dir string) string {
 	if !ess.IsDir(dir) {
-		log.Tracef("Given path '%s' is not a directory", dir)
+		cliLog.Tracef("Given path '%s' is not a directory", dir)
 		return ""
 	}
 
@@ -282,11 +310,70 @@ func goGet(pkgs ...string) error {
 
 func waitForConnReady(port string) {
 	port = ":" + port
+	startTime := time.Now()
 	for {
 		if _, err := net.Dial("tcp", port); err != nil {
+			if time.Since(startTime).Seconds() > (30 * time.Second).Seconds() {
+				return
+			}
+
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
 		return
 	}
+}
+
+func installAahCLI() {
+	args := []string{"install", path.Join(importPrefix, "tools.v0", "aah")}
+	if _, err := execCmd(gocmd, args, false); err != nil {
+		logFatalf("Unable to compile CLI tool: %s", err)
+	}
+}
+
+func fetchAahDeps() {
+	if err := goGet(path.Join(importPrefix, "tools.v0", "aah", "...")); err != nil {
+		logFatalf("Unable to refresh dependencies: %s", err)
+	}
+}
+
+func refreshCodebase(names ...string) {
+	for _, lib := range names {
+		if err := gitPull(libDir(lib)); err != nil {
+			logFatalf("Unable to refresh library: %s.%s", lib, versionSeries)
+		}
+	}
+}
+
+func getAppImportPath(c *cli.Context) string {
+	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
+	if ess.IsStrEmpty(importPath) {
+		importPath = importPathRelwd()
+	}
+
+	if !ess.IsImportPathExists(importPath) {
+		logFatalf("Given import path '%s' does not exists", importPath)
+	}
+
+	return importPath
+}
+
+func logFatal(v ...interface{}) {
+	_ = log.SetPattern("%level %message")
+	fatal(v...)
+	_ = log.SetPattern(log.DefaultPattern)
+}
+
+func logFatalf(format string, v ...interface{}) {
+	_ = log.SetPattern("%level %message")
+	fatalf(format, v...)
+	_ = log.SetPattern(log.DefaultPattern)
+}
+
+func logError(v ...interface{}) {
+	cliLog.Error(append([]interface{}{"ERROR"}, v...))
+}
+
+func logErrorf(format string, v ...interface{}) {
+	cliLog.Errorf("ERROR "+format, v...)
 }

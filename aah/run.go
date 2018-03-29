@@ -28,7 +28,6 @@ import (
 	"aahframework.org/aah.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 )
 
 var runCmd = cli.Command{
@@ -99,16 +98,9 @@ type (
 )
 
 func runAction(c *cli.Context) error {
-	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
-	if ess.IsStrEmpty(importPath) {
-		importPath = importPathRelwd()
-	}
-
-	if !ess.IsImportPathExists(importPath) {
-		fatalf("Given import path '%s' does not exists", importPath)
-	}
-
+	importPath := getAppImportPath(c)
 	appStartArgs := []string{}
+
 	configPath := getNonEmptyAbsPath(c.String("c"), c.String("config"))
 	if !ess.IsStrEmpty(configPath) {
 		appStartArgs = append(appStartArgs, "-config", configPath)
@@ -120,13 +112,12 @@ func runAction(c *cli.Context) error {
 	}
 
 	aah.Init(importPath)
-	projectCfg, err := loadAahProjectFile(aah.AppBaseDir())
-	if err != nil {
-		fatalf("aah project file error: %s", err)
-	}
+	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	cliLog = initCLILogger(projectCfg)
 
-	initLogger(projectCfg)
-	log.Infof("Loading aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
+	checkAndGenerateInitgoFile(importPath, aah.AppBaseDir())
+
+	cliLog.Infof("Loaded aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
 
 	if ess.IsStrEmpty(envProfile) {
 		envProfile = aah.AppProfile()
@@ -134,7 +125,7 @@ func runAction(c *cli.Context) error {
 
 	// Hot-Reload is applicable only to `dev` environment profile.
 	if projectCfg.BoolDefault("hot_reload.enable", true) && envProfile == "dev" {
-		log.Infof("Hot-Reload enabled for environment profile: %s", aah.AppProfile())
+		cliLog.Infof("Hot-Reload enabled for environment profile: %s", aah.AppProfile())
 
 		address := firstNonEmpty(aah.AppHTTPAddress(), "")
 		proxyPort := findAvailablePort()
@@ -162,7 +153,7 @@ func runAction(c *cli.Context) error {
 		return nil
 	}
 
-	log.Info("Hot-Reload is not enabled, possibly 'hot_reload.enable = false' or environment profile is not 'dev'")
+	cliLog.Info("Hot-Reload is not enabled, possibly 'hot_reload.enable = false' or environment profile is not 'dev'")
 
 	appBinary, err := compileApp(&compileArgs{
 		Cmd:        "RunCmd",
@@ -170,11 +161,11 @@ func runAction(c *cli.Context) error {
 		AppPack:    false,
 	})
 	if err != nil {
-		fatal(err)
+		logFatal(err)
 	}
 
 	if _, err := execCmd(appBinary, appStartArgs, true); err != nil {
-		fatal(err)
+		logFatal(err)
 	}
 
 	return nil
@@ -183,7 +174,7 @@ func runAction(c *cli.Context) error {
 func (hr *hotReload) Start() {
 	// Starting Hot-Reload server
 	go func() {
-		hr.Proxy.ErrorLog = log.ToGoLogger()
+		hr.Proxy.ErrorLog = cliLog.ToGoLogger()
 		hr.Proxy.ErrorLog.SetOutput(ioutil.Discard)
 		hr.Proxy.Transport = http.DefaultTransport
 
@@ -204,12 +195,12 @@ func (hr *hotReload) Start() {
 			err = server.ListenAndServe()
 		}
 		if err != nil {
-			fatalf("Unable to start proxy server, %s", err.Error())
+			logFatalf("Unable to start proxy server, %s", err.Error())
 		}
 	}()
 
 	if err := hr.CompileAndStart(); err != nil {
-		fatal(err)
+		logFatal(err)
 	}
 
 	sc := make(chan os.Signal, 1)
@@ -264,12 +255,12 @@ func (hr *hotReload) RefreshWatcher() {
 
 func (hr *hotReload) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if hr.ChangedOrError {
-		log.Info("Application file change(s) detected")
+		cliLog.Info("Application file change(s) detected")
 		hr.ChangedOrError = false
 		hr.Watcher.Close()
 		hr.Stop()
 		if err := hr.CompileAndStart(); err != nil {
-			log.Error(err)
+			logError(err)
 			fmt.Fprintln(w, err.Error())
 			hr.ChangedOrError = true
 			return
@@ -298,7 +289,7 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 			case err := <-w.Error:
 				if err == watcher.ErrWatchedFileDeleted {
 					// treat as trace information, not an error
-					log.Trace("Watched file/directory is deleted, just move on")
+					cliLog.Trace("Watched file/directory is deleted, just move on")
 				}
 			case <-w.Closed:
 				return
@@ -306,16 +297,16 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 		}
 	}()
 
-	if log.IsLevelTrace() {
+	if cliLog.IsLevelTrace() {
 		var fileList []string
 		for path := range w.WatchedFiles() {
 			fileList = append(fileList, stripGoPath(path))
 		}
-		log.Trace("Watched files:\n\t", strings.Join(fileList, "\n\t"))
+		cliLog.Trace("Watched files:\n\t", strings.Join(fileList, "\n\t"))
 	}
 
 	if err := w.Start(time.Millisecond * 100); err != nil {
-		log.Error(err)
+		logError(err)
 	}
 }
 
@@ -345,20 +336,20 @@ func loadWatchFiles(projectCfg *config.Config, baseDir string, w *watcher.Watche
 	// dirs = excludeAndCreateSlice(dirs, filepath.Join(baseDir, "app"))
 	for _, d := range dirs {
 		if err := w.Add(d); err != nil {
-			log.Errorf("Unable add watch for '%v'", d)
+			logErrorf("Unable add watch for '%v'", d)
 		}
 
 		files, _ := ess.FilesPathExcludes(d, false, fileExcludes)
 		for _, f := range files {
 			if err := w.Add(f); err != nil {
-				log.Errorf("Unable add watch for '%v'", f)
+				logErrorf("Unable add watch for '%v'", f)
 			}
 		}
 	}
 
 	// Add ignore list
 	if err := w.Ignore(stdIgnoreList...); err != nil {
-		log.Error(err)
+		logError(err)
 	}
 }
 
@@ -367,7 +358,7 @@ func loadWatchFiles(projectCfg *config.Config, baseDir string, w *watcher.Watche
 //___________________________________
 
 func (p *process) Start() error {
-	log.Debug("Executing ", strings.Join(p.cmd.Args, " "))
+	cliLog.Debug("Executing ", strings.Join(p.cmd.Args, " "))
 	p.cmd.Stdout = p.nw
 	p.cmd.Stderr = p.nw
 	if err := p.cmd.Start(); err != nil {

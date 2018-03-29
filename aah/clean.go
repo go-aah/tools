@@ -5,7 +5,6 @@
 package main
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"gopkg.in/urfave/cli.v1"
@@ -36,26 +35,19 @@ var cleanCmd = cli.Command{
 }
 
 func cleanAction(c *cli.Context) error {
-	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
-	if ess.IsStrEmpty(importPath) {
-		importPath = importPathRelwd()
-	}
-
-	if !ess.IsImportPathExists(importPath) {
-		fatalf("Given import path '%s' does not exists", importPath)
-	}
+	importPath := getAppImportPath(c)
 
 	aah.Init(importPath)
-	appBaseDir := aah.AppBaseDir()
+	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	cliLog = initCLILogger(projectCfg)
 
 	ess.DeleteFiles(
-		filepath.Join(appBaseDir, "app", "aah.go"),
-		filepath.Join(appBaseDir, "build"),
-		filepath.Join(appBaseDir, aah.AppName()+".pid"),
+		filepath.Join(aah.AppBaseDir(), "app", "aah.go"),
+		filepath.Join(aah.AppBaseDir(), "build"),
+		filepath.Join(aah.AppBaseDir(), aah.AppName()+".pid"),
 	)
 
-	fmt.Printf("Import Path: '%v' clean successful.\n", importPath)
-	fmt.Println()
+	cliLog.Infof("Import Path '%v' clean successful.\n", importPath)
 
 	return nil
 }

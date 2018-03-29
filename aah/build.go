@@ -52,27 +52,15 @@ var buildCmd = cli.Command{
 }
 
 func buildAction(c *cli.Context) error {
-	var err error
-	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
-	if ess.IsStrEmpty(importPath) {
-		importPath = importPathRelwd()
-	}
-
-	if !ess.IsImportPathExists(importPath) {
-		fatalf("Given import path '%s' does not exists", importPath)
-	}
+	importPath := getAppImportPath(c)
 
 	aah.Init(importPath)
 	appBaseDir := aah.AppBaseDir()
+	projectCfg := aahProjectCfg(appBaseDir)
+	cliLog = initCLILogger(projectCfg)
 
-	projectCfg, err := loadAahProjectFile(appBaseDir)
-	if err != nil {
-		fatalf("aah project file error: %s", err)
-	}
-
-	initLogger(projectCfg)
-	log.Infof("Loading aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
-	log.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Loaded aah project file: %s", filepath.Join(appBaseDir, aahProjectIdentifier))
+	cliLog.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 
 	appBinay, err := compileApp(&compileArgs{
 		Cmd:        "BuildCmd",
@@ -80,13 +68,13 @@ func buildAction(c *cli.Context) error {
 		AppPack:    true,
 	})
 	if err != nil {
-		fatal(err)
+		logFatal(err)
 	}
 
 	appProfile := firstNonEmpty(c.String("e"), c.String("envprofile"), "prod")
 	buildBaseDir, err := copyFilesToWorkingDir(projectCfg, appBaseDir, appBinay, appProfile)
 	if err != nil {
-		fatal(err)
+		logFatal(err)
 	}
 
 	outputFile := firstNonEmpty(c.String("o"), c.String("output"))
@@ -99,7 +87,7 @@ func buildAction(c *cli.Context) error {
 	} else {
 		destArchiveFile, err = filepath.Abs(outputFile)
 		if err != nil {
-			fatal(err)
+			logFatal(err)
 		}
 
 		if !strings.HasSuffix(destArchiveFile, ".zip") {
@@ -112,12 +100,12 @@ func buildAction(c *cli.Context) error {
 	}
 
 	// Creating app archive
-	if err := createZipArchive(buildBaseDir, destArchiveFile); err != nil {
-		fatal(err)
+	if err = createZipArchive(buildBaseDir, destArchiveFile); err != nil {
+		logFatal(err)
 	}
 
-	log.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
-	log.Infof("Your application artifact is here: %s", destArchiveFile)
+	cliLog.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Your application artifact is here: %s\n", destArchiveFile)
 	return nil
 }
 
