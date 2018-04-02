@@ -290,6 +290,7 @@ const aahMainTemplate = `// GENERATED CODE - DO NOT EDIT
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -298,6 +299,7 @@ import (
 	"syscall"
 
 	"aahframework.org/aah.v0"
+	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"{{ range $k, $v := $.AppImportPaths }}
@@ -337,6 +339,15 @@ func setAppProxyPort(e *aah.Event) {
 {{- end }}
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			st := aruntime.NewStacktrace(r, aah.AppConfig())
+			buf := new(bytes.Buffer)
+			st.Print(buf)
+			log.Error(buf.String())
+		}
+	}()
+
 	log.Infof("aah framework v%s, requires ≥ go1.8", aah.Version)
 	flag.Parse()
 

@@ -123,8 +123,8 @@ func main() {
 //___________________________________
 
 func printHeader(c *cli.Context) error {
-	hdr := fmt.Sprintf("aah framework v%s - https://aahframework.org", aah.Version)
-	improveRpt := "# Report improvements/bugs at https://github.com/go-aah/aah/issues #"
+	hdr := fmt.Sprintf("aah framework v%s", aah.Version)
+	improveRpt := "# Report improvements/bugs at https://aahframework.org/issues #"
 	cnt := len(improveRpt)
 	sp := (cnt - len(hdr)) / 2
 

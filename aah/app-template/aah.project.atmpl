@@ -50,7 +50,7 @@ log {
 }
 
 # Hot-Reload is development purpose to help developer.
-# Read more about implementation here - https://github.com/go-aah/aah/issues/4
+# Read more about implementation here - https://aahframework.org/issues/4
 #
 # NOTE: Do not use hot-reload feature for production purpose, it's not recommended.
 hot_reload {

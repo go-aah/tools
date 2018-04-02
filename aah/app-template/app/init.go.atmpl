@@ -102,7 +102,7 @@ func init() {
 	// Doc: https://godoc.org/gopkg.in/go-playground/validator.v9
 	//__________________________________________________________________________
 	// Obtain aah validator instance, then add yours
-	// validator := valpar.Validator()
+	// validator := aah.Validator()
 	//
 	// // Add your validation funcs
 
