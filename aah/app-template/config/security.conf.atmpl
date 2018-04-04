@@ -354,6 +354,10 @@ security {
   # Tip: Quick way to verify secure headers - https://securityheaders.io
   # ---------------------------------------------------------------------------
   http_header {
+    # Enabling HTTP secure headers.
+    # Default value is `true`.
+    enable = true
+
     # X-XSS-Protection
     # Designed to enable the cross-site scripting (XSS) filter built into modern
     # web browsers. This is usually enabled by default, but using this header
