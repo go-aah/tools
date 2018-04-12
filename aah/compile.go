@@ -361,7 +361,7 @@ func main() {
 
 	// display application information
 	if *version {
-		fmt.Printf("%-12s: %s\n", "Binary Name", aah.AppBuildInfo().BinaryName)
+		fmt.Printf("\n%-12s: %s\n", "Binary Name", aah.AppBuildInfo().BinaryName)
 		fmt.Printf("%-12s: %s\n", "Version", aah.AppBuildInfo().Version)
 		fmt.Printf("%-12s: %s\n", "Build Date", aah.AppBuildInfo().Date)
 		return
@@ -377,7 +377,9 @@ func main() {
 		aah.OnInit(setAppEnvProfile)
 	}
 
-	aah.Init("{{ .AppImportPath }}")
+	if err := aah.Init("{{ .AppImportPath }}"); err != nil {
+		log.Fatal(err)
+	}
 
 	// Adding all the application controllers which refers 'aah.Context' directly
 	// or indirectly from app/controllers/** {{ range $i, $c := .AppControllers }}
@@ -400,19 +402,19 @@ func main() {
 	{{ if $v.Authenticator -}}
 	log.Debugf("Calling authenticator Init for auth scheme '%s'", "{{ $k }}")
 	if err := secMgr.GetAuthScheme("{{ $k }}").SetAuthenticator(&{{ $v.Authenticator }}{}); err != nil {
-		log.Fatal(err)
+		aah.AppLog().Fatal(err)
 	}
 	{{ end -}}
 	{{ if $v.Authorizer -}}
 	log.Debugf("Calling authorizer Init for auth scheme '%s'", "{{ $k }}")
 	if err := secMgr.GetAuthScheme("{{ $k }}").SetAuthorizer(&{{ $v.Authorizer }}{}); err != nil {
-		log.Fatal(err)
+		aah.AppLog().Fatal(err)
 	}
 	{{ end -}}
 	{{ end -}}
 	{{ end }}
 
-	log.Info("aah application initialized successfully")
+	aah.AppLog().Info("aah application initialized successfully")
 
 	{{ if eq .AppTargetCmd "RunCmd" -}}
 	{{ if .AppProxyPort -}}
@@ -435,7 +437,7 @@ func main() {
 
 	// Call aah shutdown
 	aah.Shutdown()
-	log.Info("aah application shutdown successful")
+	aah.AppLog().Info("aah application shutdown successful")
 
 	// bye bye, see you later.
 	os.Exit(0)
