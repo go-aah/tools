@@ -354,6 +354,16 @@ render {
   # Default value is `false`.
   #pretty = true
 
+  # To prevent Cross Site Script Inclusion (XSSI) attacks on JSON response
+  # payload aka JSON vulnerability. XSSI attack is only successful if the
+  # returned JSON response is executable as JavaScript.
+  #
+  # aah prefixes JSON response to make them non-executable.
+  # Default value is `)]}',\n`
+  #secure_json {
+  #  prefix = ")]}',\n"
+  #}
+
   # Gzip compression configuration for HTTP response.
   gzip {
     # By default Gzip compression is enabled in aah framework, however
