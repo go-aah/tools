@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"aahframework.org/aah.v0"
+	"aahframework.org/ainsp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/router.v0"
@@ -52,7 +53,7 @@ func compileApp(args *compileArgs) (string, error) {
 	registeredActions := aah.AppRouter().RegisteredActions()
 
 	// Go AST processing for Controllers
-	prg, errs := loadProgram(appControllersPath, ess.Excludes(excludes), registeredActions)
+	prg, errs := ainsp.Inspect(appControllersPath, ess.Excludes(excludes), registeredActions)
 	if len(errs) > 0 {
 		errMsgs := []string{}
 		for _, e := range errs {

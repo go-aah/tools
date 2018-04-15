@@ -377,3 +377,8 @@ func logError(v ...interface{}) {
 func logErrorf(format string, v ...interface{}) {
 	cliLog.Errorf("ERROR "+format, v...)
 }
+
+func stripGoPath(pkgFilePath string) string {
+	idx := strings.Index(pkgFilePath, "src")
+	return filepath.Clean(pkgFilePath[idx+4:])
+}
