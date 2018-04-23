@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -111,7 +112,9 @@ func runAction(c *cli.Context) error {
 		appStartArgs = append(appStartArgs, "-profile", envProfile)
 	}
 
-	aah.Init(importPath)
+	if err := aah.Init(importPath); err != nil {
+		logFatal(err)
+	}
 	projectCfg := aahProjectCfg(aah.AppBaseDir())
 	cliLog = initCLILogger(projectCfg)
 
@@ -267,7 +270,67 @@ func (hr *hotReload) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		waitForConnReady(hr.ProxyPort)
 	}
-	hr.Proxy.ServeHTTP(w, r)
+	hr.ProxyServe(w, r)
+}
+
+// Typically for HTTP method: CONNECT and WebSocket needs tunneling, we cannot
+// use `httputil.ReverseProxy` since it handles Hop-By-Hop headers on proxy
+// connection - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers#hbh
+func (hr *hotReload) needTunneling(r *http.Request) bool {
+	return r.Method == http.MethodConnect ||
+		strings.EqualFold(strings.ToLower(r.Header.Get("Upgrade")), "websocket")
+}
+
+func (hr *hotReload) ProxyServe(w http.ResponseWriter, r *http.Request) {
+	if hr.needTunneling(r) {
+		hr.tunnel(w, r)
+	} else {
+		hr.Proxy.ServeHTTP(w, r)
+	}
+}
+
+func (hr *hotReload) tunnel(w http.ResponseWriter, r *http.Request) {
+	var peer net.Conn
+	var err error
+	address := fmt.Sprintf("%s:%s", hr.Addr, hr.ProxyPort)
+	if hr.IsSSL {
+		peer, err = tls.Dial("tcp", address, &tls.Config{InsecureSkipVerify: true})
+	} else {
+		peer, err = net.DialTimeout("tcp", address, 10*time.Second)
+	}
+
+	if err != nil {
+		http.Error(w, "Error tunneling with peer", http.StatusBadGateway)
+		return
+	}
+
+	hj, ok := w.(http.Hijacker)
+	if !ok {
+		http.Error(w, "Error hijacking is not supported", http.StatusInternalServerError)
+		return
+	}
+
+	conn, _, err := hj.Hijack()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	if err = r.Write(peer); err != nil {
+		logErrorf("Error tunneling data to peer: %s", err)
+		return
+	}
+
+	go func() {
+		defer peer.Close()
+		defer conn.Close()
+		io.Copy(peer, conn)
+	}()
+	go func() {
+		defer peer.Close()
+		defer conn.Close()
+		io.Copy(conn, peer)
+	}()
 }
 
 func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher, watch chan<- bool) {

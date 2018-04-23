@@ -41,6 +41,7 @@ func compileApp(args *compileArgs) (string, error) {
 	appImportPath := aah.AppImportPath()
 	appCodeDir := filepath.Join(appBaseDir, "app")
 	appControllersPath := filepath.Join(appCodeDir, "controllers")
+	appWebSocketsPath := filepath.Join(appCodeDir, "websockets")
 	appBuildDir := filepath.Join(appBaseDir, "build")
 
 	appName := projectCfg.StringDefault("name", aah.AppName())
@@ -53,36 +54,79 @@ func compileApp(args *compileArgs) (string, error) {
 	registeredActions := aah.AppRouter().RegisteredActions()
 
 	// Go AST processing for Controllers
-	prg, errs := ainsp.Inspect(appControllersPath, ess.Excludes(excludes), registeredActions)
-	if len(errs) > 0 {
-		errMsgs := []string{}
-		for _, e := range errs {
-			errMsgs = append(errMsgs, e.Error())
+	acntlr, errs := ainsp.Inspect(appControllersPath, ess.Excludes(excludes), registeredActions)
+	if len(acntlr.Packages) > 0 {
+		if len(errs) > 0 {
+			errMsgs := []string{}
+			for _, e := range errs {
+				errMsgs = append(errMsgs, e.Error())
+			}
+			return "", errors.New(strings.Join(errMsgs, "\n"))
 		}
-		return "", errors.New(strings.Join(errMsgs, "\n"))
-	}
 
-	// call the process
-	prg.Process()
+		// call the process
+		acntlr.Process()
 
-	// Print router configuration missing/error details
-	missingActions := []string{}
-	for c, m := range prg.RegisteredActions {
-		for a, v := range m {
-			if v == 1 && !router.IsDefaultAction(a) {
-				missingActions = append(missingActions, fmt.Sprintf("%s.%s", c, a))
+		// Print router configuration missing/error details
+		missingActions := []string{}
+		for c, m := range acntlr.RegisteredActions {
+			for a, v := range m {
+				if v == 1 && !router.IsDefaultAction(a) {
+					missingActions = append(missingActions, fmt.Sprintf("%s.%s", c, a))
+				}
 			}
 		}
-	}
-	if len(missingActions) > 0 {
-		logError("Following actions are configured in 'routes.conf', however not implemented in Controller:\n\t",
-			strings.Join(missingActions, "\n\t"))
+		if len(missingActions) > 0 {
+			logError("Following actions are configured in 'routes.conf', however not implemented in Controller:\n\t",
+				strings.Join(missingActions, "\n\t"))
+		}
 	}
 
 	// get all the types info referred aah framework context embedded
-	appControllers := prg.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", libImportPath("aah")))
-	appImportPaths := prg.CreateImportPaths(appControllers)
+	appControllers := acntlr.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", libImportPath("aah")))
+	appImportPaths := acntlr.CreateImportPaths(appControllers, map[string]string{})
 	appSecurity := appSecurity(aah.AppConfig(), appImportPaths)
+
+	// Go AST processing for WebSockets
+	registeredWSActions := aah.AppRouter().RegisteredWSActions()
+	wsc, errs := ainsp.Inspect(appWebSocketsPath, ess.Excludes(excludes), registeredWSActions)
+	if len(wsc.Packages) > 0 {
+		if len(errs) > 0 {
+			errMsgs := []string{}
+			for _, e := range errs {
+				errMsgs = append(errMsgs, e.Error())
+			}
+			return "", errors.New(strings.Join(errMsgs, "\n"))
+		}
+
+		// call the process
+		wsc.Process()
+
+		// Print router configuration missing/error details
+		missingWSActions := []string{}
+		for c, m := range wsc.RegisteredActions {
+			for a, v := range m {
+				if v == 1 && !router.IsDefaultAction(a) {
+					missingWSActions = append(missingWSActions, fmt.Sprintf("%s.%s", c, a))
+				}
+			}
+		}
+		if len(missingWSActions) > 0 {
+			logError("Following WebSocket actions are configured in 'routes.conf', however not implemented in WebSocket:\n\t",
+				strings.Join(missingWSActions, "\n\t"))
+		}
+	}
+
+	appWebSockets := wsc.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", libImportPath("ws")))
+	appImportPaths = wsc.CreateImportPaths(appWebSockets, appImportPaths)
+
+	if len(appControllers) == 0 && len(appWebSockets) == 0 {
+		return "", fmt.Errorf("It seems your application have zero controller or websocket")
+	}
+
+	if len(appControllers) > 0 || len(appWebSockets) > 0 {
+		appImportPaths[libImportPath("ainsp")] = "ainsp"
+	}
 
 	// prepare aah application version and build date
 	appVersion := getAppVersion(appBaseDir, projectCfg)
@@ -125,6 +169,7 @@ func compileApp(args *compileArgs) (string, error) {
 		"AppBuildDate":   appBuildDate,
 		"AppBinaryName":  appBinaryName,
 		"AppControllers": appControllers,
+		"AppWebSockets":  appWebSockets,
 		"AppImportPaths": appImportPaths,
 		"AppSecurity":    appSecurity,
 		"AppIsPackaged":  args.AppPack,
@@ -197,7 +242,7 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 			notExistsPkgs = append(notExistsPkgs, pkg)
 		}
 
-		if cfg.BoolDefault("build.dep_get", false) && len(notExistsPkgs) > 0 {
+		if cfg.BoolDefault("build.dep_get", true) && len(notExistsPkgs) > 0 {
 			cliLog.Info("Getting application dependencies ...")
 			if err := goGet(notExistsPkgs...); err != nil {
 				return err
@@ -309,7 +354,7 @@ import (
 
 var (
 	// Defining flags
-	version    = flag.Bool("version", false, "Display application name, version and build date.")
+	version    = flag.Bool("version", false, "Display aah application name, version and build date.")
 	configPath = flag.String("config", "", "Absolute path of external config file.")
 	profile    = flag.String("profile", "", "Environment profile name to activate. e.g: dev, qa, prod.")
 	_          = reflect.Invalid
@@ -382,32 +427,38 @@ func main() {
 		log.Fatal(err)
 	}
 
+	{{ if gt (len .AppControllers) 0 -}}
 	// Adding all the application controllers which refers 'aah.Context' directly
 	// or indirectly from app/controllers/** {{ range $i, $c := .AppControllers }}
-	aah.AddController(
-		(*{{ index $.AppImportPaths .ImportPath }}.{{ .Name }})(nil),
-	  []*aah.MethodInfo{
-	    {{ range .Methods }}&aah.MethodInfo{
-	      Name: "{{ .Name }}",
-	      Parameters: []*aah.ParameterInfo{ {{ range .Parameters -}}
-	        &aah.ParameterInfo{Name: "{{ .Name }}", Type: reflect.TypeOf((*{{ .Type.Name }})(nil))},{{- end }}
-	      },
-	    },{{ end }}
-		},
-	){{- end }}
+	aah.AddController((*{{ index $.AppImportPaths .ImportPath }}.{{ .Name }})(nil), []*ainsp.Method{ {{ range .Methods }}
+		{Name: "{{ .Name }}"{{ if gt (len .Parameters) 0 }}, Parameters: []*ainsp.Parameter{ {{ range .Parameters }}
+	    {Name: "{{ .Name }}", Type: reflect.TypeOf((*{{ .Type.Name }})(nil))},{{- end }}
+		}{{ end }}},{{ end }}
+	}){{- end }}
+	{{ end -}}
 
-	{{ if .AppSecurity -}}
+	{{ if gt (len .AppWebSockets) 0 -}}
+	// Adding all the application websockets which refers 'ws.Context' directly
+	// or indirectly from app/websockets/** {{ range $i, $c := .AppWebSockets }}
+	aah.AddWebSocket((*{{ index $.AppImportPaths .ImportPath }}.{{ .Name }})(nil), []*ainsp.Method{ {{ range .Methods }}
+		{Name: "{{ .Name }}"{{ if gt (len .Parameters) 0 }}, Parameters: []*ainsp.Parameter{ {{ range .Parameters }}
+	    {Name: "{{ .Name }}", Type: reflect.TypeOf((*{{ .Type.Name }})(nil))},{{- end }}
+	  }{{ end }}},{{ end }}
+	}){{- end }}
+	{{ end -}}
+
+	{{ if .AppSecurity }}
 	// Initialize application security auth schemes - Authenticator & Authorizer
 	secMgr := aah.AppSecurityManager()
 	{{- range $k, $v := $.AppSecurity }}
 	{{ if $v.Authenticator -}}
-	log.Debugf("Calling authenticator Init for auth scheme '%s'", "{{ $k }}")
+	aah.AppLog().Debugf("Calling authenticator Init for auth scheme '%s'", "{{ $k }}")
 	if err := secMgr.GetAuthScheme("{{ $k }}").SetAuthenticator(&{{ $v.Authenticator }}{}); err != nil {
 		aah.AppLog().Fatal(err)
 	}
 	{{ end -}}
 	{{ if $v.Authorizer -}}
-	log.Debugf("Calling authorizer Init for auth scheme '%s'", "{{ $k }}")
+	aah.AppLog().Debugf("Calling authorizer Init for auth scheme '%s'", "{{ $k }}")
 	if err := secMgr.GetAuthScheme("{{ $k }}").SetAuthorizer(&{{ $v.Authorizer }}{}); err != nil {
 		aah.AppLog().Fatal(err)
 	}
@@ -431,9 +482,9 @@ func main() {
 	sig := <-sc
 	switch sig {
 	case os.Interrupt:
-		log.Warn("Interrupt signal (SIGINT) received")
+		aah.AppLog().Warn("Interrupt signal (SIGINT) received")
 	case syscall.SIGTERM:
-		log.Warn("Termination signal (SIGTERM) received")
+		aah.AppLog().Warn("Termination signal (SIGTERM) received")
 	}
 
 	// Call aah shutdown

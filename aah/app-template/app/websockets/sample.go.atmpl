@@ -1,0 +1,80 @@
+package websockets
+
+import (
+	"strings"
+
+	"aahframework.org/aah.v0"
+	"aahframework.org/ws.v0"
+
+  "{{ .App.ImportPath }}/app/models"
+)
+
+// SampleWebSocket struct is sample WebSocket implementation.
+type SampleWebSocket struct {
+	*ws.Context
+}
+
+// Handle method is sample WebSocket action implementation.
+//
+// It handles Text and JSON encoding based on Path param value.
+//
+// Route: /ws/:mode
+// Method: WS
+func (s *SampleWebSocket) Handle(mode string) {
+	switch strings.ToLower(mode) {
+	case "text":
+		s.handleTextMode()
+	case "json":
+		s.handleJSONMode()
+	}
+}
+
+// handleTextMode method is used to communicate in Text
+func (s *SampleWebSocket) handleTextMode() {
+	s.Log().Info("Handling mode: text")
+
+	for {
+		str, err := s.ReadText()
+		if err != nil {
+			if ws.IsDisconnected(err) {
+				// WebSocket client is gone, exit here
+				return
+			}
+
+			s.Log().Error(err)
+			continue // we are moving on to next WS frame/msg
+		}
+
+		// if no error, echo back Text to WebSocket client
+		if err = s.ReplyText(str); err != nil {
+			s.Log().Error(err)
+		}
+	}
+}
+
+// handleJSONMode method is used to communicate in JSON
+func (s *SampleWebSocket) handleJSONMode() {
+	s.Log().Infof("Handling mode: json")
+
+	for {
+		var greet models.Greet
+		if err := s.ReadJSON(&greet); err != nil {
+			if ws.IsDisconnected(err) {
+				// WebSocket client is gone, exit here
+				return
+			}
+
+			s.Log().Error(err)
+
+			// Its a JSON read error
+			_ = s.ReplyJSON(aah.Data{"message": "invalid JSON"})
+
+			continue // we are moving on to next WS frame/msg
+		}
+
+		// if no error, echo back JSON to WebSocket client
+		if err := s.ReplyJSON(greet); err != nil {
+			s.Log().Error(err)
+		}
+	}
+}

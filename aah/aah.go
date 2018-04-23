@@ -43,8 +43,8 @@ var (
 	gocmd    string
 	gosrcDir string
 
-	libNames = []string{"tools", "aah", "ahttp", "aruntime", "config", "essentials", "forge", "i18n",
-		"log", "router", "security", "test", "valpar", "view"}
+	libNames = []string{"tools", "ainsp", "aah", "ahttp", "aruntime", "config", "essentials", "forge", "i18n",
+		"log", "router", "security", "test", "valpar", "view", "ws"}
 
 	// abstract it, so we can do unit test
 	fatal  = log.Fatal

@@ -3,11 +3,13 @@
 
 package main
 
-import (
-	"aahframework.org/aah.v0"{{ if eq .AppType "web" }}
+import ({{ if .App.IsSecurityEnabled }}
+	"{{ .App.ImportPath }}/app/security"{{ end }}
+
+	"aahframework.org/aah.v0"{{ if .App.IsWebApp }}
 
 	// Registering HTML minifier for web application
-	_ "github.com/aah-cb/minify"{{ end }}{{ if eq .AppViewEngine "pug" }}
+	_ "github.com/aah-cb/minify"{{ end }}{{ if eq .App.ViewEngine "pug" }}
 
 	// Registering Pug View Engine (formerly known as Jade)
 	_ "github.com/aah-cb/ve-pug"{{ end }}
@@ -46,7 +48,34 @@ func init() {
 	// aah.OnShutdown(cache.Flush)
 	// aah.OnShutdown(db.Disconnect)
 
-	//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+	{{ if .App.IsSecurityEnabled }}// Event: OnPostAuth
+	// Published right after the Authentication successful
+	aah.OnPostAuth(security.PostAuthEvent){{ end }}
+
+	{{ if .App.IsWebSocketApp -}}
+	// WebSocket Events
+	// Doc: https://docs.aahframework.org/websocket.html#events
+	//
+	// Add your WebSocket events on app start.
+	aah.OnStart(func(e *aah.Event) {
+		// Event: OnPreConnect
+		// aah.OnWSPreConnect(websocket.PreConnect)
+
+		// Event: OnPostConnect
+		// aah.OnWSPostConnect(websocket.PostConnect)
+
+		// Event: AuthCallback
+		// aah.SetWSAuthCallback(websocket.DoAuth)
+
+		// Event: OnPostDisconnect
+		// aah.OnWSPostDisconnect(websocket.PostDisconnect)
+
+		// Event: OnError
+		// aah.OnWSError(websocket.Error)
+	})
+	{{ end -}}
+
+	{{ if not .App.IsWebSocketApp -}}//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 	// Middleware's
 	// Doc: https://docs.aahframework.org/middleware.html
 	//
@@ -56,7 +85,7 @@ func init() {
 	aah.Middlewares(
 		aah.RouteMiddleware,
 		aah.CORSMiddleware,
-		aah.BindMiddleware,{{ if eq .AppType "web" }}
+		aah.BindMiddleware,{{ if .App.IsWebApp }}
 		aah.AntiCSRFMiddleware,{{ end }}
 		aah.AuthcAuthzMiddleware,
 
@@ -71,9 +100,9 @@ func init() {
 	// Add Application Error Handler
 	// Doc: https://docs.aahframework.org/error-handling.html
 	//__________________________________________________________________________
-	// aah.SetErrorHandler(AppErrorHandler)
+	// aah.SetErrorHandler(AppErrorHandler){{ end }}
 
-	{{- if eq .AppType "web" }}
+	{{- if .App.IsWebApp }}
 
 	//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 	// Add Custom Template Functions

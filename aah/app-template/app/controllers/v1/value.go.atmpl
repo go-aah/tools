@@ -1,0 +1,104 @@
+package v1
+
+import (
+	"aahframework.org/aah.v0"
+	
+	"{{ .App.ImportPath }}/app/models"
+)
+
+var values = make(map[string]*models.Value)
+
+// ValueController is kickstart sample for API implementation.
+type ValueController struct {
+	*aah.Context
+}
+
+// List method returns all the values.
+//
+// Route: {{ if .App.IsWebApp }}/api{{ end }}/v1/values
+// Method: GET
+func (v *ValueController) List() {
+	v.Reply().Ok().JSON(values)
+}
+
+// Index method returns value for given key.
+// If key not found then returns 404 NotFound error.
+//
+// Route: {{ if .App.IsWebApp }}/api{{ end }}/v1/values/:key
+// Method: GET
+func (v *ValueController) Index(key string) {
+	if val, found := values[key]; found {
+		v.Reply().Ok().JSON(val)
+		return
+	}
+
+	v.Reply().NotFound().JSON(aah.Data{
+		"message": "Value not exists",
+	})
+}
+
+// Create method creates new entry in the values map with given payload.
+// If key already exists then returns 409 Conflict error.
+//
+// Route: {{ if .App.IsWebApp }}/api{{ end }}/v1/values
+// Method: POST
+// Request Body:
+//  {
+//    "key": "key1"
+//    "value": 3437476      // any valid type, since value is type interface{}
+//  }
+func (v *ValueController) Create(val *models.Value) {
+	if _, found := values[val.Key]; found {
+		v.Reply().Conflict().JSON(aah.Data{
+			"message": "Key already exists",
+		})
+		return
+	}
+
+	// Add it to values map
+	values[val.Key] = val
+	v.Reply().Created()
+}
+
+// Update method updates value entry on map for given key and Payload.
+// If key not exists then returns 400 BadRequest error.
+//
+// Route: {{ if .App.IsWebApp }}/api{{ end }}/v1/values/:key
+// Method: PUT
+// Request Body:
+//  {
+//    "value": 3437476      // any valid type, since value is type interface{}
+//  }
+func (v *ValueController) Update(key string, val *models.Value) {
+	if c, found := values[key]; found {
+		c.Value = val.Value
+		values[key] = c
+		v.Reply().Ok().JSON(aah.Data{
+			"message": "Value updated successfully",
+		})
+		return
+	}
+
+	v.Reply().BadRequest().JSON(aah.Data{
+		"message": "Invalid input",
+	})
+}
+
+// Delete method deletes value for given key.
+// If key not exists then returns 400 BadRequest error.
+//
+// Route: {{ if .App.IsWebApp }}/api{{ end }}/v1/values/:key
+// Method: DELETE
+func (v *ValueController) Delete(key string) {
+	if _, found := values[key]; found {
+		delete(values, key)
+		v.Reply().Ok().JSON(aah.Data{
+			"message": "Value deleted successfully",
+		})
+		return
+	}
+
+	v.Reply().BadRequest().JSON(aah.Data{
+		"message": "Invalid input",
+	})
+}

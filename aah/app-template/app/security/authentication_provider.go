@@ -56,13 +56,11 @@ func (a *AuthenticationProvider) GetAuthenticationInfo(authcToken *authc.Authent
 	return authcInfo, nil
 }
 
-func postAuthEvent(e *aah.Event) {
+// PostAuthEvent method used for activities after authentication successful.
+func PostAuthEvent(e *aah.Event) {
 	ctx := e.Data.(*aah.Context)
 
-	// Do post successful authentication actions...
-	_ = ctx
-}
+	ctx.Log().Info("Called method security.PostAuthEvent")
 
-func init() {
-	aah.OnPostAuth(postAuthEvent)
+	// Do post successful authentication actions...
 }

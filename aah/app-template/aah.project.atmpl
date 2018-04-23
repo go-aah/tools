@@ -1,5 +1,5 @@
 ##############################################################
-# {{ .AppName }} - aah framework project
+# {{ .App.Name }} - aah framework project
 #
 # Note: Add it to version control
 ##############################################################
@@ -8,7 +8,7 @@
 build {
   # Application binary name
   # Default value is `name` attribute value from `aah.conf`
-  #binary_name = "{{ .AppName }}"
+  #binary_name = "{{ .App.Name }}"
 
   # Used as fallback if
   #   - `git commit sha` or
@@ -18,7 +18,7 @@ build {
   # If application is missing any dependencies in `build import path`
   # during a compile and build, aah CLI will try to get dependencies
   # using 'go get <package>'.
-  # Default value is `false`.
+  # Default value is `true`.
   #dep_get = true
 
   flags = ["-i"]

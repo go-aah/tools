@@ -54,7 +54,10 @@ var buildCmd = cli.Command{
 func buildAction(c *cli.Context) error {
 	importPath := getAppImportPath(c)
 
-	aah.Init(importPath)
+	if err := aah.Init(importPath); err != nil {
+		logFatal(err)
+	}
+
 	appBaseDir := aah.AppBaseDir()
 	projectCfg := aahProjectCfg(appBaseDir)
 	cliLog = initCLILogger(projectCfg)

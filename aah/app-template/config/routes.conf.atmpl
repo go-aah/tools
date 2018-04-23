@@ -1,8 +1,8 @@
 ####################################################
-# {{ .AppName }} - Application Routes Configuration
+# {{ .App.Name }} - Application Routes Configuration
 #
 # Complete routes configuration reference:
-#   https://docs.aahframework.org/routes-config.html
+# Doc: https://docs.aahframework.org/routes-config.html
 ####################################################
 
 #------------------------------------------------------------------------
@@ -13,14 +13,15 @@ domains {
   # Pick your choice of an `unique keyname` to define your domain section
   # in the routes configuration.
   # For e.g.: Domain name/ip address with port no
-  localhost {
-    name = "{{ .AppName }} routes"
+  {{ .App.Name }} {
+    name = "{{ .App.Name }} routes"
 
     # aah supports multi-domain routes configuration out-of-the-box.
     # `host` used to determine domain routes for the incoming request.
     # For e.g: example.org
     host = "localhost"
 
+    {{ if not .App.IsWebSocketApp -}}
     # Redirect trailing slash is to enable automatic redirection if the current
     # route can't be matched but a `route` for the path with (without)
     # the trailing slash exists.
@@ -30,21 +31,21 @@ domains {
     # aah supports out-of-the-box `405 MethodNotAllowed` status with `Allow`
     # header as per `RFC7231`. Perfect for RESTful APIs.
     # Default value is `true`.
-    {{ if eq .AppType "web" }}#{{ end }}method_not_allowed = true
+    {{ if .App.IsWebApp }}#{{ end }}method_not_allowed = true
 
     # aah framework supports out-of-the-box `OPTIONS` request replies.
     # User defined `OPTIONS` routes take priority over the automatic replies.
     # Perfect for RESTful APIs.
     # Default value is `true`.
-    {{ if eq .AppType "web" }}#{{ end }}auto_options = true
+    {{ if .App.IsWebApp }}#{{ end }}auto_options = true
 
     # Default auth is used when route does not have attribute `auth` defined.
     # If you don't define attribute `auth` then framework treats that route as
     # `anonymous` auth scheme.
     # Default value is empty string.
-    #default_auth = ""
+    #default_auth = ""{{- end }}
 
-    {{ if .AppCORSEnable -}}
+    {{ if .App.CORSEnable -}}
     #----------------------------------------------------------------------------
     # CORS (Cross-Origin Resource Sharing)
     # Doc: https://docs.aahframework.org/cors.html
@@ -89,7 +90,7 @@ domains {
       #allow_credentials = true
     }{{ end }}
 
-    {{ if eq .AppType "web" -}}
+    {{ if .App.IsWebApp -}}
     #----------------------------------------------------------------------------
     # Static Routes Configuration
     # To serve static files, it can be directory or individual file.
@@ -140,15 +141,18 @@ domains {
     }{{ end }}
 
     #-----------------------------------------------------------------------------
-    # Application routes
+    # Application routes definitions
+    #
     # Doc: https://docs.aahframework.org/routes-config.html#section-routes
     # Doc: https://docs.aahframework.org/routes-config.html#namespace-group-routes
     #-----------------------------------------------------------------------------
     routes {
 
-      #------------------------------------------------------
+      {{ if not .App.IsWebSocketApp -}}#------------------------------------------------------
       # Pick an unique name, it's called `route name`,
       # used for reverse URL.
+      #
+      # Pro Tip: https://docs.aahframework.org/routes-config.html#pro-tips-for-nested-namespace-routes
       #------------------------------------------------------
       index {
         # path is used to match incoming requests
@@ -194,18 +198,60 @@ domains {
         # If this value is not provided then global `request.max_body_size` config
         # from `aah.conf` is applied. So use it for specific cases.
         # No default value, global value is applied.
-        #max_body_size = "5mb"
+        #max_body_size = "5mb"{{ if .App.IsWebApp }}
 
         # Optionally you can disable Anti-CSRF check for particular route.
         # There are cases you might need this option. In-general don't disable the check.
         # Default value is `true`.
-        #anti_csrf_check = false
+        #anti_csrf_check = false{{ end }}
       }
 
-      {{ if eq .AppAuthScheme "form" -}}login_submit {
+      {{ if eq .App.AuthScheme "form" -}}login_submit {
         path ="/login"
         method = "POST"
         controller = "VirtualFormController"
+      }{{ end }}{{ end -}}{{ if or .App.IsAPIApp .App.IsSubTypeAPI }}
+
+      # Below routes definition demonstrates part of aah routes configuration
+      # capabilities
+      api_v1 {
+        path = "{{ if .App.IsWebApp }}/api{{ end }}/v1"
+        auth = "anonymous"
+        {{ if .App.IsWebApp }}anti_csrf_check = false{{ end }}
+
+        routes {
+          all_values {
+            path = "/values"
+            controller = "{{ if .App.IsWebApp }}/api{{ end }}v1/ValueController"
+            action = "List"
+
+            routes {
+              value_get {       # /v1/values/:key
+                path = "/:key"
+              }
+              value_create {    # /v1/values
+                method = "POST"
+              }
+              value_update {    # /v1/values/:key
+                path = "/:key"
+                method = "PUT"
+              }
+              value_delete {    # /v1/values/:key
+                path = "/:key"
+                method = "DELETE"
+              }
+            }
+          } # end - all_values
+        }
+      } # end - api_v1
+
+      {{ end }}{{ if or .App.IsWebSocketApp .App.IsSubTypeWebSocket }}# WebSocket routes definitions
+      # Sample implementation handles Text and JSON mode
+      ws_sample {
+        path = "/ws/:mode"
+        websocket = "SampleWebSocket"
+        method = "WS"
+        action = "Handle"
       }{{ end }}
 
     } # end - routes

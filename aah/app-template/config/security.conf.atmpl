@@ -1,8 +1,8 @@
 ######################################################
-# {{ .AppName }} - Application Security Configuration
+# {{ .App.Name }} - Application Security Configuration
 #
 # Complete routes configuration reference:
-#   https://docs.aahframework.org/security-config.html
+# Doc: https://docs.aahframework.org/security-config.html
 ######################################################
 
 security {
@@ -11,7 +11,7 @@ security {
   # Doc: https://docs.aahframework.org/security-design.html
   # -------------------------------------------------------
   auth_schemes {
-    {{ if eq .AppAuthScheme "form" -}}
+    {{ if eq .App.AuthScheme "form" -}}
     # HTTP Form Auth Scheme
     # It is custom defined name, this is used in the routes `auth` attribute.
     form_auth {
@@ -35,7 +35,7 @@ security {
       # it with application provide credential.
       # Doc: https://docs.aahframework.org/password-encoders.html
       # Default value is `bcrypt`.
-      password_encoder = "{{ .AppPasswordEncoder }}"
+      password_encoder = "{{ .App.PasswordEncoderAlgo }}"
 
       # Field names are used to extract `AuthenticationToken` from request.
       field {
@@ -73,7 +73,7 @@ security {
       }
     }{{ end -}}
 
-    {{ if eq .AppAuthScheme "basic" -}}
+    {{ if eq .App.AuthScheme "basic" -}}
     # HTTP Basic Auth Scheme
     # It is custom defined name, this is used in the routes `auth` attribute.
     basic_auth {
@@ -87,11 +87,11 @@ security {
       # However aah framework does its due diligence.
       realm_name = "Protected"
 
-      {{ if eq .AppBasicAuthMode "file-realm" -}}
+      {{ if eq .App.BasicAuthMode "file-realm" -}}
       # Basic auth realm file path. You can use absolute path or
       # environment variable to provide path.
       # It is required value, no default.
-      file_realm = "{{ .AppBasicAuthFileRealmPath }}"{{ else -}}
+      file_realm = "{{ .App.BasicAuthFileRealmPath }}"{{ else -}}
       # Framework calls `Authenticator` to get the Subject's authentication
       # information. Then framework validates the credential using password
       # encoder.
@@ -107,10 +107,10 @@ security {
       # it with application provide credential.
       # Doc: https://docs.aahframework.org/password-encoders.html
       # Default value is `bcrypt`.
-      password_encoder = "{{ .AppPasswordEncoder }}"
+      password_encoder = "{{ .App.PasswordEncoderAlgo }}"
     }{{ end -}}
 
-    {{ if eq .AppAuthScheme "generic" -}}
+    {{ if eq .App.AuthScheme "generic" -}}
     # Generic Auth Scheme
     # It is custom defined name, this is used in the routes `auth` attribute.
     generic_auth {
@@ -148,7 +148,7 @@ security {
   # aah supports `bcrypt`, `scrypt`, `pbkdf2` password algorithm
   # Doc: https://docs.aahframework.org/password-encoders.html
   # ------------------------------------------------------------
-  password_encoder { {{ if eq .AppPasswordEncoder "bcrypt" }}
+  password_encoder { {{ if eq .App.PasswordEncoderAlgo "bcrypt" }}
     # bcrypt algorithm
     #
     # Learn more:
@@ -163,7 +163,7 @@ security {
       # Default value is `12`.
       cost = 12
     }{{ end }}
-    {{ if eq .AppPasswordEncoder "scrypt" }}
+    {{ if eq .App.PasswordEncoderAlgo "scrypt" }}
     # scrypt algorithm
     #
     # Learn more:
@@ -191,7 +191,7 @@ security {
       # Default value is `24`
       #salt_length = 24
     }{{ end }}
-    {{ if eq .AppPasswordEncoder "pbkdf2" }}
+    {{ if eq .App.PasswordEncoderAlgo "pbkdf2" }}
     # pbkdf2 algorithm
     #
     # Learn more:
@@ -219,7 +219,7 @@ security {
     }{{ end }}
   }
 
-  {{ if eq .AppType "web" }}{{ if or (eq .AppAuthScheme "form") (eq .AppAuthScheme "basic") -}}
+  {{ if .App.IsWebApp }}{{ if or (eq .App.AuthScheme "form") (eq .App.AuthScheme "basic") -}}
   # -----------------------------------------------------------------------
   # Session configuration
   # HTTP state management across multiple requests.
@@ -230,7 +230,7 @@ security {
     # destroyed at the end of the request. Supported values are `stateless`
     # and `stateful`.
     # Default value is `stateless` for API and `stateful` for Web app.
-    mode = "{{ if eq .AppAuthScheme "" }}stateless{{ else }}stateful{{ end }}"
+    mode = "{{ if eq .App.AuthScheme "" }}stateless{{ else }}stateful{{ end }}"
 
     # Session store is to choose where session value should be persisted.
     store {
@@ -238,12 +238,12 @@ security {
       # Also framework provide extensible `session.Storer` interface to
       # add custom session store.
       # Default value is `cookie`.
-      type = "{{ .AppSessionStore }}"
-      {{ if eq .AppSessionStore "file" -}}
+      type = "{{ .App.SessionStore }}"
+      {{ if eq .App.SessionStore "file" -}}
       # Filepath is used for file store to store session file in the file system.
       # This is only applicable for `type = "file"`, make sure application has
       # Read/Write access to the directory. Provide absolute path.
-      filepath = "{{ .AppSessionFileStorePath }}"{{ end }}
+      filepath = "{{ .App.SessionFileStorePath }}"{{ end }}
     }
 
     # Session ID length
@@ -257,7 +257,7 @@ security {
 
     # Session cookie name prefix.
     # Default value is `aah_<app-name>` For e.g.: `aah_myapp_session`
-    prefix = "aah_{{ .AppName }}"
+    prefix = "aah_{{ .App.Name }}"
 
     # Default value is `empty` string.
     #domain = ""
@@ -280,13 +280,13 @@ security {
     # should be same in all instance. For HMAC sign & verify it recommend to use
     # key size is `32` or `64` bytes.
     # Default value is `64` bytes (`aah new` generates strong one).
-    sign_key = "{{ .AppSessionSignKey }}"
+    sign_key = "{{ securerandomstring 64 }}"
 
     # HTTP session cookie value encryption and decryption using `AES`. For server
     # farm this should be same in all instance. AES algorithm is used, valid
     # lengths are `16`, `24`, or `32` bytes to select `AES-128`, `AES-192`, or `AES-256`.
     # Default value is `32` bytes (`aah new` generates strong one).
-    enc_key = "{{ .AppSessionEncKey }}"
+    enc_key = "{{ securerandomstring 32 }}"
 
     # Cleanup Interval is used to clean the expired session objects from store.
     # This is only applicable for non-cookie store type.
@@ -294,9 +294,9 @@ security {
     # `m -> minutes`, `h -> hours`.
     # Default value is `30m`.
     #cleanup_interval = "30m"
-  }{{ end }}{{ end -}}
+  }{{ end }}{{ end }}
 
-  {{ if eq .AppType "web" -}}
+  {{ if .App.IsWebApp }}
   # ------------------------------------------------------------
   # Anti-CSRF Protection
   # Doc: https://docs.aahframework.org/anti-csrf-protection.html
@@ -337,13 +337,13 @@ security {
     # should be same in all instance. For HMAC sign & verify it recommend to use
     # key size is `32` or `64` bytes.
     # Default value is `64` bytes (`aah new` generates strong one).
-    sign_key = "{{ .AppAntiCSRFSignKey }}"
+    sign_key = "{{ securerandomstring 64 }}"
 
     # Anti-CSRF cookie value encryption and decryption using `AES`. For server
     # farm this should be same in all instance. AES algorithm is used, valid
     # lengths are `16`, `24`, or `32` bytes to select `AES-128`, `AES-192`, or `AES-256`.
     # Default value is `32` bytes (`aah new` generates strong one).
-    enc_key = "{{ .AppAntiCSRFEncKey }}"
+    enc_key = "{{ securerandomstring 32 }}"
   }{{ end }}
 
   # ---------------------------------------------------------------------------
@@ -370,7 +370,7 @@ security {
     # Encouraged to make use of header `Content-Security-Policy` with enhanced
     # policy to reduce XSS risk along with header `X-XSS-Protection`.
     # Default values is `1; mode=block`.
-    {{ if eq .AppType "web" -}}#xxssp = "1; mode=block"{{ else }}xxssp = ""{{ end }}
+    {{ if .App.IsWebApp -}}#xxssp = "1; mode=block"{{ else }}xxssp = ""{{ end }}
 
     # X-Content-Type-Options
     # Prevent Content Sniffing or MIME sniffing.
@@ -388,7 +388,7 @@ security {
     #   https://www.owasp.org/index.php/OWASP_Secure_Headers_Project#xfo
     #   https://www.keycdn.com/blog/x-frame-options/
     # Default value is `SAMEORIGIN`.
-    {{ if eq .AppType "web" -}}#xfo = "SAMEORIGIN"{{ else }}xfo = "DENY"{{ end }}
+    {{ if .App.IsWebApp -}}#xfo = "SAMEORIGIN"{{ else }}xfo = "DENY"{{ end }}
 
     # Referrer-Policy
     # This header governs which referrer information, sent in the Referer header, should
@@ -400,7 +400,7 @@ security {
     #   https://scotthelme.co.uk/a-new-security-header-referrer-policy/
     #   https://www.w3.org/TR/referrer-policy/
     # Default value is `no-referrer-when-downgrade`.
-    {{ if eq .AppType "web" -}}#rp = "no-referrer-when-downgrade"{{ else }}rp = ""{{ end }}
+    {{ if .App.IsWebApp -}}#rp = "no-referrer-when-downgrade"{{ else }}rp = ""{{ end }}
 
     # Strict-Transport-Security (STS, aka HSTS)
     # STS header that lets a web site tell browsers that it should only be communicated
@@ -508,6 +508,6 @@ security {
     #   https://www.owasp.org/index.php/OWASP_Secure_Headers_Project#xpcdp
     #   https://www.adobe.com/devnet/adobe-media-server/articles/cross-domain-xml-for-streaming.html
     # Default value is `master-only`.
-    {{ if eq .AppType "web" -}}#xpcdp = "master-only"{{ else }}xpcdp = ""{{ end }}
+    {{ if .App.IsWebApp -}}#xpcdp = "master-only"{{ else }}xpcdp = ""{{ end }}
   }
 }

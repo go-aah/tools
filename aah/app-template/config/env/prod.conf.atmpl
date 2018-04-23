@@ -4,6 +4,18 @@
 
 prod {
 
+  # ------------------------------------------------------------------
+  # Runtime configuration
+  # Doc: https://docs.aahframework.org/app-config.html#section-runtime
+  # ------------------------------------------------------------------
+  runtime {
+    debug {
+      # Whether to strip source `src` base path from file path.
+      # Default value is `false`.
+      strip_src_base = true
+    }
+  }
+
   # --------------------------------------------------
   # Log Configuration
   # Doc: https://docs.aahframework.org/logging.html

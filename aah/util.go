@@ -159,7 +159,7 @@ func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 }
 
 func renderTmpl(w io.Writer, text string, data interface{}) error {
-	tmpl := template.Must(template.New("").Parse(text))
+	tmpl := template.Must(template.New("").Funcs(appTemplateFuncs).Parse(text))
 	return tmpl.Execute(w, data)
 }
 

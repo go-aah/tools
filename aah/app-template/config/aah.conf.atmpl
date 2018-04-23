@@ -1,19 +1,19 @@
 ###################################################
-# {{ .AppName }} - aah framework application
+# {{ .App.Name }} - aah Application
 #
 # Complete configuration reference:
-#   https://docs.aahframework.org/app-config.html
+# Doc: https://docs.aahframework.org/app-config.html
 ###################################################
 
 # Application name (non-whitespace)
 # Default value is `basename` of import path.
-name = "{{ .AppName }}"
+name = "{{ .App.Name }}"
 
 # Friendly description of application
-desc = "aah framework {{ .AppType }} application"
+desc = "aah {{ .App.Type }} application"
 
 # Application type, typically either Web or API.
-type = "{{ .AppType }}"
+type = "{{ .App.Type }}"
 
 # Application instance name is used when you're running aah application cluster.
 # This value is used in the context based logging, it distinguishes your instance
@@ -75,6 +75,31 @@ server {
   # HTTP server keep alive option.
   # Default value is `true`.
   #keep_alive = true
+
+  {{ if or .App.IsWebSocketApp .App.IsSubTypeWebSocket -}}
+  # --------------------------------------------------------------------------
+  # WebSocket configurations
+  # Doc: https://docs.aahframework.org/websocket.html#configuration
+  # --------------------------------------------------------------------------
+  websocket {
+    # Default value is `false`.
+    enable = true
+
+    # Origin configuration
+    origin {
+      # When origin check is enabled, aah does check against HTTP Header
+      # `Origin` value.
+      # Default value is `false`.
+      check = false
+
+      # Origin whitelist
+      # No default values.
+      #whitelist = [
+      #  "https://websocket.org",
+      #]
+    }
+  }
+  {{ end }}
 
   ssl {
     # Default value is `false`.
@@ -149,6 +174,7 @@ server {
     }
   }
 
+  {{ if not .App.IsWebSocketApp -}}
   # --------------------------------------------------------------------------
   # To manage aah server effectively it is necessary to know details about the
   # request, response, processing time, client IP address, etc. aah framework
@@ -270,9 +296,9 @@ request {
     # Tag Name is used for bind values to struct exported fields.
     # Default value is `bind`.
     #tag_name = "bind"
-  }
+  }{{ end }}
 }
-{{ if eq .AppType "web" -}}
+{{ if .App.IsWebApp -}}
 # ---------------------------------------------------------------
 # i18n configuration
 # Doc: https://docs.aahframework.org/app-config.html#section-i18n
@@ -334,6 +360,7 @@ runtime {
   }
 }
 
+{{ if not .App.IsWebSocketApp -}}
 # -----------------------------------------------------------------
 # Render configuration
 # Doc: https://docs.aahframework.org/app-config.html#section-render
@@ -347,12 +374,7 @@ render {
   #  - Based `render.default` value supported types are `html`, `json`, `xml` and `text`
   #  - Finally aah framework uses `http.DetectContentType` API
   # Default value is `empty` string.
-  default = "{{ if eq .AppType "web" }}html{{ else }}json{{ end }}"
-
-  # Pretty print option is helpful in `dev` environment profile.
-  # It is only applicable to JSON and XML.
-  # Default value is `false`.
-  #pretty = true
+  default = "{{ if .App.IsWebApp }}html{{ else }}json{{ end }}"
 
   # To prevent Cross Site Script Inclusion (XSSI) attacks on JSON response
   # payload aka JSON vulnerability. XSSI attack is only successful if the
@@ -382,7 +404,7 @@ render {
     #level = 4
   }
 }
-{{ if eq .AppType "web" -}}
+{{ if .App.IsWebApp -}}
 # ------------------------------------------------------------------
 # Cache configuration
 # Doc: https://docs.aahframework.org/static-files.html#cache-control
@@ -420,12 +442,12 @@ view {
   # Choosing view engine for application. You could implement
   # on your own with simple interface `view.Enginer`.
   # Default value is `go`.
-  engine = "{{ .AppViewEngine }}"
+  engine = "{{ .App.ViewEngine }}"
 
   # Choose your own view file extension.
   # Default value is chosen based on `view.engine`,
   # while creating a new app using command `aah new`.
-  ext = "{{ .AppViewFileExt }}"
+  ext = "{{ .App.ViewFileExt }}"
 
   # Choose whether you need a case sensitive view file resolve or not.
   # For e.g.: "/views/pages/app/login.tmpl" == "/views/pages/App/Login.tmpl"
@@ -433,8 +455,8 @@ view {
   #case_sensitive = false
 
   # To use custom Go template delimiters for view files.
-  # Default value is `{{ .TmplDemils }}`.
-  #delimiters = "{{ .TmplDemils }}"
+  # Default value is `{{ .App.TmplDemils }}`.
+  #delimiters = "{{ .App.TmplDemils }}"
 
   # Framework chooses the default app layout as `master.html` if you do not
   # provide one. However you may have pages or template without layout too.
@@ -447,7 +469,7 @@ view {
 # Application Security
 # Doc: https://docs.aahframework.org/security-config.html
 # --------------------------------------------------------------
-include "./security.conf"
+include "./security.conf"{{ end }}
 
 # --------------------------------------------------------------
 # Environment Profiles e.g.: dev, qa, prod

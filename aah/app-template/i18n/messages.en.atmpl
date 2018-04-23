@@ -1,5 +1,5 @@
 #############################################
-# i18n messages for {{.AppName}} application
+# i18n messages for {{ .App.Name }} application
 #
 # Complete configuration reference:
 #   https://docs.aahframework.org/i18n.html

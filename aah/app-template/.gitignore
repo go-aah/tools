@@ -1,4 +1,4 @@
-# aah framework application - .gitignore
+# aah application - .gitignore
 
 aah.go
 *.pid
