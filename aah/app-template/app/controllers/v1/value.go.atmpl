@@ -2,7 +2,8 @@ package v1
 
 import (
 	"aahframework.org/aah.v0"
-	
+	"aahframework.org/ahttp.v0"
+
 	"{{ .App.ImportPath }}/app/models"
 )
 
@@ -57,7 +58,11 @@ func (v *ValueController) Create(val *models.Value) {
 
 	// Add it to values map
 	values[val.Key] = val
-	v.Reply().Created()
+	v.Reply().Created().
+		Header(ahttp.HeaderLocation, fmt.Sprintf("%s:%s", v.Req.Scheme, v.ReverseURL("value_get", val.Key))).
+		JSON(aah.Data{
+			"key": val.Key,
+		})
 }
 
 // Update method updates value entry on map for given key and Payload.
