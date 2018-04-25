@@ -80,7 +80,7 @@ func whoami(branchName string) error {
 func doRefresh(branchName string) error {
 	fname := friendlyName(branchName)
 	if branchName == releaseBranchName {
-		cliLog.Infof("Refresh is only applicable to edge version, currently you're on '%s' version.\n", fname)
+		cliLog.Infof("Refresh option is for 'edge' version only, currently you're on '%s' version.\n", fname)
 		cliLog.Infof("Use 'aah update' command to update your aah to the latest release version on your GOPATH.\n")
 		return nil
 	}
@@ -88,7 +88,7 @@ func doRefresh(branchName string) error {
 	cliLog.Infof("Refreshing aah '%s' version ...\n", fname)
 
 	// Refresh to latest edge codebase
-	refreshCodebase(libNames...)
+	refreshCodebase(aahLibraryDirs())
 
 	// Refresh dependencies in grace mode
 	fetchAahDeps()
@@ -118,15 +118,16 @@ func doSwitch(branchName, target string) error {
 	cliLog.Infof("Switching aah version to '%s' ...\n", friendlyName(toBranch))
 
 	// Checkout the branch
-	for _, lib := range libNames {
-		if err := gitCheckout(libDir(lib), toBranch); err != nil {
+	aahLibDirs := aahLibraryDirs()
+	for _, d := range aahLibDirs {
+		if err := gitCheckout(d, toBranch); err != nil {
 			logFatalf("Error occurred which switching aah version: %s", err)
 		}
 	}
 
 	if toBranch == edgeBranchName {
 		cliLog.Infof("Refreshing aah version to latest '%s' ...\n", friendlyName(toBranch))
-		refreshCodebase(libNames...)
+		refreshCodebase(aahLibDirs)
 	}
 
 	// Refresh dependencies in grace mode

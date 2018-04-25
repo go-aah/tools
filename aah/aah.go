@@ -32,19 +32,15 @@ import (
 )
 
 const (
-	permRWXRXRX   = 0755
-	permRWRWRW    = 0666
-	versionSeries = "v0"
-	importPrefix  = "aahframework.org"
+	permRWXRXRX  = 0755
+	permRWRWRW   = 0666
+	importPrefix = "aahframework.org"
 )
 
 var (
 	gopath   string
 	gocmd    string
 	gosrcDir string
-
-	libNames = []string{"tools", "ainsp", "aah", "ahttp", "aruntime", "config", "essentials", "forge", "i18n",
-		"log", "router", "security", "test", "valpar", "view", "ws"}
 
 	// abstract it, so we can do unit test
 	fatal  = log.Fatal

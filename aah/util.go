@@ -10,7 +10,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -267,7 +266,7 @@ func gitCheckout(dir, branch string) error {
 }
 
 func libImportPath(name string) string {
-	return fmt.Sprintf("%s/%s.%s", importPrefix, name, versionSeries)
+	return fmt.Sprintf("%s/%s.%s", importPrefix, name, inferVersionSeries())
 }
 
 func libDir(name string) string {
@@ -325,22 +324,35 @@ func waitForConnReady(port string) {
 }
 
 func installAahCLI() {
-	args := []string{"install", path.Join(importPrefix, "tools.v0", "aah")}
+	verser := inferVersionSeries()
+	args := []string{"install", fmt.Sprintf("%s/tools.%s/aah", importPrefix, verser)}
 	if _, err := execCmd(gocmd, args, false); err != nil {
 		logFatalf("Unable to compile CLI tool: %s", err)
 	}
 }
 
 func fetchAahDeps() {
-	if err := goGet(path.Join(importPrefix, "tools.v0", "aah", "...")); err != nil {
-		logFatalf("Unable to refresh dependencies: %s", err)
+	// depList would have duplicate import paths
+	// since we collect from more than one lib
+	// TODO: improve efficiency
+	var depList []string
+	for _, i := range aahImportPaths() {
+		depList = append(depList, libDependencyImports(i)...)
+	}
+
+	// infer not exists libraries on GOPATH using importpath
+	notEixstsList := inferNotExistsDeps(depList)
+	if len(notEixstsList) > 0 {
+		if err := goGet(notEixstsList...); err != nil {
+			logFatalf("Error during go get: %s", err)
+		}
 	}
 }
 
-func refreshCodebase(names ...string) {
-	for _, lib := range names {
-		if err := gitPull(libDir(lib)); err != nil {
-			logFatalf("Unable to refresh library: %s.%s", lib, versionSeries)
+func refreshCodebase(libDirs []string) {
+	for _, ld := range libDirs {
+		if err := gitPull(ld); err != nil {
+			logFatalf("Unable to refresh library: %s", filepath.Base(ld))
 		}
 	}
 }
@@ -381,4 +393,62 @@ func logErrorf(format string, v ...interface{}) {
 func stripGoPath(pkgFilePath string) string {
 	idx := strings.Index(pkgFilePath, "src")
 	return filepath.Clean(pkgFilePath[idx+4:])
+}
+
+func inferVersionSeries() string {
+	verser := "v0"
+	for _, d := range aahLibraryDirs() {
+		baseName := filepath.Base(d)
+		if strings.HasPrefix(baseName, "aah") {
+			return strings.Split(baseName, ".")[1]
+		}
+	}
+	return verser
+}
+
+func aahLibraryDirs() []string {
+	dirs, err := ess.DirsPath(filepath.Join(gosrcDir, importPrefix), false)
+	if err != nil {
+		return []string{}
+	}
+	return dirs
+}
+
+func aahImportPaths() []string {
+	var importPaths []string
+	gsLen := len(gosrcDir)
+	for _, d := range aahLibraryDirs() {
+		p := d[gsLen+1:]
+		if strings.Contains(p, "tools") {
+			p += "/aah" // Note: this import path so always forward slash
+		}
+		importPaths = append(importPaths, p)
+	}
+	return importPaths
+}
+
+func libDependencyImports(importPath string) []string {
+	var depList []string
+	str, err := execCmd(gocmd, []string{"list", "-f", "{{.Imports}}", importPath}, false)
+	if err != nil {
+		logErrorf("Unable to infer dependency imports for %s", importPath)
+		return []string{}
+	}
+
+	str = strings.TrimSpace(str)
+	for _, i := range strings.Fields(str[1 : len(str)-1]) {
+		depList = append(depList, strings.TrimSpace(i))
+	}
+
+	return depList
+}
+
+func inferNotExistsDeps(depList []string) []string {
+	var notExistsList []string
+	for _, d := range depList {
+		if !ess.IsImportPathExists(d) && !ess.IsSliceContainsString(notExistsList, d) {
+			notExistsList = append(notExistsList, d)
+		}
+	}
+	return notExistsList
 }
