@@ -78,8 +78,7 @@ func main() {
 	// if panic happens, recover and abort nicely :)
 	defer func() {
 		if r := recover(); r != nil {
-			cfg, _ := config.ParseString(``)
-			strace := aruntime.NewStacktrace(r, cfg)
+			strace := aruntime.NewStacktrace(r, config.NewEmptyConfig())
 			strace.Print(os.Stdout)
 			exit(2)
 		}

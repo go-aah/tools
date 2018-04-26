@@ -459,12 +459,7 @@ func tmplFiles(srcDir, appTmplBaseDir, appBaseDir string, recur bool) []file {
 }
 
 func processFile(appBaseDir string, f file, data map[string]interface{}) {
-	dst := f.dst
-
-	// remove .atmpl suffix if exists
-	if strings.HasSuffix(dst, aahTmplExt) {
-		dst = dst[:len(dst)-len(aahTmplExt)]
-	}
+	dst := strings.TrimSuffix(f.dst, aahTmplExt)
 
 	// create dst dir if not exists
 	dstDir := filepath.Dir(dst)

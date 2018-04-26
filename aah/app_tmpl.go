@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"text/template"
 
 	"aahframework.org/essentials.v0"
@@ -53,6 +54,10 @@ func (a *appTmplData) IsAPIApp() bool {
 
 func (a *appTmplData) IsWebSocketApp() bool {
 	return a.Type == typeWebSocket
+}
+
+func (a *appTmplData) DomainNameKey() string {
+	return strings.Replace(strings.Replace(a.Name, " ", "_", -1), "-", "_", -1)
 }
 
 func (a *appTmplData) IsAuthSchemeForWeb() bool {

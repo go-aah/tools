@@ -37,7 +37,9 @@ var cleanCmd = cli.Command{
 func cleanAction(c *cli.Context) error {
 	importPath := getAppImportPath(c)
 
-	aah.Init(importPath)
+	if err := aah.Init(importPath); err != nil {
+		logFatal(err)
+	}
 	projectCfg := aahProjectCfg(aah.AppBaseDir())
 	cliLog = initCLILogger(projectCfg)
 

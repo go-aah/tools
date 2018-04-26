@@ -95,7 +95,9 @@ func generateScriptsAction(c *cli.Context) error {
 func generateSystemdScript(c *cli.Context) error {
 	importPath := getAppImportPath(c)
 
-	aah.Init(importPath)
+	if err := aah.Init(importPath); err != nil {
+		logFatal(err)
+	}
 	projectCfg := aahProjectCfg(aah.AppBaseDir())
 	cliLog = initCLILogger(projectCfg)
 
@@ -131,7 +133,9 @@ func generateSystemdScript(c *cli.Context) error {
 func generateDockerScript(c *cli.Context) error {
 	importPath := getAppImportPath(c)
 
-	aah.Init(importPath)
+	if err := aah.Init(importPath); err != nil {
+		logFatal(err)
+	}
 	projectCfg := aahProjectCfg(aah.AppBaseDir())
 	cliLog = initCLILogger(projectCfg)
 

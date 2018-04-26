@@ -13,15 +13,14 @@ domains {
   # Pick your choice of an `unique keyname` to define your domain section
   # in the routes configuration.
   # For e.g.: Domain name/ip address with port no
-  {{ .App.Name }} {
+  {{ .App.DomainNameKey }} {
     name = "{{ .App.Name }} routes"
 
     # aah supports multi-domain routes configuration out-of-the-box.
     # `host` used to determine domain routes for the incoming request.
     # For e.g: example.org
-    host = "localhost"
+    host = "localhost"{{ if not .App.IsWebSocketApp }}
 
-    {{ if not .App.IsWebSocketApp -}}
     # Redirect trailing slash is to enable automatic redirection if the current
     # route can't be matched but a `route` for the path with (without)
     # the trailing slash exists.
@@ -43,9 +42,16 @@ domains {
     # If you don't define attribute `auth` then framework treats that route as
     # `anonymous` auth scheme.
     # Default value is empty string.
-    #default_auth = ""{{- end }}
+    #default_auth = ""
 
-    {{ if .App.CORSEnable -}}
+    # Anti-CSRF protection.
+    # Typically if you have `<form>` usage in your application,
+    # don't disable the check. `aah new` set to false for API app.
+    # Default value is `true`.
+    anti_csrf_check = {{ if .App.IsAPIApp }}false{{ else }}true{{ end }}
+
+    {{ end }}{{ if .App.CORSEnable }}
+
     #----------------------------------------------------------------------------
     # CORS (Cross-Origin Resource Sharing)
     # Doc: https://docs.aahframework.org/cors.html
@@ -88,9 +94,10 @@ domains {
       # Specify `Access-Control-Allow-Credentials` header value.
       # Default value is `false`.
       #allow_credentials = true
-    }{{ end }}
+    }
 
-    {{ if .App.IsWebApp -}}
+    {{ end }}{{ if .App.IsWebApp }}
+
     #----------------------------------------------------------------------------
     # Static Routes Configuration
     # To serve static files, it can be directory or individual file.
@@ -138,9 +145,9 @@ domains {
         path = "/robots.txt"
         file = "robots.txt"
       }
-    }{{ end }}
+    }
 
-    #-----------------------------------------------------------------------------
+    {{ end }}#-----------------------------------------------------------------------------
     # Application routes definitions
     #
     # Doc: https://docs.aahframework.org/routes-config.html#section-routes

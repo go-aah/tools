@@ -25,7 +25,7 @@ import (
 )
 
 func importPathRelwd() string {
-	pwd, _ := os.Getwd()
+	pwd, _ := os.Getwd() // #nosec
 
 	var importPath string
 	if idx := strings.Index(pwd, "src"); idx > 0 {
@@ -136,7 +136,7 @@ func getBuildDate() string {
 }
 
 func execCmd(cmdName string, args []string, stdout bool) (string, error) {
-	cmd := exec.Command(cmdName, args...)
+	cmd := exec.Command(cmdName, args...) // #nosec
 	cliLog.Trace("Executing ", strings.Join(cmd.Args, " "))
 
 	if stdout {
@@ -219,7 +219,7 @@ func isAahProject(file string) bool {
 }
 
 func findAvailablePort() string {
-	lstn, err := net.Listen("tcp", ":0")
+	lstn, err := net.Listen("tcp", ":0") // #nosec
 	if err != nil {
 		logError(err)
 		return "0"
