@@ -48,30 +48,48 @@ func init() {
 	// aah.OnShutdown(cache.Flush)
 	// aah.OnShutdown(db.Disconnect)
 
-	{{ if .App.IsSecurityEnabled }}// Event: OnPostAuth
-	// Published right after the Authentication successful
-	aah.OnPostAuth(security.PostAuthEvent){{ end }}
+	// HTTP Events
+	//
+	// Add your HTTP events on app start.
+	aah.OnStart(func(_ *aah.Event) {
+		// he := aah.AppHTTPEngine()
+
+		// Event: OnRequest
+		// he.OnRequest(myserverext.OnRequest)
+
+		// Event: OnPreReply
+		// he.OnPreReply(myserverext.OnPreReply)
+
+		// Event: OnPostReply
+		// he.OnPostReply(myserverext.OnPostReply)
+
+		// Event: OnPreAuth
+		// he.OnPreAuth(myserverext.OnPreAuth){{ if .App.IsSecurityEnabled }}
+
+		// Event: OnPostAuth
+		// Published right after the successful Authentication
+		aah.OnPostAuth(security.PostAuthEvent){{ end }}
+	})
 
 	{{ if .App.IsWebSocketApp -}}
 	// WebSocket Events
 	// Doc: https://docs.aahframework.org/websocket.html#events
 	//
 	// Add your WebSocket events on app start.
-	aah.OnStart(func(e *aah.Event) {
+	aah.OnStart(func(_ *aah.Event) {
+		// wse := aah.AppWSEngine()
+
 		// Event: OnPreConnect
-		// aah.OnWSPreConnect(websocket.PreConnect)
+		// wse.OnPreConnect(mywebsocket.PreConnect)
 
 		// Event: OnPostConnect
-		// aah.OnWSPostConnect(websocket.PostConnect)
-
-		// Event: AuthCallback
-		// aah.SetWSAuthCallback(websocket.DoAuth)
+		// wse.OnPostConnect(mywebsocket.PostConnect)
 
 		// Event: OnPostDisconnect
-		// aah.OnWSPostDisconnect(websocket.PostDisconnect)
+		// wse.OnPostDisconnect(mywebsocket.PostDisconnect)
 
 		// Event: OnError
-		// aah.OnWSError(websocket.Error)
+		// wse.OnError(mywebsocket.Error)
 	})
 	{{ end -}}
 
