@@ -34,9 +34,9 @@ import (
 var runCmd = cli.Command{
 	Name:    "run",
 	Aliases: []string{"r"},
-	Usage:   "Run aah framework application (supports hot-reload)",
-	Description: `Run the aah framework web/api application. It supports hot-reload, just code and refresh the browser
-	to see your updates.
+	Usage:   "Runs aah application (supports hot-reload)",
+	Description: `Runs aah application. It supports hot-reload (just code and refresh the browser
+	to see your updates).
 
 	Examples of short and long flags:
     aah run
@@ -46,12 +46,12 @@ var runCmd = cli.Command{
 		aah run -i github.com/user/appname -e qa
 		aah run -i github.com/user/appname -e qa -c /path/to/config/external.conf
 
-    aah run --importpath github.com/username/name
-		aah run --importpath github.com/username/name --envprofile qa
-		aah run --importpath github.com/username/name --envprofile qa --config /path/to/config/external.conf
+    aah run --importpath github.com/user/appname
+		aah run --importpath github.com/user/appname --envprofile qa
+		aah run --importpath github.com/user/appname --envprofile qa --config /path/to/config/external.conf
 
-	Note: It is recommended to use build and deploy approach instead of
-	using 'aah run' for production use.`,
+	Note: For production use, it is recommended to follow build and deploy approach instead of
+	using 'aah run'.`,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "i, importpath",
@@ -59,7 +59,7 @@ var runCmd = cli.Command{
 		},
 		cli.StringFlag{
 			Name:  "e, envprofile",
-			Usage: "Environment profile name to activate. e.g: dev, qa, prod"},
+			Usage: "Environment profile name to activate (e.g: dev, qa, prod)"},
 		cli.StringFlag{
 			Name:  "c, config",
 			Usage: "External config file for overriding aah.conf values",
@@ -368,7 +368,7 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 	if cliLog.IsLevelTrace() {
 		var fileList []string
 		for path := range w.WatchedFiles() {
-			fileList = append(fileList, stripGoPath(path))
+			fileList = append(fileList, stripGoSrcPath(path))
 		}
 		cliLog.Trace("Watched files:\n\t", strings.Join(fileList, "\n\t"))
 	}

@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"gopkg.in/urfave/cli.v1"
@@ -18,8 +19,8 @@ const (
 var switchCmd = cli.Command{
 	Name:    "switch",
 	Aliases: []string{"s"},
-	Usage:   "Switch between aah release and edge version",
-	Description: `Provides an ability to switch between aah release (currently on your GOPATH) and latest edge version.
+	Usage:   "To switch between aah release and edge version",
+	Description: `Provides an ability to switch between aah release and latest edge version.
 
 	Examples of short and long flags:
 		aah s
@@ -34,7 +35,7 @@ var switchCmd = cli.Command{
 		aah switch --refresh
 
 	Note:
-		- Currently it works with only GOPATH. Gradually I will add vendorize support too.
+		- Currently it works with only GOPATH.
 		- It always operates on latest edge version and current release version on your GOPATH, specific version is not supported.`,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -104,7 +105,16 @@ func doSwitch(branchName, target string) error {
 	fname := friendlyName(branchName)
 	if target == fname {
 		cliLog.Infof("You're already on '%s' version.\n", fname)
-		cliLog.Infof("To switch to latest release version. Run 'aah switch -v release'\n")
+		cliLog.Infof("To switch to release version. Run 'aah s -v release'\n")
+
+		if fname == "edge" {
+			ans := collectYesOrNo(reader, "Would you like to refresh 'edge' to latest? ([Y]es or [N]o), default is 'N'")
+			fmt.Println()
+			if ans {
+				doRefresh(branchName)
+			}
+		}
+
 		return nil
 	}
 

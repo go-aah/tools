@@ -17,7 +17,7 @@ var cleanCmd = cli.Command{
 	Name:    "clean",
 	Aliases: []string{"c"},
 	Usage:   "Cleans the aah generated files and build directory",
-	Description: `aah clean command does cleanup of generated files and build directory.
+	Description: `Cleans the aah generated files and build directory.
 
 	Such as aah.go and <app-base-dir>/build directory.
 

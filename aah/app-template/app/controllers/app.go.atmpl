@@ -12,9 +12,6 @@ type AppController struct {
 }
 
 // Index method is application {{ if .App.IsWebApp -}}home page.{{ else }}root API endpoint.{{- end }}
-//
-// Route: /
-// Method: GET
 func (a *AppController) Index() {
   {{- if .App.IsWebApp }}
   data := aah.Data{

@@ -22,10 +22,10 @@ import (
 var buildCmd = cli.Command{
 	Name:    "build",
 	Aliases: []string{"b"},
-	Usage:   "Build aah application for deployment",
-	Description: `Build aah application by import path.
+	Usage:   "Builds aah application for deployment",
+	Description: `Builds aah application for deployment.
 
-	Artifact naming convention:  <app-binary-name>-<app-version>-<goos>-<goarch>.zip
+	Artifact naming convention:  <appbinaryname>-<appversion>-<goos>-<goarch>.zip
 	For e.g.: aahwebsite-381eaa8-darwin-amd64.zip
 
 	Examples of short and long flags:
@@ -42,11 +42,11 @@ var buildCmd = cli.Command{
 		},
 		cli.StringFlag{
 			Name:  "e, envprofile",
-			Usage: "Environment profile name to activate. e.g: dev, qa, prod",
+			Usage: "Environment profile name to activate (e.g: dev, qa, prod)",
 		},
 		cli.StringFlag{
 			Name:  "o, output",
-			Usage: "Output of aah application build artifact. Default is '<app-base-dir>/build/<app-binary-name>-<app-version>-<goos>-<goarch>.zip'",
+			Usage: "Output of aah application build artifact; the default is '<appbasedir>/build/<appbinaryname>-<appversion>-<goos>-<goarch>.zip'",
 		},
 	},
 }

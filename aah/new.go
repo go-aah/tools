@@ -25,7 +25,7 @@ var (
 	newCmd = cli.Command{
 		Name:    "new",
 		Aliases: []string{"n"},
-		Usage:   "Create new aah 'web', 'api' or 'websocket' application (interactive)",
+		Usage:   "Creates new aah 'web', 'api' or 'websocket' application (interactive)",
 		Description: `aah new command is an interactive program to assist you to quick start aah application.
 
 	Just provide your inputs based on your use case to generate base structure to kick

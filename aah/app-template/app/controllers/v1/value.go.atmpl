@@ -15,18 +15,12 @@ type ValueController struct {
 }
 
 // List method returns all the values.
-//
-// Route: {{ if .App.IsWebApp }}/api{{ end }}/v1/values
-// Method: GET
 func (v *ValueController) List() {
 	v.Reply().Ok().JSON(values)
 }
 
 // Index method returns value for given key.
 // If key not found then returns 404 NotFound error.
-//
-// Route: {{ if .App.IsWebApp }}/api{{ end }}/v1/values/:key
-// Method: GET
 func (v *ValueController) Index(key string) {
 	if val, found := values[key]; found {
 		v.Reply().Ok().JSON(val)
@@ -40,14 +34,6 @@ func (v *ValueController) Index(key string) {
 
 // Create method creates new entry in the values map with given payload.
 // If key already exists then returns 409 Conflict error.
-//
-// Route: {{ if .App.IsWebApp }}/api{{ end }}/v1/values
-// Method: POST
-// Request Body:
-//  {
-//    "key": "key1"
-//    "value": 3437476      // any valid type, since value is type interface{}
-//  }
 func (v *ValueController) Create(val *models.Value) {
 	if _, found := values[val.Key]; found {
 		v.Reply().Conflict().JSON(aah.Data{
@@ -67,13 +53,6 @@ func (v *ValueController) Create(val *models.Value) {
 
 // Update method updates value entry on map for given key and Payload.
 // If key not exists then returns 400 BadRequest error.
-//
-// Route: {{ if .App.IsWebApp }}/api{{ end }}/v1/values/:key
-// Method: PUT
-// Request Body:
-//  {
-//    "value": 3437476      // any valid type, since value is type interface{}
-//  }
 func (v *ValueController) Update(key string, val *models.Value) {
 	if c, found := values[key]; found {
 		c.Value = val.Value
@@ -91,9 +70,6 @@ func (v *ValueController) Update(key string, val *models.Value) {
 
 // Delete method deletes value for given key.
 // If key not exists then returns 400 BadRequest error.
-//
-// Route: {{ if .App.IsWebApp }}/api{{ end }}/v1/values/:key
-// Method: DELETE
 func (v *ValueController) Delete(key string) {
 	if _, found := values[key]; found {
 		delete(values, key)

@@ -17,9 +17,6 @@ type SampleWebSocket struct {
 // Handle method is sample WebSocket action implementation.
 //
 // It handles Text and JSON encoding based on Path param value.
-//
-// Route: /ws/:mode
-// Method: WS
 func (s *SampleWebSocket) Handle(mode string) {
 	switch strings.ToLower(mode) {
 	case "text":

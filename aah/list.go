@@ -20,8 +20,8 @@ const aahProjectIdentifier = "aah.project"
 var listCmd = cli.Command{
 	Name:    "list",
 	Aliases: []string{"l"},
-	Usage:   "List all aah projects in GOPATH",
-	Description: `List command allows you to view all projects that are making use of aah in your GOPATH.
+	Usage:   "Lists all the aah projects on your GOPATH",
+	Description: `Command 'list' helps you to view all the aah application projects on your GOPATH.
 	`,
 	Action: listAction,
 }

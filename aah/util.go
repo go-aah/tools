@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -390,7 +391,7 @@ func logErrorf(format string, v ...interface{}) {
 	cliLog.Errorf("ERROR "+format, v...)
 }
 
-func stripGoPath(pkgFilePath string) string {
+func stripGoSrcPath(pkgFilePath string) string {
 	idx := strings.Index(pkgFilePath, "src")
 	return filepath.Clean(pkgFilePath[idx+4:])
 }
@@ -451,4 +452,23 @@ func inferNotExistsDeps(depList []string) []string {
 		}
 	}
 	return notExistsList
+}
+
+func readVersionNo(baseDir string) (string, error) {
+	versionFile := filepath.Join(baseDir, "version.go")
+	if !ess.IsFileExists(versionFile) {
+		return "", errVersionNotExists
+	}
+
+	bytes, err := ioutil.ReadFile(versionFile)
+	if err != nil {
+		return "", err
+	}
+
+	result := verRegex.FindStringSubmatch(string(bytes))
+	if len(result) >= 2 {
+		return result[1], nil
+	}
+
+	return "Unknown", nil
 }

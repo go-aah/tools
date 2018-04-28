@@ -69,9 +69,8 @@ func init() {
 		// Event: OnPostAuth
 		// Published right after the successful Authentication
 		aah.OnPostAuth(security.PostAuthEvent){{ end }}
-	})
+	}){{ if or .App.IsWebSocketApp .App.IsSubTypeWebSocket }}
 
-	{{ if .App.IsWebSocketApp -}}
 	// WebSocket Events
 	// Doc: https://docs.aahframework.org/websocket.html#events
 	//
@@ -91,9 +90,8 @@ func init() {
 		// Event: OnError
 		// wse.OnError(mywebsocket.Error)
 	})
-	{{ end -}}
 
-	{{ if not .App.IsWebSocketApp -}}//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+	{{ end }}{{ if not .App.IsWebSocketApp }}//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 	// Middleware's
 	// Doc: https://docs.aahframework.org/middleware.html
 	//
@@ -118,9 +116,7 @@ func init() {
 	// Add Application Error Handler
 	// Doc: https://docs.aahframework.org/error-handling.html
 	//__________________________________________________________________________
-	// aah.SetErrorHandler(AppErrorHandler){{ end }}
-
-	{{- if .App.IsWebApp }}
+	// aah.SetErrorHandler(AppErrorHandler){{ end }}{{ if .App.IsWebApp }}
 
 	//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 	// Add Custom Template Functions
@@ -134,9 +130,9 @@ func init() {
 	// Add Custom Session Store
 	// Doc: https://docs.aahframework.org/session.html
 	//__________________________________________________________________________
-	// aah.AddSessionStore("redis", &RedisSessionStore{}){{ end }}
+	// aah.AddSessionStore("redis", &RedisSessionStore{})
 
-	//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+	{{ end }}//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 	// Add Custom value Parser
 	// Doc: https://docs.aahframework.org/request-parameters-auto-bind.html
 	//__________________________________________________________________________

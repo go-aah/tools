@@ -14,15 +14,16 @@ import (
 var updateCmd = cli.Command{
 	Name:    "update",
 	Aliases: []string{"u"},
-	Usage:   "Update your aah to the latest release version on your GOPATH",
-	Description: `Provides an easy and convenient way to update your aah to the latest release version on your GOPATH.
+	Usage:   "Updates aah to the latest release version on your GOPATH",
+	Description: `Provides an easy and convenient way to update your aah framework version
+to the latest release version on your GOPATH.
 
 	Examples of short and long flags:
 		aah u
 		aah update
 
 	Note:
-		- Currently it works with only GOPATH. Gradually I will add vendorize support too.
+		- Currently it works with only GOPATH.
 		- It always operates on aah latest release version, specific version is not supported.
   `,
 	Action: updateAction,
@@ -33,7 +34,7 @@ func updateAction(c *cli.Context) error {
 	branchName := gitBranchName(libDir("aah"))
 	if branchName != releaseBranchName {
 		fmt.Printf("Update command only applicable to aah release version.\n")
-		fmt.Printf("Currently you're on aah 'edge' version, use 'aah switch --refresh' command to get latest edge version.\n\n")
+		fmt.Printf("Currently you're on aah 'edge' version, use 'aah s -r' command to refresh edge version.\n\n")
 		return nil
 	}
 
