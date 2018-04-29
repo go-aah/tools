@@ -35,7 +35,7 @@ var cleanCmd = cli.Command{
 }
 
 func cleanAction(c *cli.Context) error {
-	importPath := getAppImportPath(c)
+	importPath := appImportPath(c)
 
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)

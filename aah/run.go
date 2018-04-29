@@ -99,7 +99,7 @@ type (
 )
 
 func runAction(c *cli.Context) error {
-	importPath := getAppImportPath(c)
+	importPath := appImportPath(c)
 	appStartArgs := []string{}
 
 	configPath := getNonEmptyAbsPath(c.String("c"), c.String("config"))

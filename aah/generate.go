@@ -93,7 +93,7 @@ func generateScriptsAction(c *cli.Context) error {
 //___________________________________
 
 func generateSystemdScript(c *cli.Context) error {
-	importPath := getAppImportPath(c)
+	importPath := appImportPath(c)
 
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)
@@ -131,7 +131,7 @@ func generateSystemdScript(c *cli.Context) error {
 }
 
 func generateDockerScript(c *cli.Context) error {
-	importPath := getAppImportPath(c)
+	importPath := appImportPath(c)
 
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)

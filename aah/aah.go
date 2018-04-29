@@ -30,6 +30,7 @@ var (
 	gopath   string
 	gocmd    string
 	gosrcDir string
+	gitcmd   string
 	aahVer   string
 
 	// abstract it, so we can do unit test
@@ -54,12 +55,19 @@ func checkPrerequisites() error {
 		return err
 	}
 
+	// Go executable
 	if gocmd, err = exec.LookPath("go"); err != nil {
 		return err
 	}
 
 	gosrcDir = filepath.Join(gopath, "src")
 
+	// git
+	if gitcmd, err = exec.LookPath("git"); err != nil {
+		return err
+	}
+
+	// aah
 	if aahVer, err = aahVersion(); err == errVersionNotExists {
 		return errors.New("aah framework is not installed, its easy to install. Run 'go get aahframework.org/tools.v0/aah'")
 	}

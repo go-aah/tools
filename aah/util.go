@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -103,21 +104,17 @@ func getAppVersion(appBaseDir string, cfg *config.Config) string {
 	version := cfg.StringDefault("build.version", "")
 
 	// git describe
-	if gitcmd, err := exec.LookPath("git"); err == nil {
-		if !ess.IsFileExists(filepath.Join(appBaseDir, ".git")) {
-			return version
-		}
-
-		gitArgs := []string{"-C", appBaseDir, "describe", "--always", "--dirty"}
-		output, err := execCmd(gitcmd, gitArgs, false)
-		if err != nil {
-			return version
-		}
-
-		version = strings.TrimSpace(output)
+	if !ess.IsFileExists(filepath.Join(appBaseDir, ".git")) {
+		return version
 	}
 
-	return version
+	gitArgs := []string{"-C", appBaseDir, "describe", "--always", "--dirty"}
+	output, err := execCmd(gitcmd, gitArgs, false)
+	if err != nil {
+		return version
+	}
+
+	return strings.TrimSpace(output)
 }
 
 // getBuildDate method returns application build date, which used to display
@@ -258,9 +255,8 @@ func initCLILogger(cfg *config.Config) *log.Logger {
 }
 
 func gitCheckout(dir, branch string) error {
-	if gitcmd, err := exec.LookPath("git"); err == nil {
-		gitArgs := []string{"-C", dir, "checkout", branch}
-		_, err := execCmd(gitcmd, gitArgs, false)
+	if ess.IsFileExists(filepath.Join(dir, ".git")) {
+		_, err := execCmd(gitcmd, []string{"-C", dir, "checkout", branch}, false)
 		return err
 	}
 	return nil
@@ -281,18 +277,18 @@ func gitBranchName(dir string) string {
 		return ""
 	}
 
-	if gitcmd, err := exec.LookPath("git"); err == nil {
-		gitArgs := []string{"-C", dir, "rev-parse", "--abbrev-ref", "HEAD"}
-		output, _ := execCmd(gitcmd, gitArgs, false)
-		return strings.TrimSpace(output)
+	if !ess.IsFileExists(filepath.Join(dir, ".git")) {
+		return ""
 	}
-	return ""
+
+	gitArgs := []string{"-C", dir, "rev-parse", "--abbrev-ref", "HEAD"}
+	output, _ := execCmd(gitcmd, gitArgs, false)
+	return strings.TrimSpace(output)
 }
 
 func gitPull(dir string) error {
-	if gitcmd, err := exec.LookPath("git"); err == nil {
-		gitArgs := []string{"-C", dir, "pull"}
-		_, err := execCmd(gitcmd, gitArgs, false)
+	if ess.IsFileExists(filepath.Join(dir, ".git")) {
+		_, err := execCmd(gitcmd, []string{"-C", dir, "pull"}, false)
 		return err
 	}
 	return nil
@@ -300,8 +296,7 @@ func gitPull(dir string) error {
 
 func goGet(pkgs ...string) error {
 	for _, pkg := range pkgs {
-		args := []string{"get", pkg}
-		if _, err := execCmd(gocmd, args, false); err != nil {
+		if _, err := execCmd(gocmd, []string{"get", pkg}, false); err != nil {
 			return err
 		}
 	}
@@ -324,25 +319,29 @@ func waitForConnReady(port string) {
 	}
 }
 
-func installAahCLI() {
+func installCLI() {
 	verser := inferVersionSeries()
 	args := []string{"install", fmt.Sprintf("%s/tools.%s/aah", importPrefix, verser)}
 	if _, err := execCmd(gocmd, args, false); err != nil {
-		logFatalf("Unable to compile CLI tool: %s", err)
+		logFatalf("Unable to compile aah CLI: %s", err)
 	}
 }
 
-func fetchAahDeps() {
-	// depList would have duplicate import paths
-	// since we collect from more than one lib
-	// TODO: improve efficiency
-	var depList []string
+func fetchLibDeps() {
+	var notEixstsList []string
+	var wg sync.WaitGroup
 	for _, i := range aahImportPaths() {
-		depList = append(depList, libDependencyImports(i)...)
+		wg.Add(1)
+		go func(p string) {
+			defer wg.Done()
+			if neList := inferNotExistsDeps(libDependencyImports(p)); len(neList) > 0 {
+				notEixstsList = append(notEixstsList, neList...)
+			}
+		}(i)
 	}
+	wg.Wait()
 
 	// infer not exists libraries on GOPATH using importpath
-	notEixstsList := inferNotExistsDeps(depList)
 	if len(notEixstsList) > 0 {
 		if err := goGet(notEixstsList...); err != nil {
 			logFatalf("Error during go get: %s", err)
@@ -350,15 +349,21 @@ func fetchAahDeps() {
 	}
 }
 
-func refreshCodebase(libDirs []string) {
-	for _, ld := range libDirs {
-		if err := gitPull(ld); err != nil {
-			logFatalf("Unable to refresh library: %s", filepath.Base(ld))
-		}
+func refreshLibCode(libDirs []string) {
+	var wg sync.WaitGroup
+	for _, dir := range libDirs {
+		wg.Add(1)
+		go func(d string) {
+			defer wg.Done()
+			if err := gitPull(d); err != nil {
+				logErrorf("Unable to refresh library, possibliy you may have local changes: %s", filepath.Base(d))
+			}
+		}(dir)
 	}
+	wg.Wait()
 }
 
-func getAppImportPath(c *cli.Context) string {
+func appImportPath(c *cli.Context) string {
 	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
 	if ess.IsStrEmpty(importPath) {
 		importPath = importPathRelwd()
