@@ -22,7 +22,7 @@ const (
 var switchCmd = cli.Command{
 	Name:    "switch",
 	Aliases: []string{"s"},
-	Usage:   "To switch between aah release and edge version",
+	Usage:   "Switches between aah release and edge version",
 	Description: `Provides an ability to switch between aah release and latest edge version.
 
 	Examples of short and long flags:
