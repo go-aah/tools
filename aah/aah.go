@@ -125,15 +125,15 @@ func printHeader(c *cli.Context) error {
 	cnt := len(improveRpt)
 	sp := (cnt - len(hdrCont)) / 2
 
-	fmt.Println(chrtostr("=", cnt))
-	fmt.Println(chrtostr(" ", sp) + hdrCont)
-	fmt.Println(chrtostr("=", cnt))
+	fmt.Println(chr2str("-", cnt))
+	fmt.Println(chr2str(" ", sp) + hdrCont)
+	fmt.Println(chr2str("-", cnt))
 	fmt.Printf(improveRpt + "\n\n")
 
 	return nil
 }
 
-func chrtostr(chr string, cnt int) string {
+func chr2str(chr string, cnt int) string {
 	var str string
 	for idx := 0; idx < cnt; idx++ {
 		str += chr
