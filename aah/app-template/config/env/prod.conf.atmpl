@@ -43,7 +43,7 @@ prod {
 
     # File config attribute is applicable only to `file` receiver type.
     # Default value is `aah-log-file.log`.
-    file = "{{ .AppName }}.log"
+    file = "{{ .App.Name }}.log"
 
     # Rotate config section is applicable only to `file` receiver type.
     # Default rotation is 'daily'.
