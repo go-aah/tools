@@ -64,9 +64,6 @@ func compileApp(args *compileArgs) (string, error) {
 			return "", errors.New(strings.Join(errMsgs, "\n"))
 		}
 
-		// call the process
-		acntlr.Process()
-
 		// Print router configuration missing/error details
 		missingActions := []string{}
 		for c, m := range acntlr.RegisteredActions {
@@ -98,9 +95,6 @@ func compileApp(args *compileArgs) (string, error) {
 			}
 			return "", errors.New(strings.Join(errMsgs, "\n"))
 		}
-
-		// call the process
-		wsc.Process()
 
 		// Print router configuration missing/error details
 		missingWSActions := []string{}
