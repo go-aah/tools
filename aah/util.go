@@ -377,15 +377,23 @@ func appImportPath(c *cli.Context) string {
 }
 
 func logFatal(v ...interface{}) {
-	_ = log.SetPattern("%level %message")
-	fatal(v...)
-	_ = log.SetPattern(log.DefaultPattern)
+	if cliLog == nil {
+		_ = log.SetPattern("%level %message")
+		fatal(v...)
+		_ = log.SetPattern(log.DefaultPattern)
+	} else {
+		cliLog.Fatal(append([]interface{}{"FATAL"}, v...))
+	}
 }
 
 func logFatalf(format string, v ...interface{}) {
-	_ = log.SetPattern("%level %message")
-	fatalf(format, v...)
-	_ = log.SetPattern(log.DefaultPattern)
+	if cliLog == nil {
+		_ = log.SetPattern("%level %message")
+		fatalf(format, v...)
+		_ = log.SetPattern(log.DefaultPattern)
+	} else {
+		cliLog.Fatalf("FATAL "+format, v...)
+	}
 }
 
 func logError(v ...interface{}) {
@@ -476,4 +484,18 @@ func readVersionNo(baseDir string) (string, error) {
 	}
 
 	return "Unknown", nil
+}
+
+func cleanupAutoGenFiles(appBaseDir string) {
+	appMainGoFile := filepath.Join(appBaseDir, "app", "aah.go")
+	appBuildDir := filepath.Join(appBaseDir, "build")
+	cliLog.Debugf("Cleaning %s", appMainGoFile)
+	cliLog.Debugf("Cleaning build directory %s", appBuildDir)
+	ess.DeleteFiles(appMainGoFile, appBuildDir)
+}
+
+func cleanupAutoGenVFSFiles(appBaseDir string) {
+	vfsFiles, _ := filepath.Glob(filepath.Join(appBaseDir, "app", "aah_*_vfs.go"))
+	cliLog.Debugf("Cleaning embed files %s", strings.Join(vfsFiles, "\n\t"))
+	ess.DeleteFiles(vfsFiles...)
 }

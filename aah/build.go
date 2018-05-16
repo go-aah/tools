@@ -22,14 +22,16 @@ import (
 var buildCmd = cli.Command{
 	Name:    "build",
 	Aliases: []string{"b"},
-	Usage:   "Builds aah application for deployment",
-	Description: `Builds aah application for deployment.
+	Usage:   "Builds aah application for deployment (single or non-single)",
+	Description: `Builds aah application for deployment. It supports single and non-single
+	binary. Its a trade-off learn more https://docs.aahframework.org/build-packaging.html
 
 	Artifact naming convention:  <appbinaryname>-<appversion>-<goos>-<goarch>.zip
 	For e.g.: aahwebsite-381eaa8-darwin-amd64.zip
 
 	Examples of short and long flags:
     aah build
+		aah build --single
     aah build -e dev
     aah build -i github.com/user/appname -o /Users/jeeva -e qa
 		aah build -i github.com/user/appname -o /Users/jeeva/aahwebsite.zip
@@ -48,24 +50,39 @@ var buildCmd = cli.Command{
 			Name:  "o, output",
 			Usage: "Output of aah application build artifact; the default is '<appbasedir>/build/<appbinaryname>-<appversion>-<goos>-<goarch>.zip'",
 		},
+		cli.BoolFlag{
+			Name:  "s, single",
+			Usage: "Creates aah single application binary",
+		},
 	},
 }
 
 func buildAction(c *cli.Context) error {
 	importPath := appImportPath(c)
-
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)
 	}
 
-	appBaseDir := aah.AppBaseDir()
-	projectCfg := aahProjectCfg(appBaseDir)
+	projectCfg := aahProjectCfg(aah.AppBaseDir())
 	cliLog = initCLILogger(projectCfg)
 
-	cliLog.Infof("Loaded aah project file: %s", filepath.Join(appBaseDir, aahProjectIdentifier))
+	cliLog.Infof("Loaded aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
 	cliLog.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 
-	appBinay, err := compileApp(&compileArgs{
+	if c.Bool("s") || c.Bool("single") {
+		buildSingleBinary(c, projectCfg)
+	} else {
+		buildBinary(c, projectCfg)
+	}
+
+	return nil
+}
+
+func buildBinary(c *cli.Context, projectCfg *config.Config) {
+	appBaseDir := aah.AppBaseDir()
+	cleanupAutoGenVFSFiles(appBaseDir)
+
+	appBinary, err := compileApp(&compileArgs{
 		Cmd:        "BuildCmd",
 		ProjectCfg: projectCfg,
 		AppPack:    true,
@@ -75,32 +92,12 @@ func buildAction(c *cli.Context) error {
 	}
 
 	appProfile := firstNonEmpty(c.String("e"), c.String("envprofile"), "prod")
-	buildBaseDir, err := copyFilesToWorkingDir(projectCfg, appBaseDir, appBinay, appProfile)
+	buildBaseDir, err := copyFilesToWorkingDir(projectCfg, appBaseDir, appBinary, appProfile)
 	if err != nil {
 		logFatal(err)
 	}
 
-	outputFile := firstNonEmpty(c.String("o"), c.String("output"))
-	archiveName := ess.StripExt(filepath.Base(appBinay)) + "-" + getAppVersion(appBaseDir, projectCfg)
-	archiveName = addTargetBuildInfo(archiveName)
-
-	var destArchiveFile string
-	if ess.IsStrEmpty(outputFile) {
-		destArchiveFile = filepath.Join(appBaseDir, "build", archiveName)
-	} else {
-		destArchiveFile, err = filepath.Abs(outputFile)
-		if err != nil {
-			logFatal(err)
-		}
-
-		if !strings.HasSuffix(destArchiveFile, ".zip") {
-			destArchiveFile = filepath.Join(destArchiveFile, archiveName)
-		}
-	}
-
-	if !strings.HasSuffix(destArchiveFile, ".zip") {
-		destArchiveFile = destArchiveFile + ".zip"
-	}
+	destArchiveFile := createZipArchiveName(c, projectCfg, appBaseDir, appBinary)
 
 	// Creating app archive
 	if err = createZipArchive(buildBaseDir, destArchiveFile); err != nil {
@@ -108,8 +105,60 @@ func buildAction(c *cli.Context) error {
 	}
 
 	cliLog.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
-	cliLog.Infof("Your application artifact is here: %s\n", destArchiveFile)
-	return nil
+	cliLog.Infof("Application artifact is here: %s\n", destArchiveFile)
+}
+
+func buildSingleBinary(c *cli.Context, projectCfg *config.Config) {
+	cliLog.Infof("Embed starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	appBaseDir := aah.AppBaseDir()
+	defer cleanupAutoGenVFSFiles(appBaseDir)
+
+	excludes, _ := projectCfg.StringList("build.excludes")
+	noGzipList, _ := projectCfg.StringList("vfs.no_gzip")
+
+	// Default mount point
+	if err := processMount(appBaseDir, "/app", appBaseDir, ess.Excludes(excludes), noGzipList); err != nil {
+		logFatal(err)
+	}
+
+	// Custom mount points
+	mountKeys := projectCfg.KeysByPath("vfs.mount")
+	for _, key := range mountKeys {
+		vroot := projectCfg.StringDefault("vfs.mount."+key+".mount_path", "")
+		proot := projectCfg.StringDefault("vfs.mount."+key+".physical_path", "")
+
+		if !filepath.IsAbs(proot) {
+			logErrorf("vfs %s: physical_path is not absolute path, skip mount: %s", proot, vroot)
+			continue
+		}
+
+		if !ess.IsStrEmpty(vroot) && !ess.IsStrEmpty(proot) {
+			cliLog.Infof("|--- Processing mount: '%s' <== '%s'", vroot, proot)
+			if err := processMount(appBaseDir, vroot, proot, ess.Excludes(excludes), noGzipList); err != nil {
+				logFatal(err)
+			}
+		}
+	}
+	cliLog.Infof("Embed successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+
+	appBinary, err := compileApp(&compileArgs{
+		Cmd:        "BuildCmd",
+		ProjectCfg: projectCfg,
+		AppPack:    true,
+		AppEmbed:   true,
+	})
+	if err != nil {
+		logFatal(err)
+	}
+
+	// Creating app archive
+	destArchiveFile := createZipArchiveName(c, projectCfg, appBaseDir, appBinary)
+	if err = createZipArchive(appBinary, destArchiveFile); err != nil {
+		logFatal(err)
+	}
+
+	cliLog.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Application artifact is here: %s\n", destArchiveFile)
 }
 
 func copyFilesToWorkingDir(projectCfg *config.Config, appBaseDir, appBinary, appProfile string) (string, error) {
@@ -188,6 +237,32 @@ func createZipArchive(buildBaseDir, destArchiveFile string) error {
 		return err
 	}
 	return ess.Zip(destArchiveFile, buildBaseDir)
+}
+
+func createZipArchiveName(c *cli.Context, projectCfg *config.Config, appBaseDir, appBinary string) string {
+	var err error
+	outputFile := firstNonEmpty(c.String("o"), c.String("output"))
+	archiveName := ess.StripExt(filepath.Base(appBinary)) + "-" + getAppVersion(appBaseDir, projectCfg)
+	archiveName = addTargetBuildInfo(archiveName)
+
+	var destArchiveFile string
+	if ess.IsStrEmpty(outputFile) {
+		destArchiveFile = filepath.Join(appBaseDir, "build", archiveName)
+	} else {
+		destArchiveFile, err = filepath.Abs(outputFile)
+		if err != nil {
+			logFatal(err)
+		}
+
+		if !strings.HasSuffix(destArchiveFile, ".zip") {
+			destArchiveFile = filepath.Join(destArchiveFile, archiveName)
+		}
+	}
+
+	if !strings.HasSuffix(destArchiveFile, ".zip") {
+		destArchiveFile = destArchiveFile + ".zip"
+	}
+	return destArchiveFile
 }
 
 const aahBashStartupTemplate = `#!/usr/bin/env bash

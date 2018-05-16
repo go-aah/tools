@@ -5,12 +5,9 @@
 package main
 
 import (
-	"path/filepath"
-
 	"gopkg.in/urfave/cli.v1"
 
 	"aahframework.org/aah.v0"
-	"aahframework.org/essentials.v0"
 )
 
 var cleanCmd = cli.Command{
@@ -43,11 +40,8 @@ func cleanAction(c *cli.Context) error {
 	projectCfg := aahProjectCfg(aah.AppBaseDir())
 	cliLog = initCLILogger(projectCfg)
 
-	ess.DeleteFiles(
-		filepath.Join(aah.AppBaseDir(), "app", "aah.go"),
-		filepath.Join(aah.AppBaseDir(), "build"),
-		filepath.Join(aah.AppBaseDir(), aah.AppName()+".pid"),
-	)
+	cleanupAutoGenFiles(aah.AppBaseDir())
+	cleanupAutoGenVFSFiles(aah.AppBaseDir())
 
 	cliLog.Infof("Import Path '%v' clean successful.\n", importPath)
 

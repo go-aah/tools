@@ -28,14 +28,20 @@ build {
   tags = ""
 
   # AST excludes is used for `aah.Context` inspection and generating aah
-  # application main Go file. Valid exclude patterns
-  # refer: https://golang.org/pkg/path/filepath/#Match
+  # application main Go file.
+  #
+  # Valid pattern syntax, refer to https://golang.org/pkg/path/filepath/#Match
   ast_excludes = ["*_test.go", ".*", "*.bak", "*.tmp", "vendor"]
 
   # Packing excludes is used to exclude file/directory during aah application
-  # build archive. Valid exclude patterns
-  # refer: https://golang.org/pkg/path/filepath/#Match
-  excludes = ["*.go", "*_test.go", ".*", "*.bak", "*.tmp", "vendor", "app", "build", "tests", "logs"]
+  # build archive.
+  #
+  # Note: It is applicable to aah single binary build. This list excluded from
+  # embedding.
+  #
+  # Valid pattern syntax, refer to https://golang.org/pkg/path/filepath/#Match
+  excludes = ["*.go", ".*", "*.bak", "*.tmp", "*.pid",
+    "vendor", "app", "build", "tests", "logs"]
 }
 
 # Logger configuration for aah CLI tool.
@@ -65,4 +71,30 @@ hot_reload {
 
     file_excludes = [".*", "_test.go", "LICENSE", "README.md"]
   }
+}
+
+# Virtual FileSystem (VFS) configuration
+vfs {
+  # Adding custom mount points. Configured mount points directory sub-tree
+  # gets embedded into aah binary during a build.
+  #
+  # Note: Its applicable for aah single binary build.
+  mount {
+    # Choose an unique key name
+    #my_mount {
+    #  # Mount point (path separator is '/').
+    #  mount_path = "/my_mount"
+    #
+    #  # Physical FileSystem path.
+    #  # Note: Only absolute path accepted.
+    #  physical_path = "/Users/jeeva/path/to/physical"
+    #}
+  }
+
+  # This config is speed up the single binary build process.
+  # Do not spend time to gzip for already compress content.
+  #
+  # Even without this config aah does best decision on what to gzip.
+  no_gzip = [".png", ".jpeg", ".jpg", ".gif", ".bmp", ".tiff", ".tif"
+    ".woff", ".woff2"]
 }

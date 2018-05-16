@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/format"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -25,6 +26,7 @@ type compileArgs struct {
 	ProxyPort  string
 	ProjectCfg *config.Config
 	AppPack    bool
+	AppEmbed   bool
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -148,11 +150,8 @@ func compileApp(args *compileArgs) (string, error) {
 	// main.go location e.g. path/to/import/app
 	buildArgs = append(buildArgs, path.Join(appImportPath, "app"))
 
-	// clean previous main.go and binary file up before we start the build
-	appMainGoFile := filepath.Join(appCodeDir, "aah.go")
-	cliLog.Debugf("Cleaning %s", appMainGoFile)
-	cliLog.Debugf("Cleaning build directory %s", appBuildDir)
-	ess.DeleteFiles(appMainGoFile, appBuildDir)
+	// clean previously auto generated files
+	cleanupAutoGenFiles(appBaseDir)
 
 	if err := generateSource(appCodeDir, "aah.go", aahMainTemplate, map[string]interface{}{
 		"AppTargetCmd":   args.Cmd,
@@ -167,6 +166,7 @@ func compileApp(args *compileArgs) (string, error) {
 		"AppImportPaths": appImportPaths,
 		"AppSecurity":    appSecurity,
 		"AppIsPackaged":  args.AppPack,
+		"AppIsEmbedded":  args.AppEmbed,
 	}); err != nil {
 		return "", err
 	}
@@ -195,11 +195,19 @@ func generateSource(dir, filename, templateSource string, templateArgs map[strin
 
 	file := filepath.Join(dir, filename)
 	buf := &bytes.Buffer{}
-	if err := renderTmpl(buf, templateSource, templateArgs); err != nil {
+	err := renderTmpl(buf, templateSource, templateArgs)
+	if err != nil {
 		return err
 	}
 
-	if err := ioutil.WriteFile(file, buf.Bytes(), permRWXRXRX); err != nil {
+	b := buf.Bytes()
+	if strings.HasSuffix(filename, ".go") {
+		if b, err = format.Source(b); err != nil {
+			return fmt.Errorf("aah '%s' file format source error: %s", filename, err)
+		}
+	}
+
+	if err := ioutil.WriteFile(file, b, permRWXRXRX); err != nil {
 		return fmt.Errorf("aah '%s' file write error: %s", filename, err)
 	}
 	return nil
@@ -355,7 +363,7 @@ var (
 )
 
 func mergeExternalConfig(e *aah.Event) {
-	externalConfig, err := config.LoadFile(*configPath)
+	externalConfig, err := config.VFSLoadFile(aah.AppVFS(), *configPath)
 	if err != nil {
 		log.Fatalf("Unable to load external config: %s", *configPath)
 	}
@@ -397,7 +405,7 @@ func main() {
 		Date:       "{{ .AppBuildDate }}",
 	})
 
-	aah.SetAppPackaged({{ .AppIsPackaged }})
+	{{ if .AppIsPackaged }}aah.SetAppPackaged({{ .AppIsPackaged }}){{ end }}
 
 	// display application information
 	if *version {
@@ -416,6 +424,9 @@ func main() {
 	if !ess.IsStrEmpty(*profile) {
 		aah.OnInit(setAppEnvProfile)
 	}
+
+	{{ if .AppIsEmbedded }}// Set application into VFS embedded mode
+	aah.AppSetEmbeddedMode(){{ end }}
 
 	if err := aah.Init("{{ .AppImportPath }}"); err != nil {
 		log.Fatal(err)
