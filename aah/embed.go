@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -29,6 +30,7 @@ var defaultGzipMinSize int64 = 1400
 var vfsTmpl = template.Must(template.New("vfs").Funcs(vfsTmplFuncMap).Parse(vfsTmplStr))
 
 func processMount(appBaseDir, vroot, proot string, skipList ess.Excludes, noGzipList []string) error {
+	proot = filepath.ToSlash(proot)
 	if !ess.IsFileExists(proot) {
 		return &os.PathError{Op: "open", Path: proot, Err: os.ErrNotExist}
 	}
@@ -67,7 +69,8 @@ func generateVFSSource(vroot, proot string, skipList ess.Excludes, noGzipList []
 			return err
 		}
 
-		fname := filepath.Base(fpath)
+		fpath = filepath.ToSlash(fpath)
+		fname := path.Base(fpath)
 		if skipList.Match(fname) {
 			if fname == "app" && strings.Contains(fpath, "/pages/") {
 				goto sc
@@ -78,7 +81,6 @@ func generateVFSSource(vroot, proot string, skipList ess.Excludes, noGzipList []
 				return filepath.SkipDir // skip directory
 			}
 			return nil // skip file
-			// }
 		}
 	sc:
 
