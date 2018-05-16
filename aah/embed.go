@@ -29,6 +29,11 @@ var defaultGzipMinSize int64 = 1400
 var vfsTmpl = template.Must(template.New("vfs").Funcs(vfsTmplFuncMap).Parse(vfsTmplStr))
 
 func processMount(appBaseDir, vroot, proot string, skipList ess.Excludes, noGzipList []string) error {
+	if !ess.IsFileExists(proot) {
+		return &os.PathError{Op: "open", Path: proot, Err: os.ErrNotExist}
+	}
+
+	cliLog.Infof("|--- Processing mount: '%s' <== '%s'", vroot, proot)
 	b, err := generateVFSSource(vroot, proot, skipList, noGzipList)
 	if err != nil {
 		return err
@@ -62,12 +67,20 @@ func generateVFSSource(vroot, proot string, skipList ess.Excludes, noGzipList []
 			return err
 		}
 
-		if skipList.Match(filepath.Base(fpath)) {
+		fname := filepath.Base(fpath)
+		if skipList.Match(fname) {
+			if fname == "app" && strings.Contains(fpath, "/pages/") {
+				goto sc
+			}
+
+			cliLog.Debugf("     |--- Skipping: %s", fpath)
 			if info.IsDir() {
 				return filepath.SkipDir // skip directory
 			}
 			return nil // skip file
+			// }
 		}
+	sc:
 
 		if info.IsDir() {
 			mp := filepath.ToSlash(filepath.Join(vroot, strings.TrimPrefix(fpath, proot)))
@@ -94,7 +107,7 @@ func generateVFSSource(vroot, proot string, skipList ess.Excludes, noGzipList []
 			continue
 		}
 
-		cliLog.Debugf("     |--- Processing file: %s", fname)
+		cliLog.Debugf("     |--- Processing: %s", fname)
 		mp := filepath.ToSlash(filepath.Join(vroot, strings.TrimPrefix(fname, proot)))
 
 		if err = vfsTmpl.ExecuteTemplate(buf, "vfs_file", aah.Data{
@@ -210,6 +223,9 @@ import (
 )
 
 func init() {
+	// Set app vfs into embedded mode
+	aah.AppSetEmbeddedMode()
+
 	if err := aah.AppVFS().AddMount("{{ .MountPath }}", "{{ .PhysicalPath }}"); err != nil {
 		log.Fatal(err)
 	}

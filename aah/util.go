@@ -441,6 +441,22 @@ func aahImportPaths() []string {
 	return importPaths
 }
 
+func checkoutBranch(aahLibDirs []string, branchName string) {
+	var wg sync.WaitGroup
+	for _, dir := range aahLibDirs {
+		wg.Add(1)
+		go func(d string) {
+			defer wg.Done()
+			baseName := filepath.Base(d)
+			if err := gitCheckout(d, branchName); err != nil {
+				logErrorf("Unable to switch library version, possibliy you may have local changes[%s]: %s", baseName, err)
+			}
+			cliLog.Tracef("Library '%s' have been switched to '%s' successfully", baseName, branchName)
+		}(dir)
+	}
+	wg.Wait()
+}
+
 func libDependencyImports(importPath string) []string {
 	var depList []string
 	str, err := execCmd(gocmd, []string{"list", "-f", "{{.Imports}}", importPath}, false)
@@ -496,6 +512,8 @@ func cleanupAutoGenFiles(appBaseDir string) {
 
 func cleanupAutoGenVFSFiles(appBaseDir string) {
 	vfsFiles, _ := filepath.Glob(filepath.Join(appBaseDir, "app", "aah_*_vfs.go"))
-	cliLog.Debugf("Cleaning embed files %s", strings.Join(vfsFiles, "\n\t"))
-	ess.DeleteFiles(vfsFiles...)
+	if len(vfsFiles) > 0 {
+		cliLog.Debugf("Cleaning embed files %s", strings.Join(vfsFiles, "\n\t"))
+		ess.DeleteFiles(vfsFiles...)
+	}
 }

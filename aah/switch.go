@@ -6,9 +6,7 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
-	"sync"
 
 	"gopkg.in/urfave/cli.v1"
 )
@@ -91,11 +89,15 @@ func doRefresh(branchName string) error {
 
 	cliLog.Infof("Refreshing aah '%s' version ...\n", fname)
 
+	aahLibDirs := aahLibraryDirs()
+
 	// Refresh to latest edge codebase
-	refreshLibCode(aahLibraryDirs())
+	refreshLibCode(aahLibDirs)
 
 	// Refresh dependencies in grace mode
 	fetchLibDeps()
+
+	checkoutBranch(aahLibDirs, edgeBranchName)
 
 	// Install aah CLI for current version
 	installCLI()
@@ -130,21 +132,9 @@ func doSwitch(branchName, target string) error {
 
 	cliLog.Infof("Switching aah to '%s' version ...\n", friendlyName(toBranch))
 
-	// Checkout the branch
+	// // Checkout the branch
 	aahLibDirs := aahLibraryDirs()
-	var wg sync.WaitGroup
-	for _, dir := range aahLibDirs {
-		wg.Add(1)
-		go func(d string) {
-			defer wg.Done()
-			baseName := filepath.Base(d)
-			if err := gitCheckout(d, toBranch); err != nil {
-				logErrorf("Unable to switch library version, possibliy you may have local changes[%s]: %s", baseName, err)
-			}
-			cliLog.Tracef("Library '%s' have been switched to '%s' successfully", baseName, toBranch)
-		}(dir)
-	}
-	wg.Wait()
+	checkoutBranch(aahLibDirs, toBranch)
 
 	if toBranch == edgeBranchName {
 		cliLog.Infof("Refreshing aah to latest '%s' updates ...\n", friendlyName(toBranch))
@@ -153,6 +143,8 @@ func doSwitch(branchName, target string) error {
 
 	// Refresh dependencies in grace mode
 	fetchLibDeps()
+
+	checkoutBranch(aahLibDirs, toBranch)
 
 	// Install aah CLI for current version
 	installCLI()

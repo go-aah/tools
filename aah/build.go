@@ -111,7 +111,7 @@ func buildBinary(c *cli.Context, projectCfg *config.Config) {
 func buildSingleBinary(c *cli.Context, projectCfg *config.Config) {
 	cliLog.Infof("Embed starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 	appBaseDir := aah.AppBaseDir()
-	defer cleanupAutoGenVFSFiles(appBaseDir)
+	cleanupAutoGenVFSFiles(appBaseDir)
 
 	excludes, _ := projectCfg.StringList("build.excludes")
 	noGzipList, _ := projectCfg.StringList("vfs.no_gzip")
@@ -133,9 +133,8 @@ func buildSingleBinary(c *cli.Context, projectCfg *config.Config) {
 		}
 
 		if !ess.IsStrEmpty(vroot) && !ess.IsStrEmpty(proot) {
-			cliLog.Infof("|--- Processing mount: '%s' <== '%s'", vroot, proot)
 			if err := processMount(appBaseDir, vroot, proot, ess.Excludes(excludes), noGzipList); err != nil {
-				logFatal(err)
+				logError(err)
 			}
 		}
 	}
