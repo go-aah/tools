@@ -76,9 +76,7 @@ hot_reload {
 # Virtual FileSystem (VFS) configuration
 vfs {
   # Adding custom mount points. Configured mount points directory sub-tree
-  # gets embedded into aah binary during a build.
-  #
-  # Note: Its applicable for aah single binary build.
+  # gets embedded into aah binary during a single binary build.
   mount {
     # Choose an unique key name
     #my_mount {
