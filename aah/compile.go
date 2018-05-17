@@ -346,6 +346,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"reflect"
 	"syscall"
 
@@ -358,14 +359,15 @@ import (
 )
 
 var (
-	// Defining flags
-	version    = flag.Bool("version", false, "Display aah application name, version and build date.")
+	// Define aah application binary flags
 	configPath = flag.String("config", "", "Absolute path of external config file.")
-	profile    = flag.String("profile", "", "Environment profile name to activate. e.g: dev, qa, prod.")
+	list       = flag.String("list", "", "Prints the embedded file/directory path that matches the given pattern.")
+	profile    = flag.String("profile", "", "Environment profile name to activate. For e.g.: dev, qa, prod, etc.")
+	version    = flag.Bool("version", false, "Prints the aah application binary name, version and build timestamp.")
 	_          = reflect.Invalid
 )
 
-func mergeExternalConfig(e *aah.Event) {
+func MergeSuppliedConfig(e *aah.Event) {
 	externalConfig, err := config.VFSLoadFile(aah.AppVFS(), *configPath)
 	if err != nil {
 		log.Fatalf("Unable to load external config: %s", *configPath)
@@ -377,13 +379,37 @@ func mergeExternalConfig(e *aah.Event) {
 	}
 }
 
-func setAppEnvProfile(e *aah.Event) {
+func ActivateAppEnvProfile(e *aah.Event) {
 	aah.AppConfig().SetString("env.active", *profile)
+}
+
+func PrintFilepath(pattern string) {
+	if !aah.AppVFS().IsEmbeddedMode() {
+		fmt.Println("aah application binary is not in Embedded Mode, refer to 'aah help build'")
+		return
+	}
+
+	if err := aah.AppVFS().Walk(aah.AppVirtualBaseDir(),
+		func(fpath string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if match, err := filepath.Match(pattern, info.Name()); match {
+				fmt.Println(fpath)
+			} else if err != nil {
+				fmt.Println("ERROR", err)
+			}
+
+			return nil
+		}); err != nil {
+		fmt.Println("ERROR", err)
+	}
 }
 
 {{ if eq .AppTargetCmd "RunCmd" -}}
 {{ if .AppProxyPort -}}
-func setAppProxyPort(e *aah.Event) {
+func RunCmdSetAppProxyPort(e *aah.Event) {
 	aah.AppConfig().SetString("server.proxyport", "{{ .AppProxyPort }}")
 }
 {{- end }}
@@ -399,7 +425,6 @@ func main() {
 		}
 	}()
 
-	log.Infof("aah framework v%s, requires ≥ go1.8", aah.Version)
 	flag.Parse()
 
 	aah.SetAppBuildInfo(&aah.BuildInfo{
@@ -412,21 +437,28 @@ func main() {
 
 	// display application information
 	if *version {
-		fmt.Printf("\n%-12s: %s\n", "Binary Name", aah.AppBuildInfo().BinaryName)
-		fmt.Printf("%-12s: %s\n", "Version", aah.AppBuildInfo().Version)
-		fmt.Printf("%-12s: %s\n", "Build Date", aah.AppBuildInfo().Date)
+		fmt.Printf("%-16s: %s\n", "Binary Name", aah.AppBuildInfo().BinaryName)
+		fmt.Printf("%-16s: %s\n", "Version", aah.AppBuildInfo().Version)
+		fmt.Printf("%-16s: %s\n", "Build Timestamp", aah.AppBuildInfo().Date)
+		return
+	}
+
+	if !ess.IsStrEmpty(*list) {
+		PrintFilepath(*list)
 		return
 	}
 
 	// Apply supplied external config file
 	if !ess.IsStrEmpty(*configPath) {
-		aah.OnInit(mergeExternalConfig)
+		aah.OnInit(MergeSuppliedConfig)
 	}
 
-	// Apply environment profile
+	// Activate environment profile
 	if !ess.IsStrEmpty(*profile) {
-		aah.OnInit(setAppEnvProfile)
+		aah.OnInit(ActivateAppEnvProfile)
 	}
+
+	log.Infof("aah framework v%s, requires ≥ go1.8", aah.Version)
 
 	if err := aah.Init("{{ .AppImportPath }}"); err != nil {
 		log.Fatal(err)
@@ -475,7 +507,7 @@ func main() {
 
 	{{ if eq .AppTargetCmd "RunCmd" -}}
 	{{ if .AppProxyPort -}}
-	aah.OnStart(setAppProxyPort)
+	aah.OnStart(RunCmdSetAppProxyPort)
 	{{- end }}
 	{{- end }}
 
