@@ -367,7 +367,7 @@ var (
 	_          = reflect.Invalid
 )
 
-func MergeSuppliedConfig(e *aah.Event) {
+func MergeSuppliedConfig(_ *aah.Event) {
 	externalConfig, err := config.VFSLoadFile(aah.AppVFS(), *configPath)
 	if err != nil {
 		log.Fatalf("Unable to load external config: %s", *configPath)
@@ -379,7 +379,7 @@ func MergeSuppliedConfig(e *aah.Event) {
 	}
 }
 
-func ActivateAppEnvProfile(e *aah.Event) {
+func ActivateAppEnvProfile(_ *aah.Event) {
 	aah.AppConfig().SetString("env.active", *profile)
 }
 
@@ -390,12 +390,12 @@ func PrintFilepath(pattern string) {
 	}
 
 	if err := aah.AppVFS().Walk(aah.AppVirtualBaseDir(),
-		func(fpath string, info os.FileInfo, err error) error {
+		func(fpath string, _ os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 
-			if match, err := filepath.Match(pattern, info.Name()); match {
+			if match, err := filepath.Match(pattern, fpath); match {
 				fmt.Println(fpath)
 			} else if err != nil {
 				fmt.Println("ERROR", err)
