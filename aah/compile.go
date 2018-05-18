@@ -346,8 +346,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"reflect"
+	"regexp"
 	"syscall"
 
 	"aahframework.org/aah.v0"
@@ -361,7 +361,7 @@ import (
 var (
 	// Define aah application binary flags
 	configPath = flag.String("config", "", "Absolute path of external config file.")
-	list       = flag.String("list", "", "Prints the embedded file/directory path that matches the given pattern.")
+	list       = flag.String("list", "", "Prints the embedded file/directory path that matches the given regex pattern.")
 	profile    = flag.String("profile", "", "Environment profile name to activate. For e.g.: dev, qa, prod, etc.")
 	version    = flag.Bool("version", false, "Prints the aah application binary name, version and build timestamp.")
 	_          = reflect.Invalid
@@ -385,7 +385,13 @@ func ActivateAppEnvProfile(_ *aah.Event) {
 
 func PrintFilepath(pattern string) {
 	if !aah.AppVFS().IsEmbeddedMode() {
-		fmt.Println("aah application binary is not in Embedded Mode, refer to 'aah help build'")
+		fmt.Println("'"+aah.AppBuildInfo().BinaryName + "' binary does not have embedded files.")
+		return
+	}
+
+	regex, err := regexp.Compile(pattern)
+	if err != nil {
+		fmt.Println("ERROR", err)
 		return
 	}
 
@@ -395,10 +401,8 @@ func PrintFilepath(pattern string) {
 				return err
 			}
 
-			if match, err := filepath.Match(pattern, fpath); match {
+			if regex.MatchString(fpath) {
 				fmt.Println(fpath)
-			} else if err != nil {
-				fmt.Println("ERROR", err)
 			}
 
 			return nil
