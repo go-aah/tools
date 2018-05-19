@@ -213,11 +213,7 @@ domains {
         #anti_csrf_check = false{{ end }}
       }
 
-      {{ if eq .App.AuthScheme "form" -}}login_submit {
-        path ="/login"
-        method = "POST"
-        controller = "VirtualFormController"
-      }{{ end }}{{ end -}}{{ if or .App.IsAPIApp .App.IsSubTypeAPI }}
+      {{ end -}}{{ if or .App.IsAPIApp .App.IsSubTypeAPI }}
 
       # Below routes definition demonstrates part of aah routes configuration
       # capabilities
