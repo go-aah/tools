@@ -460,8 +460,8 @@ view {
   #case_sensitive = false
 
   # To use custom Go template delimiters for view files.
-  # Default value is `{{ .App.TmplDemils }}`.
-  #delimiters = "{{ .App.TmplDemils }}"
+  # Default value is `{{ .App.TmplDelimLeft }}.{{ .App.TmplDelimRight }}`.
+  #delimiters = "{{ .App.TmplDelimLeft }}.{{ .App.TmplDelimRight }}"
 
   # aah chooses the default app layout as `master.html`.  Also aah supports
   # non-layout too.

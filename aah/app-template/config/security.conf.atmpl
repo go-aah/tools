@@ -62,7 +62,7 @@ security {
         # Login submit URL, used to submit login credential for authentication.
         # Basically login form submit values to this URL as POST request.
         #
-        # This URL can be accessed via `{{ rurl . aah_login_submit }}` on view file.
+        # This URL can be accessed via `{{ .App.TmplDelimLeft }} rurl . aah_login_submit {{ .App.TmplDelimRight }}` on view file.
         #
         # Default value is `/login`.
         #login_submit = "/login"

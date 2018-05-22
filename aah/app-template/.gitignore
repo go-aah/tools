@@ -1,6 +1,8 @@
-# aah application - .gitignore
+# .gitignore config
 
+# aah application
 aah.go
+aah_*_vfs.go
 *.pid
 build/
 vendor/*/

@@ -51,8 +51,10 @@ func newAction(c *cli.Context) error {
 
 	// Depends on application type choice, collect subsequent inputs
 	app := &appTmplData{
-		ImportPath: importPath,
-		Type:       appType,
+		ImportPath:     importPath,
+		Type:           appType,
+		TmplDelimLeft:  "{{",
+		TmplDelimRight: "}}",
 	}
 
 	switch appType {
@@ -140,7 +142,6 @@ func collectAppType(reader *bufio.Reader) string {
 //______________________________________________________________________________
 
 func collectInputsForWebApp(app *appTmplData) {
-	app.TmplDemils = "{{.}}"
 	viewEngine(reader, app)
 
 	authScheme(reader, app)

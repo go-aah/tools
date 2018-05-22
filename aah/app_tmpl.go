@@ -40,7 +40,8 @@ type appTmplData struct {
 	SessionFileStorePath   string
 	BasicAuthFileRealmPath string
 	CORSEnable             bool
-	TmplDemils             string
+	TmplDelimLeft          string
+	TmplDelimRight         string
 	SubTypes               []string
 }
 
