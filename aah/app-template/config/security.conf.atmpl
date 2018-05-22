@@ -1,13 +1,14 @@
-######################################################
+# ---------------------------------------------------------------------------
 # {{ .App.Name }} - Application Security Configuration
 #
 # Complete routes configuration reference:
 # Doc: https://docs.aahframework.org/security-config.html
-######################################################
+# ---------------------------------------------------------------------------
 
 security {
   # -------------------------------------------------------
   # Authentication & Authorization configuration
+  #
   # Doc: https://docs.aahframework.org/security-design.html
   # -------------------------------------------------------
   auth_schemes {
@@ -17,27 +18,32 @@ security {
     form_auth {
       # Auth scheme name.
       # Currently supported values are `form`, `basic` and `generic`.
+      #
       # It is required value, no default.
       scheme = "form"
 
-      # Framework calls `Authenticator` to get the Subject's authentication
-      # information. Then framework validates the credential using password
+      # aah calls `Authenticator` to get the Subject's authentication
+      # information. Then aah validates the credential using password
       # encoder.
+      #
       # It is required value, no default.
       authenticator = "security/AuthenticationProvider"
 
-      # Framework calls `Authorizer` to get Subject's authorization information,
-      # such as Roles, Permissions. Then it populates the Subject instance.
+      # aah calls `Authorizer` only after successful authentication; to get
+      # Subject's authorization information such as Roles, Permissions.
+      #
       # It is required value, no default.
       authorizer = "security/AuthorizationProvider"
 
       # Password encoder is used to encode the given credential and then compares
-      # it with application provide credential.
+      # it with application provided credential.
+      #
       # Doc: https://docs.aahframework.org/password-encoders.html
+      #
       # Default value is `bcrypt`.
       password_encoder = "{{ .App.PasswordEncoderAlgo }}"
 
-      # Field names are used to extract `AuthenticationToken` from request.
+      # Field names are used to extract `AuthenticationToken` from the HTTP request.
       field {
         # Default value is `username`
         #identity = "username"
@@ -48,26 +54,32 @@ security {
 
       # URLs is used when appropriate.
       url {
-        # Login page URL, implement your login and configure here.
+        # Login page URL, implement app login page and configure here.
+        #
         # Default value is `/login.html`.
         #login = "/login.html"
 
         # Login submit URL, used to submit login credential for authentication.
-        # Basically login form submits its values to this URL as POST request.
+        # Basically login form submit values to this URL as POST request.
+        #
+        # This URL can be accessed via `{{ rurl . aah_login_submit }}` on view file.
+        #
         # Default value is `/login`.
         #login_submit = "/login"
 
-        # Login failure, any failure during authentication process. Framework
+        # Login failure, any failure during authentication process. aah
         # sends user to this URL and logs detailed information in the log.
         #login_failure = "/login.html?error=true"
 
-        # Default page URL after the successful authentication. By default framework
+        # Default page URL after the successful authentication. By default aah
         # redirects the user to requested page after authentication. Otherwise it
         # sends to this URL.
+        #
         # Default value is `/`.
         #default_target = "/"
 
-        # Always redirect to default URL, regardless of the request page.
+        # Always redirect to default URL, regardless of the requested page/URL.
+        #
         # Default value is `false`.
         #always_to_default = false
       }
@@ -83,35 +95,41 @@ security {
       scheme = "basic"
 
       # Realm name is used for `Www-Authenticate` HTTP header.
-      # Note: Nowadays, modern browsers are not respecting this values.
+      #
+      # Note: Modern browsers are not respecting this values now a days.
       # However aah framework does its due diligence.
       realm_name = "Protected"
 
-      {{ if eq .App.BasicAuthMode "file-realm" -}}
-      # Basic auth realm file path. You can use absolute path or
+      {{ if eq .App.BasicAuthMode "file-realm" }}# Basic auth realm file path. Use absolute path or
       # environment variable to provide path.
+      #
       # It is required value, no default.
-      file_realm = "{{ .App.BasicAuthFileRealmPath }}"{{ else -}}
-      # Framework calls `Authenticator` to get the Subject's authentication
+      file_realm = "{{ .App.BasicAuthFileRealmPath }}"{{ else }}
+      # aah calls `Authenticator` to get the Subject's authentication
       # information. Then framework validates the credential using password
       # encoder.
-      # It is required value when `file_realm` not configured, no default.
+      #
+      # It is required value when `file_realm` attribute is not configured,
+      #no default.
       authenticator = "security/AuthenticationProvider"
 
-      # Framework calls `Authorizer` to get Subject's authorization information,
-      # such as Roles and Permissions. Then it populates the Subject instance.
-      # It is required value when `file_realm` not configured, no default.
+      # aah calls `Authorizer` only after successful authentication to get
+      # Subject's authorization information such as Roles and Permissions.
+      #
+      # It is required value when `file_realm` attribute is not configured,
+      # no default.
       authorizer = "security/AuthorizationProvider"{{ end }}
 
       # Password encoder is used to encode the given credential and then compares
       # it with application provide credential.
+      #
       # Doc: https://docs.aahframework.org/password-encoders.html
+      #
       # Default value is `bcrypt`.
       password_encoder = "{{ .App.PasswordEncoderAlgo }}"
-    }{{ end -}}
+    }
 
-    {{ if eq .App.AuthScheme "generic" -}}
-    # Generic Auth Scheme
+    {{ end }}{{ if eq .App.AuthScheme "generic" }}# Generic Auth Scheme
     # It is custom defined name, this is used in the routes `auth` attribute.
     generic_auth {
       # Auth scheme name.
@@ -119,25 +137,28 @@ security {
       # It is required value, no default.
       scheme = "generic"
 
-      # Framework calls `Authenticator` to get the Subject's authentication
-      # information. The credential validation is not done by framework, it is
-      # left to interface implementation.
+      # aah calls `Authenticator` to get the Subject's authentication
+      # information. The credential validation is not done by framework.
+      # It is interface implementation responsibility.
+      #
       # It is required value, no default.
       authenticator = "security/AuthenticationProvider"
 
-      # Framework calls `Authorizer` to get Subject's authorization information,
-      # such as Roles and Permissions. Then it populates the Subject instance.
+      # aah calls `Authorizer` only after successful authentication to get
+      # Subject's authorization information such as Roles and Permissions.
+      #
       # It is required value, no default.
       authorizer = "security/AuthorizationProvider"
 
-      # Header names are used to extract `AuthenticationToken` from request.
+      # Header names are used to extract `AuthenticationToken` from the HTTP request.
       header {
         # Default value is 'Authorization'
         #identity = "Authorization"
 
         # Optional credential header
-        # Typically it's not used, however in the industry people do use it
-        # Default value is empty string
+        # Typically it's not used, however in the industry people do use it.
+        #
+        # Default value is empty string.
         #credential = "X-AuthPass"
       }
     }{{ end }}
@@ -146,6 +167,7 @@ security {
   # ------------------------------------------------------------
   # Password Encoders Configuration
   # aah supports `bcrypt`, `scrypt`, `pbkdf2` password algorithm
+  #
   # Doc: https://docs.aahframework.org/password-encoders.html
   # ------------------------------------------------------------
   password_encoder { {{ if eq .App.PasswordEncoderAlgo "bcrypt" }}
@@ -223,6 +245,7 @@ security {
   # -----------------------------------------------------------------------
   # Session configuration
   # HTTP state management across multiple requests.
+  #
   # Doc: https://docs.aahframework.org/security-config.html#section-session
   # -----------------------------------------------------------------------
   session {
@@ -299,6 +322,7 @@ security {
   {{ if .App.IsWebApp }}
   # ------------------------------------------------------------
   # Anti-CSRF Protection
+  #
   # Doc: https://docs.aahframework.org/anti-csrf-protection.html
   # ------------------------------------------------------------
   anti_csrf {
@@ -437,10 +461,10 @@ security {
     #   https://developers.google.com/web/fundamentals/security/csp/
     #   https://www.owasp.org/index.php/OWASP_Secure_Headers_Project#csp
     #
-    # Read above references and define your policy.
+    # Read above references and define app policy.
     #
-    # Note: It is highly recommended to verify your policy directives in report
-    # only mode before enabling this header. Since its highly controls how your
+    # Note: It is highly recommended to verify policy directives in report
+    # only mode before enabling this header. Since its highly controls how
     # page is rendered.
     #
     # No default values, you have to provide it.
@@ -452,8 +476,10 @@ security {
       # you need to specify the report-uri policy directive.
       report_uri = ""
 
-      # Puts your `Content-Security-Policy` in report only mode, so that you can verify
-      # and then set `csp_report_only` value to false.
+      # By default aah puts `Content-Security-Policy` in report only mode,
+      # so that could be verified before making it live mode
+      # (set `csp_report_only` to false).
+      #
       # Don't forget to set the `report-uri` for validation.
       report_only = true
     }
@@ -464,15 +490,14 @@ security {
     # Learn more:
     #   https://scotthelme.co.uk/hpkp-http-public-key-pinning/
     #   https://developer.mozilla.org/en-US/docs/Web/HTTP/Public_Key_Pinning
-    # Read above references and define your keys.
+    # Read above references and define app keys.
     #
     # Note:
     #   - HPKP has the potential to lock out users for a long time if used incorrectly!
     #     The use of backup certificates and/or pinning the CA certificate is recommended.
-    #   - It is highly recommended to verify your policy directives in report only mode
-    #     before enabling this header
-    #   - It is highly recommended to verify your PKP in report only mode before enabling this header.
-    # No default values, you have to provide it.
+    #   - It is highly recommended to verify app PKP in report only mode before enabling this header.
+    #
+    # No default values, aah user have to provide it.
     pkp {
       # The Base64 encoded Subject Public Key Information (SPKI) fingerprint.
       # These values gets added as `pin-sha256=<key1>; ...`.
@@ -494,8 +519,9 @@ security {
       # failure reporting, you need to specify the report-uri.
       report_uri = ""
 
-      # Puts your `Public-Key-Pins` in report only mode, so that you can verify
-      # and then set `pkp_report_only` value to false.
+      # By default aah puts `Public-Key-Pins` in report only mode, so that it
+      # could be verified before making it live (set `pkp_report_only` to false).
+      #
       # Don't forget to set the `report-uri` for validation.
       report_only = true
     }

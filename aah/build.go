@@ -73,7 +73,7 @@ func buildAction(c *cli.Context) error {
 
 func buildBinary(c *cli.Context, projectCfg *config.Config) {
 	appBaseDir := aah.AppBaseDir()
-	cleanupAutoGenVFSFiles(appBaseDir)
+	processVFSConfig(projectCfg, false)
 
 	appBinary, err := compileApp(&compileArgs{
 		Cmd:        "BuildCmd",
@@ -102,6 +102,30 @@ func buildBinary(c *cli.Context, projectCfg *config.Config) {
 
 func buildSingleBinary(c *cli.Context, projectCfg *config.Config) {
 	cliLog.Infof("Embed starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	processVFSConfig(projectCfg, true)
+	cliLog.Infof("Embed successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+
+	appBinary, err := compileApp(&compileArgs{
+		Cmd:        "BuildCmd",
+		ProjectCfg: projectCfg,
+		AppPack:    true,
+		AppEmbed:   true,
+	})
+	if err != nil {
+		logFatal(err)
+	}
+
+	// Creating app archive
+	destArchiveFile := createZipArchiveName(c, projectCfg, aah.AppBaseDir(), appBinary)
+	if err = createZipArchive(appBinary, destArchiveFile); err != nil {
+		logFatal(err)
+	}
+
+	cliLog.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Application artifact is here: %s\n", destArchiveFile)
+}
+
+func processVFSConfig(projectCfg *config.Config, mode bool) {
 	appBaseDir := aah.AppBaseDir()
 	cleanupAutoGenVFSFiles(appBaseDir)
 
@@ -109,7 +133,7 @@ func buildSingleBinary(c *cli.Context, projectCfg *config.Config) {
 	noGzipList, _ := projectCfg.StringList("vfs.no_gzip")
 
 	// Default mount point
-	if err := processMount(appBaseDir, "/app", appBaseDir, ess.Excludes(excludes), noGzipList); err != nil {
+	if err := processMount(mode, appBaseDir, "/app", appBaseDir, ess.Excludes(excludes), noGzipList); err != nil {
 		logFatal(err)
 	}
 
@@ -125,31 +149,11 @@ func buildSingleBinary(c *cli.Context, projectCfg *config.Config) {
 		}
 
 		if !ess.IsStrEmpty(vroot) && !ess.IsStrEmpty(proot) {
-			if err := processMount(appBaseDir, vroot, proot, ess.Excludes(excludes), noGzipList); err != nil {
+			if err := processMount(mode, appBaseDir, vroot, proot, ess.Excludes(excludes), noGzipList); err != nil {
 				logError(err)
 			}
 		}
 	}
-	cliLog.Infof("Embed successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
-
-	appBinary, err := compileApp(&compileArgs{
-		Cmd:        "BuildCmd",
-		ProjectCfg: projectCfg,
-		AppPack:    true,
-		AppEmbed:   true,
-	})
-	if err != nil {
-		logFatal(err)
-	}
-
-	// Creating app archive
-	destArchiveFile := createZipArchiveName(c, projectCfg, appBaseDir, appBinary)
-	if err = createZipArchive(appBinary, destArchiveFile); err != nil {
-		logFatal(err)
-	}
-
-	cliLog.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
-	cliLog.Infof("Application artifact is here: %s\n", destArchiveFile)
 }
 
 func copyFilesToWorkingDir(projectCfg *config.Config, appBaseDir, appBinary string) (string, error) {

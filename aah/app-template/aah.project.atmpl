@@ -73,26 +73,34 @@ hot_reload {
   }
 }
 
+#------------------------------------------------------------------------
 # Virtual FileSystem (VFS) configuration
+#
+# Doc: https://docs.aahframework.org/vfs.html
+#------------------------------------------------------------------------
 vfs {
-  # Adding custom mount points. Configured mount points directory sub-tree
-  # gets embedded into aah binary during a single binary build.
+  # Adding custom mount points.
+  #
+  # Configured mount points directories and sub-directories
+  # are embedded into the aah binary during the single binary build.
+  #
+  # Note: Embed packaging uses same exclusion list from config `build.excludes`.
   mount {
-    # Choose an unique key name
+    # Choose a unique key name
     #my_mount {
     #  # Mount point (path separator is '/').
     #  mount_path = "/my_mount"
     #
     #  # Physical FileSystem path.
-    #  # Note: Only absolute path accepted.
+    #  # Note: Only absolute path is accepted.
     #  physical_path = "/Users/jeeva/path/to/physical"
     #}
   }
 
-  # This config is speed up the single binary build process.
-  # Do not spend time to gzip for already compress content.
+  # This config speeds up the single binary build process.
+  # No need to spend time in gzipping for compressed content type.
   #
-  # Even without this config aah does best decision on what to gzip.
+  # Even without this config, aah decides best on what to gzip.
   no_gzip = [".png", ".jpeg", ".jpg", ".gif", ".bmp", ".tiff", ".tif"
     ".woff", ".woff2"]
 }

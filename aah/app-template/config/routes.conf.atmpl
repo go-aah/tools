@@ -1,9 +1,9 @@
-####################################################
+# ---------------------------------------------------------------------------
 # {{ .App.Name }} - Application Routes Configuration
 #
 # Complete routes configuration reference:
 # Doc: https://docs.aahframework.org/routes-config.html
-####################################################
+# ---------------------------------------------------------------------------
 
 #------------------------------------------------------------------------
 # Domain and sub-domain configuration goes into section `domains { ... }`

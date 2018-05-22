@@ -1,9 +1,9 @@
-###################################################
+# ---------------------------------------------------------------------------
 # {{ .App.Name }} - aah Application
 #
 # Complete configuration reference:
 # Doc: https://docs.aahframework.org/app-config.html
-###################################################
+# ---------------------------------------------------------------------------
 
 # Application name (non-whitespace)
 # Default value is `basename` of import path.
@@ -15,16 +15,17 @@ desc = "aah {{ .App.Type }} application"
 # Application type, typically either Web or API.
 type = "{{ .App.Type }}"
 
-# Application instance name is used when you're running aah application cluster.
-# This value is used in the context based logging, it distinguishes your instance
-# log from other instances.
+# Application instance name is used for traceability when running in cluster mode.
+# It provides context based logging and distinguishes app instance
+# across cluster.
 #
-# Typically you can to pass `instance_name` value via aah external config
-# support or Environment variable.
+# Typically pass value of `instance_name` via aah external config or
+# Environment variable.
 instance_name = $AAH_INSTANCE_NAME
 
 # Configure file path of application PID file to be written.
 # Ensure application has appropriate permission and directory exists.
+#
 # Default value is `<app-base-dir>/<app-binary-name>.pid`
 #pid_file = "/path/to/pidfile.pid"
 
@@ -42,7 +43,7 @@ server {
   #port = ""
 
   # Header value written as `Server` HTTP header.
-  # If you do not want to include `Server` header, comment it out.
+  # To exclude header `Server` from writing, simply comment it out.
   header = "aah-go-server"
 
   # Valid time units are "s = seconds", "m = minutes"
@@ -53,6 +54,7 @@ server {
     # Because ReadTimeout does not let Handlers make per-request decisions on
     # each request body's acceptable deadline or upload rate, most users will
     # prefer to use ReadHeaderTimeout. It is valid to use them both.
+    #
     # Default value is `90s`.
     #read = "90s"
 
@@ -60,6 +62,7 @@ server {
     # out writes of the response. It is reset whenever a new request's header is
     # read. Like ReadTimeout, it does not let Handlers make decisions on a
     # per-request basis.
+    #
     # Default value is `90s`.
     #write = "90s"
 
@@ -240,17 +243,18 @@ request {
     # Default value is `true`.
     enable = true
 
-    # Default value is `X-Request-Id`, change it if you have different one.
+    # Default value is `X-Request-Id`, customize it per use case.
     #header = "X-Request-Id"
   }
 
   # Max request body size for all incoming HTTP requests except `MultipartForm`.
-  # Also you can override this size for individual route on specific cases
-  # in `routes.conf` if need be.
+  # Also it could be overridden at individual route on specific cases
+  # in `routes.conf`.
+  #
   # Default value is `5mb`.
   #max_body_size = "5mb"
 
-  # Default value is `32mb`, choose your value based on your use case
+  # Default value is `32mb`, choose value based on app use case
   #multipart_size = "32mb"
 
   # aah provides `Content Negotiation` feature for the incoming HTTP request.
@@ -264,12 +268,14 @@ request {
     # For example: Client sends Content-Type header as `application/xml`.
     # However server only supports JSON payload as request body.
     # Then server responds with 415 Unsupported Media Type.
+    #
     # Default value is empty list and disabled.
     #accepted = ["application/json", "text/json"]
 
     # For example: Client sends Accept header as `application/xml`.
     # However server only supports serving JSON i.e. `application/json`.
     # Then server responds with 406 Not Acceptable.
+    #
     # Default value is empty list and disabled.
     #offered = ["application/json", "text/json"]
   }
@@ -282,10 +288,10 @@ request {
     #   F -> Form Parameter
     #   Q -> Query Parameter
     #
-    # For example: Let's say you have a controller action named `OrderInfo` and its has
-    # parameter called `orderId`. So framework tries to parse and bind based
-    # on the priority. The `orderId` present in `Path` and `Form`, framework
-    # binds the value from `Path`. Typically recommended to have unique names
+    # For example: Let's say we have a controller action named `OrderInfo` and it has
+    # parameter called `orderId`. So aah tries to parse and bind based
+    # on the priority. The `orderId` present in `Path` and `Form`, aah
+    # binds the value from `Path`. Typically it is recommended to have unique names
     # in the request parameter though :)
     #   Path -> Form -> Query
     # If not found then it returns with default Go zero value.
@@ -346,7 +352,7 @@ format {
 runtime {
   debug {
     # Choose an appropriate buffer size for collecting all goroutines stack trace
-    # dump based on your case.
+    # dump based on need.
     # Default value is `2mb`.
     #stack_buffer_size = "2mb"
 
@@ -392,8 +398,8 @@ render {
     # framework ensures HTTP client accepts Gzip response otherwise
     # it won't use Gzip compression.
     #
-    # Tips: If you have nginx or apache web server enabled with gzip in-front
-    # of aah server the set this value to `false`.
+    # Tip: If there is a web server in-front of aah server then set this
+    # value to `false`.
     #
     # Default value is `true`.
     #enable = true
@@ -439,17 +445,16 @@ cache {
 # Doc: https://docs.aahframework.org/app-config.html#section-view
 # ---------------------------------------------------------------
 view {
-  # Choosing view engine for application. You could implement
-  # on your own with simple interface `view.Enginer`.
+  # Application view engine.
   # Default value is `go`.
   engine = "{{ .App.ViewEngine }}"
 
-  # Choose your own view file extension.
-  # Default value is chosen based on `view.engine`,
-  # while creating a new app using command `aah new`.
+  # View file extension.
+  # Default value is chosen based on `view.engine`, during a new app creation
+  # via `aah new`
   ext = "{{ .App.ViewFileExt }}"
 
-  # Choose whether you need a case sensitive view file resolve or not.
+  # View file name and path resolve case sensitive or not.
   # For e.g.: "/views/pages/app/login.tmpl" == "/views/pages/App/Login.tmpl"
   # Default value is `false`.
   #case_sensitive = false
@@ -458,9 +463,9 @@ view {
   # Default value is `{{ .App.TmplDemils }}`.
   #delimiters = "{{ .App.TmplDemils }}"
 
-  # Framework chooses the default app layout as `master.html` if you do not
-  # provide one. However you may have pages or template without layout too.
-  # So option to disable the default layout for HTML.
+  # aah chooses the default app layout as `master.html`.  Also aah supports
+  # non-layout too.
+  # Option to disable the default layout for HTML.
   # Default value is `true`. Available since v0.6
   #default_layout = false
 }{{ end }}

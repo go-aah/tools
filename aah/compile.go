@@ -152,9 +152,6 @@ func compileApp(args *compileArgs) (string, error) {
 
 	// clean previously auto generated files
 	cleanupAutoGenFiles(appBaseDir)
-	if !args.AppEmbed {
-		cleanupAutoGenVFSFiles(appBaseDir)
-	}
 
 	if err := generateSource(appCodeDir, "aah.go", aahMainTemplate, map[string]interface{}{
 		"AppTargetCmd":   args.Cmd,
@@ -438,6 +435,9 @@ func main() {
 	})
 
 	{{ if .AppIsPackaged }}aah.SetAppPackaged({{ .AppIsPackaged }}){{ end }}
+	{{ if .AppIsEmbedded }}
+	// Set app vfs into embedded mode
+	aah.AppVFS().SetEmbeddedMode(){{ end }}
 
 	// display application information
 	if *version {
