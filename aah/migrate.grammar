@@ -1,0 +1,38 @@
+# ------------------------------------------------------------
+# aah migrate grammar file
+#
+# Syntax format is same as aah config format
+# ------------------------------------------------------------
+
+file {
+
+  # Grammar for Go source file (.go)
+  # Each line have "from" and "to" replacement
+  #
+  # Format: "oldsignature", "newsignature"
+  go {
+    upgrades_replacer = [
+      "aah.AddServerTLSConfig", "aah.SetTLSConfig",
+      "aah.SubscribeEventf", "aah.SubscribeEventFunc",
+      "aah.UnsubscribeEventf", "aah.UnsubscribeEventFunc",
+      "aah.EventOnAfterReply", "aah.EventOnPostReply",
+      "aah.OnRequest", "aah.AppHTTPEngine().OnRequest",
+      "aah.OnPreReply", "aah.AppHTTPEngine().OnPreReply",
+      "aah.OnPostReply", "aah.AppHTTPEngine().OnPostReply",
+      "aah.OnAfterReply", "aah.AppHTTPEngine().OnPostReply",
+      "aah.OnPreAuth", "aah.AppHTTPEngine().OnPreAuth",
+      "aah.OnPostAuth", "aah.AppHTTPEngine().OnPostAuth",
+      "aah.Middlewares", "aah.AppHTTPEngine().Middlewares",
+      "Req.AcceptContentType", "Req.AcceptContentType()",
+      "Req.AcceptEncoding", "Req.AcceptEncoding()",
+      "Req.ClientIP", "Req.ClientIP()",
+      "Req.ContentType", "Req.ContentType()",
+      "Req.Locale", "Req.Locale()",
+      ".Readfrom(", ".FromReader(",
+      ".RedirectSts(", ".RedirectWithStatus(",
+      ".FindDomain(", ".Lookup("
+    ]
+  }
+
+  # upcoming elements
+}

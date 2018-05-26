@@ -36,7 +36,7 @@ func processMount(mode bool, appBaseDir, vroot, proot string, skipList ess.Exclu
 	}
 
 	if mode {
-		cliLog.Infof("|--- Processing mount: '%s' <== '%s'", vroot, proot)
+		cliLog.Infof("|-- Processing mount: '%s' <== '%s'", vroot, proot)
 	}
 	b, err := generateVFSSource(mode, vroot, proot, skipList, noGzipList)
 	if err != nil {
@@ -89,7 +89,7 @@ func generateVFSSource(mode bool, vroot, proot string, skipList ess.Excludes, no
 				goto sc
 			}
 
-			cliLog.Debugf("     |--- Skipping: %s", fpath)
+			cliLog.Debugf("     |-- Skipping: %s", fpath)
 			if info.IsDir() {
 				return filepath.SkipDir // skip directory
 			}
@@ -122,7 +122,7 @@ func generateVFSSource(mode bool, vroot, proot string, skipList ess.Excludes, no
 			continue
 		}
 
-		cliLog.Debugf("     |--- Processing: %s", fname)
+		cliLog.Debugf("     |-- Processing: %s", fname)
 		mp := filepath.ToSlash(filepath.Join(vroot, strings.TrimPrefix(fname, proot)))
 
 		if err = vfsTmpl.ExecuteTemplate(buf, "vfs_file", aah.Data{

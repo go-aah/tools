@@ -30,7 +30,7 @@ var generateCmd = cli.Command{
 		aah h g
 		aah help generate
 
-	To know more about individual sub command details:
+	To know more about individual sub-commands details:
 		aah g h s
 		aah generate help script
 `,
@@ -94,10 +94,10 @@ func generateScriptsAction(c *cli.Context) error {
 
 func generateSystemdScript(c *cli.Context) error {
 	importPath := appImportPath(c)
-
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)
 	}
+
 	projectCfg := aahProjectCfg(aah.AppBaseDir())
 	cliLog = initCLILogger(projectCfg)
 

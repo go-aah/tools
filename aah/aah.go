@@ -109,6 +109,7 @@ func main() {
 		switchCmd,
 		updateCmd,
 		generateCmd,
+		migrateCmd,
 	}
 
 	sort.Sort(cli.FlagsByName(app.Flags))
