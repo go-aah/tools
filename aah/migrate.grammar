@@ -16,6 +16,7 @@ file {
       "aah.SubscribeEventf", "aah.SubscribeEventFunc",
       "aah.UnsubscribeEventf", "aah.UnsubscribeEventFunc",
       "aah.EventOnAfterReply", "aah.EventOnPostReply",
+      "aah.OnShutdown", "aah.OnPostShutdown",
       "aah.OnRequest", "aah.AppHTTPEngine().OnRequest",
       "aah.OnPreReply", "aah.AppHTTPEngine().OnPreReply",
       "aah.OnPostReply", "aah.AppHTTPEngine().OnPostReply",
