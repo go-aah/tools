@@ -11,10 +11,8 @@ file {
   #
   # Format: "oldsignature", "newsignature"
   go {
-    upgrades_replacer = [
+    upgrade_replacer = [
       "aah.AddServerTLSConfig", "aah.SetTLSConfig",
-      "aah.SubscribeEventf", "aah.SubscribeEventFunc",
-      "aah.UnsubscribeEventf", "aah.UnsubscribeEventFunc",
       "aah.EventOnAfterReply", "aah.EventOnPostReply",
       "aah.OnShutdown", "aah.OnPostShutdown",
       "aah.OnRequest", "aah.AppHTTPEngine().OnRequest",
@@ -23,7 +21,14 @@ file {
       "aah.OnAfterReply", "aah.AppHTTPEngine().OnPostReply",
       "aah.OnPreAuth", "aah.AppHTTPEngine().OnPreAuth",
       "aah.OnPostAuth", "aah.AppHTTPEngine().OnPostAuth",
-      "aah.Middlewares", "aah.AppHTTPEngine().Middlewares",
+      "aah.Middlewares", "aah.AppHTTPEngine().Middlewares",      
+      "SubscribeEventf", "SubscribeEventFunc",
+      "UnsubscribeEventf", "UnsubscribeEventFunc",
+      "ahttp.GetResponseWriter", "ahttp.AcquireResponseWriter",
+      "ahttp.PutResponseWriter", "ahttp.ReleaseResponseWriter",
+      "ahttp.GetGzipResponseWriter", "ahttp.WrapGzipWriter",
+      "ahttp.PutGzipResponseWiriter", "ahttp.ReleaseResponseWriter",
+      "Req.Raw", "Req.Unwrap()",
       "Req.AcceptContentType", "Req.AcceptContentType()",
       "Req.AcceptEncoding", "Req.AcceptEncoding()",
       "Req.ClientIP", "Req.ClientIP()",

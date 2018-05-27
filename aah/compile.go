@@ -444,6 +444,7 @@ func main() {
 		fmt.Printf("%-16s: %s\n", "Binary Name", aah.AppBuildInfo().BinaryName)
 		fmt.Printf("%-16s: %s\n", "Version", aah.AppBuildInfo().Version)
 		fmt.Printf("%-16s: %s\n", "Build Timestamp", aah.AppBuildInfo().Date)
+		fmt.Printf("%-16s: %s\n", "aah Version", aah.Version)
 		return
 	}
 

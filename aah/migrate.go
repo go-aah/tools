@@ -43,8 +43,9 @@ var migrateCmd = cli.Command{
 			Description: `Command code is to fix/upgrade aah's breaking changes and deprecated elements
   in Go source file to the current version of aah.
 
-  The goal 'Code' command is to keep aah users always up-to-date with latest of aah; to take
-  advantage of aah features and its capabilities.
+  The goal of 'Code' command is to keep aah users always up-to-date with latest version of aah.
+
+	Note: It does not take file backup, assumes aah application uses version control.
 
 	Example of script command:
 		aah m c -i github.com/user/appname
@@ -96,10 +97,11 @@ func migrateCodeAction(c *cli.Context) error {
 }
 
 func migrateGoSrcFiles(projectCfg, grammarCfg *config.Config) int {
-	grammar, found := grammarCfg.StringList("file.go.upgrades_replacer")
+	grammar, found := grammarCfg.StringList("file.go.upgrade_replacer")
 	if !found {
 		logFatalf("Config 'file.go.upgrades_replacer' not found in grammar file")
 	}
+
 	fixer := strings.NewReplacer(grammar...)
 	excludes, _ := projectCfg.StringList("build.ast_excludes")
 	files, _ := ess.FilesPathExcludes(filepath.Join(aah.AppBaseDir(), "app"), true, ess.Excludes(excludes))
