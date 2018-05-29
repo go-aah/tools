@@ -97,7 +97,7 @@ func init() {
 	// aah.AddSessionStore("redis", &RedisSessionStore{})
 
 	{{ end }}//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-	// Add Custom value Parser
+	// Add Custom Value Parser
 	// Doc: https://docs.aahframework.org/request-parameters-auto-bind.html
 	//__________________________________________________________________________
 	// if err := aah.AddValueParser(reflect.TypeOf(CustomType{}), customParser); err != nil {
