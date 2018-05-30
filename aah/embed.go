@@ -238,6 +238,8 @@ import ({{ if .Mode }}
 )
 
 func init() {
+	aah.AppVFS().SetEmbeddedMode()
+
 	if err := aah.AppVFS().AddMount("{{ .MountPath }}", "{{ .PhysicalPath }}"); err != nil {
 		log.Fatal(err)
 	}

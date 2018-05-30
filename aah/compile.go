@@ -435,9 +435,6 @@ func main() {
 	})
 
 	{{ if .AppIsPackaged }}aah.SetAppPackaged({{ .AppIsPackaged }}){{ end }}
-	{{ if .AppIsEmbedded }}
-	// Set app vfs into embedded mode
-	aah.AppVFS().SetEmbeddedMode(){{ end }}
 
 	// display application information
 	if *version {
