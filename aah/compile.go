@@ -340,6 +340,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"path/filepath"
 	"fmt"
 	"os"
 	"os/signal"
@@ -365,12 +366,17 @@ var (
 )
 
 func MergeSuppliedConfig(_ *aah.Event) {
-	externalConfig, err := config.VFSLoadFile(aah.AppVFS(), *configPath)
+	cpath, err := filepath.Abs(*configPath)
 	if err != nil {
-		log.Fatalf("Unable to load external config: %s", *configPath)
+		log.Errorf("Unable to resolve external config: %s", *configPath)
 	}
 
-	log.Debug("Merging external config into aah application config")
+	externalConfig, err := config.LoadFile(cpath)
+	if err != nil {
+		log.Errorf("Unable to load external config: %s", cpath)
+	}
+
+	log.Infof("Merging external config[%s] into aah application[%s]", cpath, aah.AppName())
 	if err := aah.AppConfig().Merge(externalConfig); err != nil {
 		log.Errorf("Unable to merge external config into aah application[%s]: %s", aah.AppName(), err)
 	}
@@ -388,7 +394,7 @@ func PrintFilepath(pattern string) {
 
 	regex, err := regexp.Compile(pattern)
 	if err != nil {
-		fmt.Println("ERROR", err)
+		log.Error(err)
 		return
 	}
 
@@ -404,7 +410,7 @@ func PrintFilepath(pattern string) {
 
 			return nil
 		}); err != nil {
-		fmt.Println("ERROR", err)
+		log.Error(err)
 	}
 }
 
