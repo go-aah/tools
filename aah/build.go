@@ -23,7 +23,7 @@ var buildCmd = cli.Command{
 	Aliases: []string{"b"},
 	Usage:   "Builds aah application for deployment (single or non-single)",
 	Description: `Builds aah application for deployment. It supports single and non-single
-	binary. It is a trade-off learn more https://docs.aahframework.org/build-packaging.html
+	binary. It is a trade-off learn more https://docs.aahframework.org/vfs.html
 
 	Artifact naming convention:  <appbinaryname>-<appversion>-<goos>-<goarch>.zip
 	For e.g.: aahwebsite-381eaa8-darwin-amd64.zip
@@ -132,9 +132,11 @@ func processVFSConfig(projectCfg *config.Config, mode bool) {
 	excludes, _ := projectCfg.StringList("build.excludes")
 	noGzipList, _ := projectCfg.StringList("vfs.no_gzip")
 
-	// Default mount point
-	if err := processMount(mode, appBaseDir, "/app", appBaseDir, ess.Excludes(excludes), noGzipList); err != nil {
-		logFatal(err)
+	if mode {
+		// Default mount point
+		if err := processMount(mode, appBaseDir, "/app", appBaseDir, ess.Excludes(excludes), noGzipList); err != nil {
+			logFatal(err)
+		}
 	}
 
 	// Custom mount points

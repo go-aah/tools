@@ -1,13 +1,13 @@
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # {{ .App.Name }} - Application Routes Configuration
 #
 # Complete routes configuration reference:
 # Doc: https://docs.aahframework.org/routes-config.html
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-#------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 # Domain and sub-domain configuration goes into section `domains { ... }`
-#------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 domains {
 
   # Pick your choice of an `unique keyname` to define your domain section
@@ -98,23 +98,24 @@ domains {
 
     {{ end }}{{ if .App.IsWebApp }}
 
-    #----------------------------------------------------------------------------
+    #------------------------------------------------------------------------------
     # Static Routes Configuration
     # To serve static files, it can be directory or individual file.
     # This section optional one, for e.g: RESTful APIs doesn't need this section.
     # Static files are delivered via `http.ServeContent`.
     #
     # Supported features:
-    #   * Serve directory
-    #   * Serve individual file
-    #   * Directory listing
+    #   - Serve directory
+    #   - Serve individual file
+    #   - Directory listing
     #
-    # Pick your choice of `unique name` for each `directory` or `individual` file
+    # Choose an `unique name` for each `directory` or `individual` file
     # static route definition. It is called `route name`.
+    #
     # Doc: https://docs.aahframework.org/routes-config.html#section-static
-    #----------------------------------------------------------------------------
+    #------------------------------------------------------------------------------
     static {
-      # Static route name, pick a unique one
+      # Static route name.
       public_assets {
         # URL 'path' for serving directory
         # Below definition means '/static/**'
@@ -127,7 +128,7 @@ domains {
         #list = false
       }
 
-      # serving single file
+      # Serving single file
       favicon {
         path = "/favicon.ico"
 
@@ -147,20 +148,22 @@ domains {
       }
     }
 
-    {{ end }}#-----------------------------------------------------------------------------
+    {{ end }}
+
+    # -----------------------------------------------------------------------------
     # Application routes definitions
     #
     # Doc: https://docs.aahframework.org/routes-config.html#section-routes
     # Doc: https://docs.aahframework.org/routes-config.html#namespace-group-routes
-    #-----------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------
     routes {
 
-      {{ if not .App.IsWebSocketApp -}}#------------------------------------------------------
+      {{ if not .App.IsWebSocketApp -}}# -----------------------------------------------------------------------------
       # Pick an unique name, it's called `route name`,
       # used for reverse URL.
       #
       # Pro Tip: https://docs.aahframework.org/routes-config.html#pro-tips-for-nested-namespace-routes
-      #------------------------------------------------------
+      # -----------------------------------------------------------------------------
       index {
         # path is used to match incoming requests
         # It can contain `:name` - Named parameter and

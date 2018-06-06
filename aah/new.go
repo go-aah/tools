@@ -157,7 +157,7 @@ func collectInputsForWebApp(app *appTmplData) {
 	// In the web application user may like to have API also WebSocket within it.
 	collectAppSubTypesChoice(reader, app)
 
-	app.CORSEnable = collectYesOrNo(reader, "Would you like to enable CORS ([Y]es or [N]o), default is 'N'")
+	app.CORSEnable = collectYesOrNo(reader, "Would you like to enable CORS ([Y]es or [N]o)? default is 'N'")
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -173,20 +173,20 @@ func collectInputsForAPIApp(app *appTmplData) {
 
 	passwordHashAlgorithm(reader, app)
 
-	app.CORSEnable = collectYesOrNo(reader, "Would you like to enable CORS ([Y]es or [N]o), default is 'N'")
+	app.CORSEnable = collectYesOrNo(reader, "Would you like to enable CORS ([Y]es or [N]o)? default is 'N'")
 }
 
 func collectAppSubTypesChoice(reader *bufio.Reader, app *appTmplData) {
 	app.SubTypes = make([]string, 0)
 
 	// API choice
-	choice := collectYesOrNo(reader, "Would you like to add API [/api/v1/*] within your Web App ([Y]es or [N]o), default is 'N'")
+	choice := collectYesOrNo(reader, "Would you like to add API [/api/v1/*] within your Web App ([Y]es or [N]o)? default is 'N'")
 	if choice {
 		app.SubTypes = append(app.SubTypes, typeAPI)
 	}
 
 	// WebSocket choice
-	choice = collectYesOrNo(reader, "Would you like to add WebSocket [/ws/*] within your Web App ([Y]es or [N]o), default is 'N'")
+	choice = collectYesOrNo(reader, "Would you like to add WebSocket [/ws/*] within your Web App ([Y]es or [N]o)? default is 'N'")
 	if choice {
 		app.SubTypes = append(app.SubTypes, typeWebSocket)
 	}

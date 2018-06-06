@@ -241,7 +241,7 @@ func init() {
 	{{ if .Mode }}aah.AppVFS().SetEmbeddedMode(){{ end }}
 
 	if err := aah.AppVFS().AddMount("{{ .MountPath }}", "{{ .PhysicalPath }}"); err != nil {
-		log.Fatal(err)
+		log.Fatal("vfs: ", err)
 	}
 {{ end }}
 
@@ -250,7 +250,7 @@ func init() {
   // Find Mount point
   m, err := aah.AppVFS().FindMount("{{ .MountPath }}")
   if err != nil {
-		log.Fatal(err)
+		log.Fatal("vfs: ", err)
 	}
 
 	// Adding directories into VFS

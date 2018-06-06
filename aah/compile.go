@@ -278,6 +278,7 @@ func appSecurity(appCfg *config.Config, appImportPaths map[string]string) map[st
 		isAuthSchemeCfg := false
 		authSchemeInfo := struct {
 			Authenticator string
+			Principal     string
 			Authorizer    string
 		}{}
 
@@ -286,6 +287,14 @@ func appSecurity(appCfg *config.Config, appImportPaths map[string]string) map[st
 		if !ess.IsStrEmpty(authenticator) {
 			authSchemeInfo.Authenticator = prepareAuthAlias(
 				keyAuthScheme+"sec", authenticator, importPathPrefix, appImportPaths)
+			isAuthSchemeCfg = true
+		}
+
+		// Principal Provider
+		principal := appCfg.StringDefault(keyPrefixAuthSchemeCfg+".principal", "")
+		if !ess.IsStrEmpty(principal) {
+			authSchemeInfo.Principal = prepareAuthAlias(
+				keyAuthScheme+"sec", principal, importPathPrefix, appImportPaths)
 			isAuthSchemeCfg = true
 		}
 
@@ -352,7 +361,9 @@ import (
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"{{ range $k, $v := $.AppImportPaths }}
+	"aahframework.org/log.v0"{{ if .AppSecurity }}
+	"aahframework.org/security.v0/authc"
+	"aahframework.org/security.v0/authz"{{ end }}{{ range $k, $v := $.AppImportPaths }}
 	{{ $v }} "{{ $k }}"{{ end }}
 )
 
@@ -493,21 +504,39 @@ func main() {
 	{{ end -}}
 
 	{{ if .AppSecurity }}
-	// Initialize application security auth schemes - Authenticator & Authorizer
+	type setprincipal interface {
+		SetPrincipalProvider(principal authc.PrincipalProvider) error
+	}
+	type setauthenticator interface {
+		SetAuthenticator(authenticator authc.Authenticator) error
+	}
+	type setauthorizer interface {
+		SetAuthorizer(authorizer authz.Authorizer) error
+	}
+
+	// Initialize application security auth schemes - Authenticator,
+	// PrincipalProvider & Authorizer
 	secMgr := aah.AppSecurityManager()
 	{{- range $k, $v := $.AppSecurity }}
-	{{ if $v.Authenticator -}}
-	aah.AppLog().Debugf("Calling authenticator Init for auth scheme '%s'", "{{ $k }}")
-	if err := secMgr.GetAuthScheme("{{ $k }}").SetAuthenticator(&{{ $v.Authenticator }}{}); err != nil {
-		aah.AppLog().Fatal(err)
-	}
-	{{ end -}}
-	{{ if $v.Authorizer -}}
-	aah.AppLog().Debugf("Calling authorizer Init for auth scheme '%s'", "{{ $k }}")
-	if err := secMgr.GetAuthScheme("{{ $k }}").SetAuthorizer(&{{ $v.Authorizer }}{}); err != nil {
-		aah.AppLog().Fatal(err)
-	}
-	{{ end -}}
+	authScheme := secMgr.AuthScheme("{{ $k }}")
+	{{ if $v.Authenticator }}if sauthc, ok := authScheme.(setauthenticator); ok {
+		aah.AppLog().Debugf("Initializing authenticator for auth scheme '%s'", "{{ $k }}")
+		if err := sauthc.SetAuthenticator(&{{ $v.Authenticator }}{}); err != nil {
+			aah.AppLog().Fatal(err)
+		}
+	}{{ end }}
+	{{ if $v.Principal -}}if sprincipal, ok := authScheme.(setprincipal); ok {
+		aah.AppLog().Debugf("Initializing principalprovider for auth scheme '%s'", "{{ $k }}")
+		if err := sprincipal.SetPrincipalProvider(&{{ $v.Principal }}{}); err != nil {
+			aah.AppLog().Fatal(err)
+		}
+	}{{ end }}
+	{{ if $v.Authorizer }}if sauthz, ok := authScheme.(setauthorizer); ok {
+		aah.AppLog().Debugf("Initializing authorizer for auth scheme '%s'", "{{ $k }}")
+		if err := sauthz.SetAuthorizer(&{{ $v.Authorizer }}{}); err != nil {
+			aah.AppLog().Fatal(err)
+		}
+	}{{ end }}
 	{{ end -}}
 	{{ end }}
 
