@@ -94,8 +94,13 @@ func (a *appTmplData) checkSubType(t string) bool {
 // Template funcs
 //______________________________________________________________________________
 
+var vreplace = strings.NewReplacer("_auth", "", "auth_", "")
+
 var appTemplateFuncs = template.FuncMap{
 	"securerandomstring": func(length int) string {
 		return ess.SecureRandomString(length)
+	},
+	"variablename": func(v string) string {
+		return toLowerCamelCase(vreplace.Replace(v))
 	},
 }

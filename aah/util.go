@@ -517,3 +517,17 @@ func cleanupAutoGenVFSFiles(appBaseDir string) {
 		ess.DeleteFiles(vfsFiles...)
 	}
 }
+
+func toLowerCamelCase(v string) string {
+	var st []byte
+	for idx := 0; idx < len(v); idx++ {
+		c := v[idx]
+		if c == '_' || c == ' ' {
+			idx++
+			st = append(st, []byte(strings.ToUpper(string(v[idx])))...)
+		} else {
+			st = append(st, c)
+		}
+	}
+	return string(st)
+}
