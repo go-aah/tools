@@ -519,7 +519,7 @@ func main() {
 	secMgr := aah.AppSecurityManager()
 	{{- range $k, $v := $.AppSecurity }}{{ $vPrefix := (variablename $k)  }}
 	{{ $vPrefix }}AuthScheme := secMgr.AuthScheme("{{ $k }}")
-	{{- if $v.Authenticator }}if sauthc, ok := {{ $vPrefix }}AuthScheme.(setauthenticator); ok {
+	{{ if $v.Authenticator -}}if sauthc, ok := {{ $vPrefix }}AuthScheme.(setauthenticator); ok {
 		aah.AppLog().Debugf("Initializing authenticator for auth scheme '%s'", "{{ $k }}")
 		if err := sauthc.SetAuthenticator(&{{ $v.Authenticator }}{}); err != nil {
 			aah.AppLog().Fatal(err)

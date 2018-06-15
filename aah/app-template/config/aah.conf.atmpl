@@ -1,8 +1,7 @@
 # -----------------------------------------------------------------------------
-# {{ .App.Name }} - aah Application
+# {{ .App.Name }} - aah Application Configuration
 #
-# NOTE: Since v0.11.0, app config file has minimal configuration.
-# To explore all the supported configurations, refer documentation.
+# Refer documentation to explore and customize the configurations.
 #
 # Doc: https://docs.aahframework.org/app-config.html
 # -----------------------------------------------------------------------------
@@ -44,18 +43,9 @@ server {
   # Doc: https://docs.aahframework.org/websocket.html#configuration
   # --------------------------------------------------------------------------
   websocket {
-    # Default value is `false`.
     enable = true
-
-    # Origin configuration
     origin {
-      # When origin check is enabled, aah does check against HTTP Header
-      # `Origin` value.
-      # Default value is `false`.
       check = false
-
-      # Origin whitelist
-      # No default values.
       #whitelist = [
       #  "https://websocket.org",
       #]
@@ -63,48 +53,37 @@ server {
   }{{ end }}
 }
 
-# ------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Request configuration
 # Doc: https://docs.aahframework.org/app-config.html#section-request
-# ------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 request {
   # -----------------------------------------------------------------------------
   # aah framework encourages to have a unique `Request Id` for each incoming
   # request. It helps in traceability. If a request already has `X-Request-Id`
   # HTTP header, then aah does not generate one.
   #
-  # GUID is generated using MangoDB ObjectId algorithm.
+  # GUID is generated using MongoDB ObjectId algorithm.
   #
   # Doc: https://docs.aahframework.org/app-config.html#section-request-id
   # -----------------------------------------------------------------------------
   id {
-    # To enable/disable request ID generation.
-    # Default value is `true`.
     enable = true
-
-    # HTTP header name for Request ID. If a request already has HTTP header, then
-    # aah does not generate one.
-    #
-    # Default value is `X-Request-Id`, customize it per use case.
-    #header = "X-Request-Id"
   }
 }{{ if not .App.IsWebSocketApp }}
 
-# -----------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Render configuration
 # Doc: https://docs.aahframework.org/app-config.html#section-render
-# -----------------------------------------------------------------
+# -----------------------------------------------------------------------------
 render {
-  # aah infers the `Content-Type` value automatically
-  # if `Reply()` builder does not have value.
+  # aah infers the `Content-Type` automatically, if `Reply()` builder does not have value.
   #
   # It infers in the order of:
   #  - URL file extension - supports `.html`, `.htm`, `.json`, `.js`, `.xml`
   #    and `.txt`
-  #
   #  - Request Accept Header - Most Qualified one as per RFC 7321
   #      * Supports vendor type as per RFC 4288
-  #
   #  - Fallback to `render.default` value - supports `html`, `json`, `xml` and `text`
   #
   # Default value is `empty` string.
@@ -122,8 +101,7 @@ cache {
   # Doc: https://docs.aahframework.org/static-files.html#http-cache-control
   # -----------------------------------------------------------------------------
   static {
-    # Default `Cache-Control` for all static files,
-    # if specific mime type is not defined.
+    # Default `Cache-Control` for all static files, if specific is not defined.
     default_cache_control = "public, max-age=31536000"
 
     # Define by mime types, if mime is not present then default is applied.
@@ -145,24 +123,14 @@ cache {
   }
 }
 
-# ---------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # View configuration
 # Doc: https://docs.aahframework.org/app-config.html#section-view
-# ---------------------------------------------------------------
+# -----------------------------------------------------------------------------
 view {
-  # Application view engine.
-  # Default value is `go`.
   engine = "{{ .App.ViewEngine }}"
-
-  # View file extension.
-  #
-  # Default value is chosen based on `view.engine` while creating a new app
-  # via command `aah new`.
   ext = "{{ .App.ViewFileExt }}"
-
-  # To use custom Go template delimiters for view files.
-  # Default value is `{{ .App.TmplDelimLeft }}.{{ .App.TmplDelimRight }}`.
-  #delimiters = "{{ .App.TmplDelimLeft }}.{{ .App.TmplDelimRight }}"
+  delimiters = "{{ .App.TmplDelimLeft }}.{{ .App.TmplDelimRight }}"
 }{{ end }}
 
 # -----------------------------------------------------------------------------

@@ -348,11 +348,11 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 		for {
 			select {
 			case e := <-w.Event:
-				if e.Op == watcher.Create {
-					_ = w.Add(e.Path)
-				}
 				if !e.IsDir() {
 					watch <- true
+					if e.Op == watcher.Create {
+						_ = w.Add(e.Path)
+					}
 				}
 			case err := <-w.Error:
 				if err == watcher.ErrWatchedFileDeleted {
@@ -397,7 +397,7 @@ func loadWatchFiles(projectCfg *config.Config, baseDir string, w *watcher.Watche
 	}
 
 	// standard dir ignore list for aah project
-	dirExcludes = append(dirExcludes, "build", "static", "vendor", "tests", "logs")
+	dirExcludes = append(dirExcludes, "build", "static", "vendor", "views", "tests", "logs")
 
 	dirs, _ := ess.DirsPathExcludes(baseDir, true, dirExcludes)
 	for _, d := range dirs {

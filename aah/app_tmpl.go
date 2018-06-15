@@ -20,6 +20,7 @@ const (
 	aahTmplExt     = ".atmpl"
 	authForm       = "form"
 	authBasic      = "basic"
+	authOAuth2     = "oauth2"
 	authGeneric    = "generic"
 	authNone       = "none"
 	basicFileRealm = "file-realm"
@@ -81,6 +82,14 @@ func (a *appTmplData) IsSubTypeWebSocket() bool {
 	return a.checkSubType(typeWebSocket)
 }
 
+func (a *appTmplData) IsSessionConfigRequired() bool {
+	return a.AuthScheme == authForm || a.AuthScheme == authOAuth2 || a.AuthScheme == authBasic
+}
+
+func (a *appTmplData) IsAuth(name string) bool {
+	return strings.Contains(a.AuthScheme, name)
+}
+
 func (a *appTmplData) checkSubType(t string) bool {
 	for _, v := range a.SubTypes {
 		if v == t {
@@ -102,5 +111,9 @@ var appTemplateFuncs = template.FuncMap{
 	},
 	"variablename": func(v string) string {
 		return toLowerCamelCase(vreplace.Replace(v))
+	},
+	"isauth": func(args map[string]interface{}, name string) bool {
+		app := args["App"].(*appTmplData)
+		return app.IsAuth(name)
 	},
 }
