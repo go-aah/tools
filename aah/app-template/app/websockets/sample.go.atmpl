@@ -9,14 +9,12 @@ import (
   "{{ .App.ImportPath }}/app/models"
 )
 
-// SampleWebSocket struct is sample WebSocket implementation.
+// SampleWebSocket is aah's sample WebSocket implementation.
 type SampleWebSocket struct {
 	*ws.Context
 }
 
-// Handle method is sample WebSocket action implementation.
-//
-// It handles Text and JSON encoding based on Path param value.
+// Handle method handles Text and JSON data based on Path param value.
 func (s *SampleWebSocket) Handle(mode string) {
 	switch strings.ToLower(mode) {
 	case "text":
@@ -26,7 +24,7 @@ func (s *SampleWebSocket) Handle(mode string) {
 	}
 }
 
-// handleTextMode method is used to communicate in Text
+// handleTextMode method is used to communicate in Text data
 func (s *SampleWebSocket) handleTextMode() {
 	s.Log().Info("Handling mode: text")
 
@@ -39,17 +37,17 @@ func (s *SampleWebSocket) handleTextMode() {
 			}
 
 			s.Log().Error(err)
-			continue // we are moving on to next WS frame/msg
+			continue // we are moving on to next WS frame
 		}
 
-		// if no error, echo back Text to WebSocket client
+		// if no error then echo back Text data to WebSocket client
 		if err = s.ReplyText(str); err != nil {
 			s.Log().Error(err)
 		}
 	}
 }
 
-// handleJSONMode method is used to communicate in JSON
+// handleJSONMode method is used to communicate in JSON data
 func (s *SampleWebSocket) handleJSONMode() {
 	s.Log().Infof("Handling mode: json")
 
@@ -63,13 +61,13 @@ func (s *SampleWebSocket) handleJSONMode() {
 
 			s.Log().Error(err)
 
-			// Its a JSON read error
+			// JSON read error happened
 			_ = s.ReplyJSON(aah.Data{"message": "invalid JSON"})
 
-			continue // we are moving on to next WS frame/msg
+			continue // we are moving on to next WS frame
 		}
 
-		// if no error, echo back JSON to WebSocket client
+		// if no error then echo back JSON data to WebSocket client
 		if err := s.ReplyJSON(greet); err != nil {
 			s.Log().Error(err)
 		}

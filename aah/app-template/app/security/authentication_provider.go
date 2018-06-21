@@ -14,10 +14,8 @@ type AuthenticationProvider struct {
 
 // Init method initializes the AuthenticationProvider, this method gets called
 // during server start up.
-func (a *AuthenticationProvider) Init(cfg *config.Config) error {
-
+func (a *AuthenticationProvider) Init(appCfg *config.Config) error {
 	// NOTE: Init is called on application startup
-
 	return nil
 }
 
@@ -60,7 +58,7 @@ func (a *AuthenticationProvider) GetAuthenticationInfo(authcToken *authc.Authent
 func PostAuthEvent(e *aah.Event) {
 	ctx := e.Data.(*aah.Context)
 
-	ctx.Log().Info("Called method security.PostAuthEvent")
+	ctx.Log().Info("Method security.PostAuthEvent called")
 
 	// Do post successful authentication actions...
 }

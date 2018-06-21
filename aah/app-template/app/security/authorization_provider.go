@@ -14,10 +14,8 @@ type AuthorizationProvider struct {
 
 // Init method initializes the AuthorizationProvider, this method gets called
 // during server start up.
-func (a *AuthorizationProvider) Init(cfg *config.Config) error {
-
+func (a *AuthorizationProvider) Init(appCfg *config.Config) error {
 	// NOTE: Init is called on application startup
-
 	return nil
 }
 

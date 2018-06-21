@@ -2,7 +2,7 @@ package v1
 
 import (
 	"fmt"
-	
+
 	"aahframework.org/aah.v0"
 	"aahframework.org/ahttp.v0"
 
@@ -46,8 +46,9 @@ func (v *ValueController) Create(val *models.Value) {
 
 	// Add it to values map
 	values[val.Key] = val
+	newResourceURL := fmt.Sprintf("%s:%s", v.Req.Scheme, v.RouteURL("value_get", val.Key)
 	v.Reply().Created().
-		Header(ahttp.HeaderLocation, fmt.Sprintf("%s:%s", v.Req.Scheme, v.ReverseURL("value_get", val.Key))).
+		Header(ahttp.HeaderLocation, newResourceURL)).
 		JSON(aah.Data{
 			"key": val.Key,
 		})

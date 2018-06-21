@@ -2,7 +2,6 @@
 # {{ .App.Name }} - Application Security Configuration
 #
 # Refer documentation to explore and customize the configurations.
-#
 # Doc: https://docs.aahframework.org/security-config.html
 # -----------------------------------------------------------------------------
 security {

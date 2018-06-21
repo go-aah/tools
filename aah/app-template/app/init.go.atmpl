@@ -1,5 +1,5 @@
 // aah application initialization - configuration, server extensions, middleware's, etc.
-// Customize it per your application needs.
+// Customize it per application use case.
 
 package main
 
@@ -8,7 +8,7 @@ import ({{ if .App.IsSecurityEnabled }}
 
 	"aahframework.org/aah.v0"{{ if .App.IsWebApp }}
 
-	// Registering HTML minifier for web application
+	// Registering HTML minifier
 	_ "github.com/aah-cb/minify"{{ end }}{{ if eq .App.ViewEngine "pug" }}
 
 	// Registering Pug View Engine (formerly known as Jade)

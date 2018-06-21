@@ -39,6 +39,8 @@ file {
       ".Readfrom(", ".FromReader(",
       ".RedirectSts(", ".RedirectWithStatus(",
       ".FindDomain(", ".Lookup(",
+      ".ReverseURL(", ".RouteURL(",
+      ".ReverseURLm(", ".RouteURLNamedArgs(",
       ".GetAuthScheme(", ".AuthScheme("
     ]
   }
@@ -53,6 +55,5 @@ file {
       "name=\"anit_csrf_token\"", "name=\"anti_csrf_token\""
     ]
   }
-
-  # upcoming elements
+  
 }

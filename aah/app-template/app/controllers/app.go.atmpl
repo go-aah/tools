@@ -11,7 +11,7 @@ type AppController struct {
   *aah.Context
 }
 
-// Index method is application {{ if .App.IsWebApp -}}home page.{{ else }}root API endpoint.{{- end }}
+// Index method is application's {{ if .App.IsWebApp -}}home page.{{ else }}root API endpoint.{{- end }}
 func (a *AppController) Index() {
   {{- if .App.IsWebApp }}
   data := aah.Data{

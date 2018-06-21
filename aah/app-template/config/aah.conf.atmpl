@@ -2,7 +2,6 @@
 # {{ .App.Name }} - aah Application Configuration
 #
 # Refer documentation to explore and customize the configurations.
-#
 # Doc: https://docs.aahframework.org/app-config.html
 # -----------------------------------------------------------------------------
 
@@ -16,10 +15,10 @@ desc = "aah {{ .App.Type }} application"
 # Application type, typically these `web`, `api`, `websocket`
 type = "{{ .App.Type }}"
 
-# -----------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Server configuration
 # Doc: https://docs.aahframework.org/app-config.html#section-server
-# -----------------------------------------------------------------
+# -----------------------------------------------------------------------------
 server {
   # Address is used to bind against host address, IP address, UNIX socket.
   #
