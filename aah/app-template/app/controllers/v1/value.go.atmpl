@@ -46,9 +46,9 @@ func (v *ValueController) Create(val *models.Value) {
 
 	// Add it to values map
 	values[val.Key] = val
-	newResourceURL := fmt.Sprintf("%s:%s", v.Req.Scheme, v.RouteURL("value_get", val.Key)
+	newResourceURL := fmt.Sprintf("%s:%s", v.Req.Scheme, v.RouteURL("value_get", val.Key))
 	v.Reply().Created().
-		Header(ahttp.HeaderLocation, newResourceURL)).
+		Header(ahttp.HeaderLocation, newResourceURL).
 		JSON(aah.Data{
 			"key": val.Key,
 		})

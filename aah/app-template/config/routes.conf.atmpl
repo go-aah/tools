@@ -88,20 +88,21 @@ domains {
             action = "List"
 
             routes {
-              value_get {       # {{ if .App.IsWebApp }}/api{{ end }}/v1/values/:key
-                path = "/:key"
-              }
-              value_create {    # {{ if .App.IsWebApp }}/api{{ end }}/v1/values
+              value_create {        # {{ if .App.IsWebApp }}/api{{ end }}/v1/values
                 method = "POST"
               }
-              value_update {    # {{ if .App.IsWebApp }}/api{{ end }}/v1/values/:key
+              value_get {           # {{ if .App.IsWebApp }}/api{{ end }}/v1/values/:key
                 path = "/:key"
-                method = "PUT"
-              }
-              value_delete {    # {{ if .App.IsWebApp }}/api{{ end }}/v1/values/:key
-                path = "/:key"
-                method = "DELETE"
-              }
+
+                routes {
+                  value_update {    # {{ if .App.IsWebApp }}/api{{ end }}/v1/values/:key
+                    method = "PUT"
+                  }
+                  value_delete {    # {{ if .App.IsWebApp }}/api{{ end }}/v1/values/:key
+                    method = "DELETE"
+                  }
+                }
+              } # end - value_get
             }
           } # end - all_values
         }

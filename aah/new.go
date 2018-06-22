@@ -193,7 +193,7 @@ func collectAppSubTypesChoice(reader *bufio.Reader, app *appTmplData) {
 }
 
 func viewEngine(reader *bufio.Reader, app *appTmplData) {
-	builtInViewEngines := []string{"go", "pug"}
+	builtInViewEngines := []string{"go"}
 	var engine string
 	for {
 		engine = strings.ToLower(readInput(reader, fmt.Sprintf("\nChoose your application View Engine (%s), default is 'go': ",
