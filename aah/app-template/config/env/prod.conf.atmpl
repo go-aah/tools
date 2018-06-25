@@ -10,8 +10,6 @@ prod {
   # -----------------------------------------------------------------------------
   runtime {
     debug {
-      # Whether to strip source `src` base path from file path.
-      # Default value is `false`.
       strip_src_base = true
     }
   }

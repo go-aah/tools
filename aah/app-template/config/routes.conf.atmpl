@@ -8,8 +8,9 @@
 domains {
   #------------------------------------------------------------------------------
   # Domain/subdomain Key Name
-  # Choose an `unique keyname` to define domain section and its configuration.
-  # Tip: domain name address, port no values to create a domain key, etc.
+  # Choose a `unique keyname` to define domain section and its configuration.
+  # Tip: domain name address, port no values could be used to create a 
+  # meaningful domain key, etc.
   #
   # Doc: https://docs.aahframework.org/routes-config.html#domain-configuration
   #------------------------------------------------------------------------------
@@ -50,12 +51,10 @@ domains {
         path = "/static"
         dir = "static"
       }
-
       favicon {
         path = "/favicon.ico"
         file = "img/favicon.ico"
       }
-
       robots_txt {
         path = "/robots.txt"
         file = "robots.txt"

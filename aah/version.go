@@ -25,8 +25,8 @@ var (
 // VersionPrinter method prints the versions info.
 func VersionPrinter(c *cli.Context) {
 	cliLog = initCLILogger(nil)
-	fmt.Printf("%-4s v%s\n", "cli", Version)
-	fmt.Printf("%-4s v%s\n", "aah", aahVer)
+	fmt.Printf("%-3s v%s\n", "cli", Version)
+	fmt.Printf("%-3s v%s\n", "aah", aahVer)
 	if goVer := goVersion(); len(goVer) > 0 {
 		fmt.Printf("%-4s v%s\n", "go", goVer)
 	}

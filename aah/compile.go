@@ -81,9 +81,17 @@ func compileApp(args *compileArgs) (string, error) {
 		}
 	}
 
+	appImportPaths := map[string]string{
+		"aahframework.org/aah.v0":        "aah",
+		"aahframework.org/aruntime.v0":   "aruntime",
+		"aahframework.org/config.v0":     "config",
+		"aahframework.org/essentials.v0": "ess",
+		"aahframework.org/log.v0":        "log",
+	}
+
 	// get all the types info referred aah framework context embedded
 	appControllers := acntlr.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", libImportPath("aah")))
-	appImportPaths := acntlr.CreateImportPaths(appControllers, map[string]string{})
+	appImportPaths = acntlr.CreateImportPaths(appControllers, appImportPaths)
 	appSecurity := appSecurity(aah.AppConfig(), appImportPaths)
 
 	// Go AST processing for WebSockets
@@ -356,12 +364,7 @@ import (
 	"reflect"
 	"regexp"
 	"syscall"
-
-	"aahframework.org/aah.v0"
-	"aahframework.org/aruntime.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"{{ if .AppSecurity }}
+	{{ if .AppSecurity }}
 	"aahframework.org/security.v0/authc"
 	"aahframework.org/security.v0/authz"{{ end }}{{ range $k, $v := $.AppImportPaths }}
 	{{ $v }} "{{ $k }}"{{ end }}
