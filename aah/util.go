@@ -421,7 +421,7 @@ func inferVersionSeries() string {
 }
 
 func aahLibraryDirs() []string {
-	dirs, err := ess.DirsPath(filepath.Join(gosrcDir, importPrefix), false)
+	dirs, err := ess.DirsPathExcludes(filepath.Join(gosrcDir, importPrefix), false, ess.Excludes{"examples"})
 	if err != nil {
 		return []string{}
 	}
