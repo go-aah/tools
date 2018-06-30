@@ -17,28 +17,28 @@ type ValueController struct {
 }
 
 // List method returns all the values.
-func (v *ValueController) List() {
-	v.Reply().Ok().JSON(values)
+func (c *ValueController) List() {
+	c.Reply().Ok().JSON(values)
 }
 
 // Index method returns value for given key.
 // If key not found then returns 404 NotFound error.
-func (v *ValueController) Index(key string) {
+func (c *ValueController) Index(key string) {
 	if val, found := values[key]; found {
-		v.Reply().Ok().JSON(val)
+		c.Reply().Ok().JSON(val)
 		return
 	}
 
-	v.Reply().NotFound().JSON(aah.Data{
+	c.Reply().NotFound().JSON(aah.Data{
 		"message": "Value not exists",
 	})
 }
 
 // Create method creates new entry in the values map with given payload.
 // If key already exists then returns 409 Conflict error.
-func (v *ValueController) Create(val *models.Value) {
+func (c *ValueController) Create(val *models.Value) {
 	if _, found := values[val.Key]; found {
-		v.Reply().Conflict().JSON(aah.Data{
+		c.Reply().Conflict().JSON(aah.Data{
 			"message": "Key already exists",
 		})
 		return
@@ -46,8 +46,8 @@ func (v *ValueController) Create(val *models.Value) {
 
 	// Add it to values map
 	values[val.Key] = val
-	newResourceURL := fmt.Sprintf("%s:%s", v.Req.Scheme, v.RouteURL("value_get", val.Key))
-	v.Reply().Created().
+	newResourceURL := fmt.Sprintf("%s:%s", c.Req.Scheme, c.RouteURL("value_get", val.Key))
+	c.Reply().Created().
 		Header(ahttp.HeaderLocation, newResourceURL).
 		JSON(aah.Data{
 			"key": val.Key,
@@ -56,33 +56,33 @@ func (v *ValueController) Create(val *models.Value) {
 
 // Update method updates value entry on map for given key and Payload.
 // If key not exists then returns 400 BadRequest error.
-func (v *ValueController) Update(key string, val *models.Value) {
-	if c, found := values[key]; found {
-		c.Value = val.Value
-		values[key] = c
-		v.Reply().Ok().JSON(aah.Data{
+func (c *ValueController) Update(key string, val *models.Value) {
+	if r, found := values[key]; found {
+		r.Value = val.Value
+		values[key] = r
+		c.Reply().Ok().JSON(aah.Data{
 			"message": "Value updated successfully",
 		})
 		return
 	}
 
-	v.Reply().BadRequest().JSON(aah.Data{
+	c.Reply().BadRequest().JSON(aah.Data{
 		"message": "Invalid input",
 	})
 }
 
 // Delete method deletes value for given key.
 // If key not exists then returns 400 BadRequest error.
-func (v *ValueController) Delete(key string) {
+func (c *ValueController) Delete(key string) {
 	if _, found := values[key]; found {
 		delete(values, key)
-		v.Reply().Ok().JSON(aah.Data{
+		c.Reply().Ok().JSON(aah.Data{
 			"message": "Value deleted successfully",
 		})
 		return
 	}
 
-	v.Reply().BadRequest().JSON(aah.Data{
+	c.Reply().BadRequest().JSON(aah.Data{
 		"message": "Invalid input",
 	})
 }

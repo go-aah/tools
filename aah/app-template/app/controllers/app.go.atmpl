@@ -12,7 +12,7 @@ type AppController struct {
 }
 
 // Index method is application's {{ if .App.IsWebApp -}}home page.{{ else }}root API endpoint.{{- end }}
-func (a *AppController) Index() {
+func (c *AppController) Index() {
   {{- if .App.IsWebApp }}
   data := aah.Data{
     "Greet": models.Greet{
@@ -20,9 +20,9 @@ func (a *AppController) Index() {
     },
   }
 
-  a.Reply().Ok().HTML(data)
+  c.Reply().Ok().HTML(data)
 {{- else }}
-  a.Reply().Ok().JSON(models.Greet{
+  c.Reply().Ok().JSON(models.Greet{
     Message: "Welcome to aah framework - API application",
   }){{ end }}
 }

@@ -15,61 +15,61 @@ type SampleWebSocket struct {
 }
 
 // Handle method handles Text and JSON data based on Path param value.
-func (s *SampleWebSocket) Handle(mode string) {
+func (w *SampleWebSocket) Handle(mode string) {
 	switch strings.ToLower(mode) {
 	case "text":
-		s.handleTextMode()
+		w.handleTextMode()
 	case "json":
-		s.handleJSONMode()
+		w.handleJSONMode()
 	}
 }
 
 // handleTextMode method is used to communicate in Text data
-func (s *SampleWebSocket) handleTextMode() {
-	s.Log().Info("Handling mode: text")
+func (w *SampleWebSocket) handleTextMode() {
+	w.Log().Info("Handling mode: text")
 
 	for {
-		str, err := s.ReadText()
+		str, err := w.ReadText()
 		if err != nil {
 			if ws.IsDisconnected(err) {
 				// WebSocket client is gone, exit here
 				return
 			}
 
-			s.Log().Error(err)
+			w.Log().Error(err)
 			continue // we are moving on to next WS frame
 		}
 
 		// if no error then echo back Text data to WebSocket client
-		if err = s.ReplyText(str); err != nil {
-			s.Log().Error(err)
+		if err = w.ReplyText(str); err != nil {
+			w.Log().Error(err)
 		}
 	}
 }
 
 // handleJSONMode method is used to communicate in JSON data
-func (s *SampleWebSocket) handleJSONMode() {
-	s.Log().Infof("Handling mode: json")
+func (w *SampleWebSocket) handleJSONMode() {
+	w.Log().Infof("Handling mode: json")
 
 	for {
 		var greet models.Greet
-		if err := s.ReadJSON(&greet); err != nil {
+		if err := w.ReadJSON(&greet); err != nil {
 			if ws.IsDisconnected(err) {
 				// WebSocket client is gone, exit here
 				return
 			}
 
-			s.Log().Error(err)
+			w.Log().Error(err)
 
 			// JSON read error happened
-			_ = s.ReplyJSON(aah.Data{"message": "invalid JSON"})
+			_ = w.ReplyJSON(aah.Data{"message": "invalid JSON"})
 
 			continue // we are moving on to next WS frame
 		}
 
 		// if no error then echo back JSON data to WebSocket client
-		if err := s.ReplyJSON(greet); err != nil {
-			s.Log().Error(err)
+		if err := w.ReplyJSON(greet); err != nil {
+			w.Log().Error(err)
 		}
 	}
 }
