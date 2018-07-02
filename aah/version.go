@@ -31,14 +31,16 @@ func VersionPrinter(c *cli.Context) {
 		fmt.Printf("%-4s v%s\n", "go", goVer)
 	}
 
-	fmt.Printf("\nLibraries:\n")
-	for _, bd := range aahLibraryDirs() {
-		bn := filepath.Base(bd)
-		if strings.HasPrefix(bn, "aah") || strings.HasPrefix(bn, "tools") {
-			continue
-		}
-		if verNo, err := readVersionNo(bd); err == nil {
-			fmt.Printf("  %s v%s\n", bn[:len(bn)-3], verNo)
+	if c.Bool("all") { // currently not-executed intentionally
+		fmt.Printf("\nLibraries:\n")
+		for _, bd := range aahLibraryDirs() {
+			bn := filepath.Base(bd)
+			if strings.HasPrefix(bn, "aah") || strings.HasPrefix(bn, "tools") {
+				continue
+			}
+			if verNo, err := readVersionNo(bd); err == nil {
+				fmt.Printf("  %s v%s\n", bn[:len(bn)-3], verNo)
+			}
 		}
 	}
 	fmt.Println()
