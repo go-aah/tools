@@ -323,10 +323,11 @@ type file struct {
 
 func createAahApp(appDir string, data map[string]interface{}) error {
 	app := data["App"].(*appTmplData)
-	aahToolsPath := aahToolsPath()
-	appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
-	appTmplBaseDir := appTemplatePath
 	appBaseDir := app.BaseDir
+	appTmplBaseDir := inferAppTmplBaseDir()
+	if ess.IsStrEmpty(appTmplBaseDir) {
+		logFatal("Unable to find aah app template at $HOME/.aah/app-templates")
+	}
 
 	// app directory creation
 	if err := ess.MkDirAll(appDir, permRWXRXRX); err != nil {

@@ -5,13 +5,16 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
 	"go/format"
 	"io/ioutil"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"aahframework.org/aah.v0"
@@ -221,6 +224,8 @@ func generateSource(dir, filename, templateSource string, templateArgs map[strin
 	return nil
 }
 
+var notExistRegex = regexp.MustCompile(`cannot find package "(.*)" in any of`)
+
 // checkAndGetAppDeps method project dependencies is present otherwise
 // it tries to get it if any issues it will return error. It internally uses
 // go list command.
@@ -229,39 +234,44 @@ func generateSource(dir, filename, templateSource string, templateArgs map[strin
 func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 	importPath := path.Join(appImportPath, "app", "...")
 	args := []string{"list", "-f", "{{.Imports}}", importPath}
-
 	output, err := execCmd(gocmd, args, false)
 	if err != nil {
 		return err
 	}
 
-	lines := strings.Split(strings.TrimSpace(output), "\r\n")
-	for _, line := range lines {
-		line = strings.Replace(strings.Replace(line, "]", "", -1), "[", "", -1)
-		line = strings.Replace(strings.Replace(line, "\r", " ", -1), "\n", " ", -1)
-		if ess.IsStrEmpty(line) {
-			// all dependencies is available
-			return nil
-		}
-
-		notExistsPkgs := []string{}
-		for _, pkg := range strings.Fields(line) {
-			if ess.IsStrEmpty(pkg) || ess.IsImportPathExists(pkg) {
-				continue
+	pkgList := make(map[string]string)
+	replacer := strings.NewReplacer("[", "", "]", "")
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	for scanner.Scan() {
+		if ln := replacer.Replace(strings.TrimSpace(scanner.Text())); ln != "" {
+			for _, p := range strings.Fields(ln) {
+				if p := strings.TrimSpace(p); p != "" {
+					pkgList[p] = p
+				}
 			}
-			notExistsPkgs = append(notExistsPkgs, pkg)
 		}
+	}
 
-		if cfg.BoolDefault("build.dep_get", true) && len(notExistsPkgs) > 0 {
-			cliLog.Info("Getting application dependencies ...")
-			if err := goGet(notExistsPkgs...); err != nil {
-				return err
-			}
-		} else if len(notExistsPkgs) > 0 {
-			return fmt.Errorf("Below application dependencies does not exist, "+
-				"enable 'build.dep_get=true' in 'aah.project' for auto fetch\n---> %s",
-				strings.Join(notExistsPkgs, "\n---> "))
+	args = []string{"list"}
+	for _, p := range pkgList {
+		args = append(args, p)
+	}
+	b, _ := exec.Command(gocmd, args...).CombinedOutput()
+	notExistsPkgs := []string{}
+	matches := notExistRegex.FindAllStringSubmatch(string(b), -1)
+	for _, m := range matches {
+		notExistsPkgs = append(notExistsPkgs, m[1])
+	}
+
+	if cfg.BoolDefault("build.dep_get", true) && len(notExistsPkgs) > 0 {
+		cliLog.Info("Getting application dependencies ...", notExistsPkgs)
+		if err := goGet(notExistsPkgs...); err != nil {
+			return err
 		}
+	} else if len(notExistsPkgs) > 0 {
+		return fmt.Errorf("Below application dependencies does not exist, "+
+			"enable 'build.dep_get=true' in 'aah.project' for auto fetch\n---> %s",
+			strings.Join(notExistsPkgs, "\n---> "))
 	}
 
 	return nil

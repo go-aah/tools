@@ -14,7 +14,7 @@ version=$1
 # Build for macOS
 build_dir="/tmp/aah_cli_mac_$version"
 mkdir -p $build_dir
-env GOOS=darwin GOARCH=amd64 go build -o $build_dir/aah -ldflags="-s -w"
+env GOOS=darwin GOARCH=amd64 go build -o $build_dir/aah -ldflags="-s -w -X main.CliPackaged=true"
 cd $build_dir && zip aah_darwin_amd64.zip aah
 
 # sha256 and upload to aah server

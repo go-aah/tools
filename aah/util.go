@@ -135,6 +135,7 @@ func getBuildDate() string {
 
 func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 	cmd := exec.Command(cmdName, args...) // #nosec
+	cliLog = initCLILogger(nil)
 	cliLog.Trace("Executing ", strings.Join(cmd.Args, " "))
 
 	if stdout {
@@ -228,6 +229,9 @@ func findAvailablePort() string {
 }
 
 func initCLILogger(cfg *config.Config) *log.Logger {
+	if cliLog != nil {
+		return cliLog
+	}
 	if cfg == nil {
 		cfg, _ = config.ParseString("")
 	}
@@ -320,6 +324,9 @@ func waitForConnReady(port string) {
 }
 
 func installCLI() {
+	if CliPackaged != "" {
+		return
+	}
 	verser := inferVersionSeries()
 	args := []string{"install", fmt.Sprintf("%s/tools.%s/aah", importPrefix, verser)}
 	if _, err := execCmd(gocmd, args, false); err != nil {
@@ -530,4 +537,54 @@ func toLowerCamelCase(v string) string {
 		}
 	}
 	return string(st)
+}
+
+func inferAppTmplBaseDir() string {
+	aahBasePath := aahPath()
+	baseDir := filepath.Join(aahBasePath, "app-templates", "generic")
+	if !ess.IsFileExists(baseDir) {
+		tmplRepo := "https://github.com/go-aah/app-templates.git"
+		cliLog.Debugf("Downloading aah quick start app templates from %s", tmplRepo)
+		gitArgs := []string{"clone", tmplRepo, filepath.Dir(baseDir)}
+		if _, err := execCmd(gitcmd, gitArgs, false); err != nil {
+			logErrorf("Unable to download aah app-template from %s", tmplRepo)
+			return ""
+		}
+	}
+	return baseDir
+}
+
+func aahPath() string {
+	s := os.Getenv("AAHPATH")
+	if s == "" {
+		return filepath.Join(userHomeDir(), ".aah")
+	}
+	return s
+}
+
+func userHomeDir() string {
+	if isWindowsOS() {
+		home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
+		if ess.IsStrEmpty(home) {
+			home = os.Getenv("USERPROFILE")
+		}
+		return filepath.Clean(home)
+	}
+
+	env := "HOME"
+	if runtime.GOOS == "plan9" {
+		env = "home"
+	}
+	if home := os.Getenv(env); home != "" {
+		return filepath.Clean(home)
+	}
+
+	return ""
+}
+
+func goCmdName() string {
+	if name := os.Getenv("AAHVGO"); name != "" {
+		return "vgo"
+	}
+	return "go"
 }

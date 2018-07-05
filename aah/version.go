@@ -28,7 +28,7 @@ func VersionPrinter(c *cli.Context) {
 	fmt.Printf("%-3s v%s\n", "cli", Version)
 	fmt.Printf("%-3s v%s\n", "aah", aahVer)
 	if goVer := goVersion(); len(goVer) > 0 {
-		fmt.Printf("%-4s v%s\n", "go", goVer)
+		fmt.Printf("%-3s v%s\n", "go", goVer)
 	}
 
 	if c.Bool("all") { // currently not-executed intentionally

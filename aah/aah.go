@@ -40,7 +40,12 @@ var (
 
 	// cli logger
 	cliLog *log.Logger
+
+	// CliPackaged is identify cli from go get or binary dist
+	CliPackaged string
 )
+
+var errStopHere = errors.New("stop here")
 
 func checkPrerequisites() error {
 	// check go is installed or not
@@ -56,7 +61,8 @@ func checkPrerequisites() error {
 	}
 
 	// Go executable
-	if gocmd, err = exec.LookPath("go"); err != nil {
+	gocmdName := goCmdName()
+	if gocmd, err = exec.LookPath(gocmdName); err != nil {
 		return err
 	}
 
@@ -69,7 +75,21 @@ func checkPrerequisites() error {
 
 	// aah
 	if aahVer, err = aahVersion(); err == errVersionNotExists {
-		return errors.New("aah framework is not installed, its easy to install. Run 'go get aahframework.org/tools.v0/aah'")
+		if collectYesOrNo(reader, "aah framework is not installed in GOPATH, would you like to install [Y]es or [N]o") {
+			args := []string{"get"}
+			if gocmdName == "go" {
+				args = append(args, "-u")
+			}
+			args = append(args, "aahframework.org/aah.v0")
+			if _, err := execCmd(gocmd, args, false); err != nil {
+				return err
+			}
+			aahVer, _ = aahVersion()
+			fmt.Printf("\naah framework successfully installed in GOPATH\n\n")
+			return nil
+		}
+		fmt.Printf("\nOkay, you could do it manually, run '%s get aahframework.org/aah.v0'\n", gocmdName)
+		return errStopHere
 	}
 
 	return nil
@@ -86,7 +106,10 @@ func main() {
 		}
 	}()
 
-	if err := checkPrerequisites(); err != nil {
+	err := checkPrerequisites()
+	if err == errStopHere {
+		return
+	} else if err != nil {
 		logFatal(err)
 	}
 
