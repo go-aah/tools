@@ -18,7 +18,8 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
-const aahGrammarIdentifier = "migrate.grammar"
+const aahGrammarIdentifier = "migrate.conf"
+const aahGrammarFetchLoc = "https://cdn.aahframework.org/" + aahGrammarIdentifier
 
 var migrateCmd = cli.Command{
 	Name:    "migrate",
@@ -77,7 +78,14 @@ func migrateCodeAction(c *cli.Context) error {
 		return nil
 	}
 
-	grammarFile := filepath.Join(aahToolsPath().Dir, aahGrammarIdentifier)
+	grammarFile := filepath.Join(aahPath(), aahGrammarIdentifier)
+	if !ess.IsFileExists(grammarFile) {
+		cliLog.Info("Fetch migrate configuration from ", aahGrammarFetchLoc)
+		if err := fetchFile(grammarFile, aahGrammarFetchLoc); err != nil {
+			logFatal(err)
+		}
+	}
+
 	grammarCfg, err := config.LoadFile(grammarFile)
 	if err != nil {
 		logFatal(err)
@@ -85,10 +93,10 @@ func migrateCodeAction(c *cli.Context) error {
 
 	cliLog.Info("\nNote:")
 	cliLog.Info("-----")
-	cliLog.Info("Command works based on grammer file. If you identify a new grammar entry, \n" +
-		"create an issue at https://aahframework.org/issues to let me know.\n")
+	cliLog.Info("Command works based on `migrate.conf` file. If you identify a new grammar entry, \n" +
+		"create an issue at https://aahframework.org/issues.\n")
 
-	cliLog.Infof("Loaded grammar file: %s", grammarFile)
+	cliLog.Infof("Loaded migrate configuration: %s", grammarFile)
 	cliLog.Infof("Loaded aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
 	cliLog.Infof("Migrate starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 

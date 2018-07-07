@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -30,6 +30,8 @@ var (
 
 	Just provide your inputs based on your use case to generate base structure to kick
 	start your development.
+
+	Application templates are kept at '$HOME/.aah/app-templates' for CLI binary distribution.
 
 	Go to https://docs.aahframework.org to learn more and customize your aah application.
 	`,

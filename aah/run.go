@@ -162,6 +162,7 @@ func runAction(c *cli.Context) error {
 		Cmd:        "RunCmd",
 		ProjectCfg: projectCfg,
 		AppPack:    false,
+		AppEmbed:   false,
 	})
 	if err != nil {
 		logFatal(err)
@@ -219,6 +220,7 @@ func (hr *hotReload) CompileAndStart() error {
 		ProxyPort:  hr.ProxyPort,
 		ProjectCfg: hr.ProjectConfig,
 		AppPack:    false,
+		AppEmbed:   false,
 	})
 	if err != nil {
 		return err
