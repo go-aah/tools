@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -33,9 +34,9 @@ import (
 var runCmd = cli.Command{
 	Name:    "run",
 	Aliases: []string{"r"},
-	Usage:   "Run aah framework application (supports hot-reload)",
-	Description: `Run the aah framework web/api application. It supports hot-reload, just code and refresh the browser
-	to see your updates.
+	Usage:   "Runs aah application (supports hot-reload)",
+	Description: `Runs aah application. It supports hot-reload (just code and refresh the browser
+	to see your updates).
 
 	Examples of short and long flags:
     aah run
@@ -45,12 +46,12 @@ var runCmd = cli.Command{
 		aah run -i github.com/user/appname -e qa
 		aah run -i github.com/user/appname -e qa -c /path/to/config/external.conf
 
-    aah run --importpath github.com/username/name
-		aah run --importpath github.com/username/name --envprofile qa
-		aah run --importpath github.com/username/name --envprofile qa --config /path/to/config/external.conf
+    aah run --importpath github.com/user/appname
+		aah run --importpath github.com/user/appname --envprofile qa
+		aah run --importpath github.com/user/appname --envprofile qa --config /path/to/config/external.conf
 
-	Note: It is recommended to use build and deploy approach instead of
-	using 'aah run' for production use.`,
+	Note: For production use, it is recommended to follow build and deploy approach instead of
+	using 'aah run'.`,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "i, importpath",
@@ -58,7 +59,7 @@ var runCmd = cli.Command{
 		},
 		cli.StringFlag{
 			Name:  "e, envprofile",
-			Usage: "Environment profile name to activate. e.g: dev, qa, prod"},
+			Usage: "Environment profile name to activate (e.g: dev, qa, prod)"},
 		cli.StringFlag{
 			Name:  "c, config",
 			Usage: "External config file for overriding aah.conf values",
@@ -69,19 +70,19 @@ var runCmd = cli.Command{
 
 type (
 	hotReload struct {
-		ProxyURL       *url.URL
+		ChangedOrError bool
+		IsSSL          bool
 		ProxyPort      string
 		BaseDir        string
 		Addr           string
 		Port           string
-		IsSSL          bool
 		SSLCert        string
 		SSLKey         string
 		Args           []string
+		ProxyURL       *url.URL
 		Proxy          *httputil.ReverseProxy
 		Process        *process
 		ProjectConfig  *config.Config
-		ChangedOrError bool
 		Watcher        *watcher.Watcher
 	}
 
@@ -98,7 +99,7 @@ type (
 )
 
 func runAction(c *cli.Context) error {
-	importPath := getAppImportPath(c)
+	importPath := appImportPath(c)
 	appStartArgs := []string{}
 
 	configPath := getNonEmptyAbsPath(c.String("c"), c.String("config"))
@@ -111,7 +112,9 @@ func runAction(c *cli.Context) error {
 		appStartArgs = append(appStartArgs, "-profile", envProfile)
 	}
 
-	aah.Init(importPath)
+	if err := aah.Init(importPath); err != nil {
+		logFatal(err)
+	}
 	projectCfg := aahProjectCfg(aah.AppBaseDir())
 	cliLog = initCLILogger(projectCfg)
 
@@ -159,6 +162,7 @@ func runAction(c *cli.Context) error {
 		Cmd:        "RunCmd",
 		ProjectCfg: projectCfg,
 		AppPack:    false,
+		AppEmbed:   false,
 	})
 	if err != nil {
 		logFatal(err)
@@ -189,6 +193,7 @@ func (hr *hotReload) Start() {
 		server.ErrorLog = hr.Proxy.ErrorLog
 
 		if hr.IsSSL {
+			/* #nosec Its required for development activity */
 			hr.Proxy.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 			err = server.ListenAndServeTLS(hr.SSLCert, hr.SSLKey)
 		} else {
@@ -215,12 +220,14 @@ func (hr *hotReload) CompileAndStart() error {
 		ProxyPort:  hr.ProxyPort,
 		ProjectCfg: hr.ProjectConfig,
 		AppPack:    false,
+		AppEmbed:   false,
 	})
 	if err != nil {
 		return err
 	}
 
 	hr.Process = &process{
+		// #nosec
 		cmd: exec.Command(appBinary, hr.Args...),
 		nw: &notifyWriter{
 			w:          os.Stdout,
@@ -257,7 +264,7 @@ func (hr *hotReload) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if hr.ChangedOrError {
 		cliLog.Info("Application file change(s) detected")
 		hr.ChangedOrError = false
-		hr.Watcher.Close()
+		ess.CloseQuietly(hr.Watcher)
 		hr.Stop()
 		if err := hr.CompileAndStart(); err != nil {
 			logError(err)
@@ -267,7 +274,68 @@ func (hr *hotReload) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		waitForConnReady(hr.ProxyPort)
 	}
-	hr.Proxy.ServeHTTP(w, r)
+	hr.ProxyServe(w, r)
+}
+
+// Typically for HTTP method: CONNECT and WebSocket needs tunneling, we cannot
+// use `httputil.ReverseProxy` since it handles Hop-By-Hop headers on proxy
+// connection - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers#hbh
+func (hr *hotReload) needTunneling(r *http.Request) bool {
+	return r.Method == http.MethodConnect ||
+		strings.EqualFold(strings.ToLower(r.Header.Get("Upgrade")), "websocket")
+}
+
+func (hr *hotReload) ProxyServe(w http.ResponseWriter, r *http.Request) {
+	if hr.needTunneling(r) {
+		hr.tunnel(w, r)
+	} else {
+		hr.Proxy.ServeHTTP(w, r)
+	}
+}
+
+func (hr *hotReload) tunnel(w http.ResponseWriter, r *http.Request) {
+	var peer net.Conn
+	var err error
+	address := fmt.Sprintf("%s:%s", hr.Addr, hr.ProxyPort)
+	if hr.IsSSL {
+		/* #nosec Its required for development activity */
+		peer, err = tls.Dial("tcp", address, &tls.Config{InsecureSkipVerify: true})
+	} else {
+		peer, err = net.DialTimeout("tcp", address, 10*time.Second)
+	}
+
+	if err != nil {
+		http.Error(w, "Error tunneling with peer", http.StatusBadGateway)
+		return
+	}
+
+	hj, ok := w.(http.Hijacker)
+	if !ok {
+		http.Error(w, "Error hijacking is not supported", http.StatusInternalServerError)
+		return
+	}
+
+	conn, _, err := hj.Hijack()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	if err = r.Write(peer); err != nil {
+		logErrorf("Error tunneling data to peer: %s", err)
+		return
+	}
+
+	go func() {
+		defer ess.CloseQuietly(peer)
+		defer ess.CloseQuietly(conn)
+		_, _ = io.Copy(peer, conn)
+	}()
+	go func() {
+		defer ess.CloseQuietly(conn)
+		defer ess.CloseQuietly(peer)
+		_, _ = io.Copy(conn, peer)
+	}()
 }
 
 func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher, watch chan<- bool) {
@@ -282,10 +350,12 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 		for {
 			select {
 			case e := <-w.Event:
-				if e.Op == watcher.Create {
-					_ = w.Add(e.Path)
+				if !e.IsDir() {
+					watch <- true
+					if e.Op == watcher.Create {
+						_ = w.Add(e.Path)
+					}
 				}
-				watch <- true
 			case err := <-w.Error:
 				if err == watcher.ErrWatchedFileDeleted {
 					// treat as trace information, not an error
@@ -300,7 +370,7 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 	if cliLog.IsLevelTrace() {
 		var fileList []string
 		for path := range w.WatchedFiles() {
-			fileList = append(fileList, stripGoPath(path))
+			fileList = append(fileList, stripGoSrcPath(path))
 		}
 		cliLog.Trace("Watched files:\n\t", strings.Join(fileList, "\n\t"))
 	}
@@ -329,11 +399,9 @@ func loadWatchFiles(projectCfg *config.Config, baseDir string, w *watcher.Watche
 	}
 
 	// standard dir ignore list for aah project
-	dirExcludes = append(dirExcludes, "build", "static", "vendor", "tests", "logs")
+	dirExcludes = append(dirExcludes, "build", "static", "vendor", "views", "tests", "logs")
 
 	dirs, _ := ess.DirsPathExcludes(baseDir, true, dirExcludes)
-	// dirs = excludeAndCreateSlice(dirs, baseDir)
-	// dirs = excludeAndCreateSlice(dirs, filepath.Join(baseDir, "app"))
 	for _, d := range dirs {
 		if err := w.Add(d); err != nil {
 			logErrorf("Unable add watch for '%v'", d)

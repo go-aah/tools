@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -17,32 +17,21 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
-	aah "aahframework.org/aah.v0"
+	"aahframework.org/aah.v0"
 	"aahframework.org/essentials.v0"
-)
-
-const (
-	typeWeb        = "web"
-	typeAPI        = "api"
-	storeCookie    = "cookie"
-	storeFile      = "file"
-	aahTmplExt     = ".atmpl"
-	authForm       = "form"
-	authBasic      = "basic"
-	authGeneric    = "generic"
-	authNone       = "none"
-	basicFileRealm = "file-realm"
 )
 
 var (
 	newCmd = cli.Command{
 		Name:    "new",
 		Aliases: []string{"n"},
-		Usage:   "Create new aah 'web' or 'api' application (interactive)",
+		Usage:   "Creates new aah 'web', 'api' or 'websocket' application (interactive)",
 		Description: `aah new command is an interactive program to assist you to quick start aah application.
 
 	Just provide your inputs based on your use case to generate base structure to kick
 	start your development.
+
+	Application templates are kept at '$HOME/.aah/app-templates' for CLI binary distribution.
 
 	Go to https://docs.aahframework.org to learn more and customize your aah application.
 	`,
@@ -58,54 +47,47 @@ func newAction(c *cli.Context) error {
 	fmt.Println()
 	fmt.Println("Based on your inputs, aah CLI tool generates the aah application structure for you.")
 
-	// Collect data
-	importPath := getImportPath(reader)
-	appType := getAppType(reader)
-	viewEngineInfo := getViewEngine(reader, appType)
-	authScheme := getAuthScheme(reader, appType)
-	basicAuthMode := getBasicAuthMode(reader, authScheme)
-	passwordEncoder := getPasswordHashAlgorithm(reader, authScheme)
-	sessionStore := getSessionInfo(reader, appType, authScheme)
-	cors := getCORSInfo(reader)
+	// Collect inputs for aah app creation
+	importPath := collectImportPath(reader)
+	appType := collectAppType(reader)
+
+	// Depends on application type choice, collect subsequent inputs
+	app := &appTmplData{
+		ImportPath:     importPath,
+		Type:           appType,
+		TmplDelimLeft:  "{{",
+		TmplDelimRight: "}}",
+	}
+
+	switch appType {
+	case typeWeb:
+		collectInputsForWebApp(app)
+	case typeAPI:
+		collectInputsForAPIApp(app)
+	}
 
 	// Process it
-	appDir := filepath.Join(gosrcDir, filepath.FromSlash(importPath))
-	appName := filepath.Base(appDir)
-	appSessionFilepath := filepath.ToSlash(filepath.Join(appDir, "sessions"))
-	data := map[string]interface{}{
-		"AppName":                 appName,
-		"AppType":                 appType,
-		"AppImportPath":           importPath,
-		"AppViewEngine":           viewEngineInfo[0],
-		"AppViewFileExt":          viewEngineInfo[1],
-		"AppAuthScheme":           authScheme,
-		"AppBasicAuthMode":        basicAuthMode,
-		"AppPasswordEncoder":      passwordEncoder,
-		"AppSessionStore":         sessionStore,
-		"AppSessionFileStorePath": appSessionFilepath,
-		"AppSessionSignKey":       ess.SecureRandomString(64),
-		"AppSessionEncKey":        ess.SecureRandomString(32),
-		"AppAntiCSRFSignKey":      ess.SecureRandomString(64),
-		"AppAntiCSRFEncKey":       ess.SecureRandomString(32),
-		"AppCORSEnable":           cors,
-		"TmplDemils":              "{{.}}",
-	}
+	app.BaseDir = filepath.Join(gosrcDir, filepath.FromSlash(importPath))
+	app.Name = filepath.Base(app.BaseDir)
+	app.SessionFileStorePath = filepath.ToSlash(filepath.Join(app.BaseDir, "sessions"))
 
-	if basicAuthMode == basicFileRealm {
-		data["AppBasicAuthFileRealmPath"] = filepath.Join(appDir, "config", "basic-realm.conf")
+	if app.BasicAuthMode == basicFileRealm {
+		app.BasicAuthFileRealmPath = filepath.Join(app.BaseDir, "config", "basic-realm.conf")
 	} else {
-		data["AppBasicAuthFileRealmPath"] = "/path/to/basic-realm.conf"
+		app.BasicAuthFileRealmPath = "/path/to/basic-realm.conf"
 	}
 
-	if err := createAahApp(appDir, data); err != nil {
+	if err := createAahApp(app.BaseDir, map[string]interface{}{
+		"App": app,
+	}); err != nil {
 		logFatal(err)
 	}
 
-	fmt.Printf("\nYour aah %s application was created successfully at '%s'\n", appType, appDir)
-	fmt.Printf("You shall run your application via the command: 'aah run --importpath %s'\n", importPath)
+	fmt.Printf("\nYour aah %s application was created successfully at '%s'\n", app.Type, app.BaseDir)
+	fmt.Printf("You shall run your application via the command: 'aah run --importpath %s'\n", app.ImportPath)
 	fmt.Println("\nGo to https://docs.aahframework.org to learn more and customize your aah application.")
 
-	if basicAuthMode == basicFileRealm {
+	if app.BasicAuthMode == basicFileRealm {
 		fmt.Println("\nNext step:")
 		fmt.Println("\tCreate basic auth realm file per your application requirements.")
 		fmt.Println("\tRefer to 'https://docs.aahframework.org/authentication.html#basic-auth-file-realm-format' to create basic auth realm file.")
@@ -124,7 +106,7 @@ func readInput(reader *bufio.Reader, prompt string) string {
 	return strings.TrimSpace(input)
 }
 
-func getImportPath(reader *bufio.Reader) string {
+func collectImportPath(reader *bufio.Reader) string {
 	var importPath string
 	for {
 		importPath = filepath.ToSlash(readInput(reader, "\nEnter your application import path: "))
@@ -140,14 +122,14 @@ func getImportPath(reader *bufio.Reader) string {
 	return strings.Replace(importPath, " ", "-", -1)
 }
 
-func getAppType(reader *bufio.Reader) string {
+func collectAppType(reader *bufio.Reader) string {
 	var appType string
 	for {
-		appType = readInput(reader, "\nChoose your application type (web or api), default is 'web': ")
-		if ess.IsStrEmpty(appType) || appType == typeWeb || appType == typeAPI {
+		appType = strings.ToLower(readInput(reader, "\nChoose your application type (web, api or websocket), default is 'web': "))
+		if ess.IsStrEmpty(appType) || appType == typeWeb || appType == typeAPI || appType == typeWebSocket {
 			break
 		} else {
-			logError("Unsupported new aah application type, choose either 'web or 'api'")
+			logError("Unsupported new aah application type, choose either 'web', 'api' or 'websocket'")
 			appType = ""
 		}
 	}
@@ -157,12 +139,63 @@ func getAppType(reader *bufio.Reader) string {
 	return appType
 }
 
-func getViewEngine(reader *bufio.Reader, appType string) []string {
-	if appType != typeWeb {
-		return []string{"go", ".html"}
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Collecting inputs for Web App
+//______________________________________________________________________________
+
+func collectInputsForWebApp(app *appTmplData) {
+	viewEngine(reader, app)
+
+	authScheme(reader, app)
+
+	if app.AuthScheme == authBasic {
+		basicAuthMode(reader, app)
 	}
 
-	builtInViewEngines := []string{"go", "pug"}
+	passwordHashAlgorithm(reader, app)
+
+	sessionInfo(reader, app)
+
+	// In the web application user may like to have API also WebSocket within it.
+	collectAppSubTypesChoice(reader, app)
+
+	app.CORSEnable = collectYesOrNo(reader, "Would you like to enable CORS ([Y]es or [N]o)? default is 'N'")
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Collecting inputs for API App
+//______________________________________________________________________________
+
+func collectInputsForAPIApp(app *appTmplData) {
+	authScheme(reader, app)
+
+	if app.AuthScheme == authBasic {
+		basicAuthMode(reader, app)
+	}
+
+	passwordHashAlgorithm(reader, app)
+
+	app.CORSEnable = collectYesOrNo(reader, "Would you like to enable CORS ([Y]es or [N]o)? default is 'N'")
+}
+
+func collectAppSubTypesChoice(reader *bufio.Reader, app *appTmplData) {
+	app.SubTypes = make([]string, 0)
+
+	// API choice
+	choice := collectYesOrNo(reader, "Would you like to add API [/api/v1/*] within your Web App ([Y]es or [N]o)? default is 'N'")
+	if choice {
+		app.SubTypes = append(app.SubTypes, typeAPI)
+	}
+
+	// WebSocket choice
+	choice = collectYesOrNo(reader, "Would you like to add WebSocket [/ws/*] within your Web App ([Y]es or [N]o)? default is 'N'")
+	if choice {
+		app.SubTypes = append(app.SubTypes, typeWebSocket)
+	}
+}
+
+func viewEngine(reader *bufio.Reader, app *appTmplData) {
+	builtInViewEngines := []string{"go"}
 	var engine string
 	for {
 		engine = strings.ToLower(readInput(reader, fmt.Sprintf("\nChoose your application View Engine (%s), default is 'go': ",
@@ -170,127 +203,108 @@ func getViewEngine(reader *bufio.Reader, appType string) []string {
 		if ess.IsStrEmpty(engine) || ess.IsSliceContainsString(builtInViewEngines, engine) {
 			break
 		} else {
-			logErrorf("Unsupported View Engine, choose either %s", strings.Join(builtInViewEngines, " or "))
+			logErrorf("Unsupported View Engine")
 			engine = ""
 		}
 	}
 
 	switch engine {
 	case "pug":
-		return []string{"pug", ".pug"}
+		app.ViewEngine = "pug"
+		app.ViewFileExt = ".pug"
 	default:
-		return []string{"go", ".html"}
+		app.ViewEngine = "go"
+		app.ViewFileExt = ".html"
 	}
 }
 
-func getAuthScheme(reader *bufio.Reader, appType string) string {
-	var (
-		authScheme  string
-		schemeNames string
-	)
+func authScheme(reader *bufio.Reader, app *appTmplData) {
+	var schemeNames string
 
-	if appType == typeWeb {
+	if app.IsWebApp() {
 		schemeNames = "form, basic"
-	} else if appType == typeAPI {
+	} else if app.IsAPIApp() {
 		schemeNames = "basic, generic"
 	}
 
 	for {
-		authScheme = readInput(reader, fmt.Sprintf("\nChoose your application Auth Scheme (%v), default is 'none': ", schemeNames))
-		if isAuthSchemeSupported(authScheme) {
-			if ess.IsStrEmpty(authScheme) || authScheme == authNone ||
-				(appType == typeWeb && (authScheme == authForm || authScheme == authBasic)) ||
-				(appType == typeAPI && (authScheme == authGeneric || authScheme == authBasic)) {
+		app.AuthScheme = strings.ToLower(readInput(reader, fmt.Sprintf("\nChoose your application Auth Scheme (%v), default is 'none': ", schemeNames)))
+		if isAuthSchemeSupported(app.AuthScheme) {
+			if ess.IsStrEmpty(app.AuthScheme) || app.AuthScheme == authNone ||
+				app.IsAuthSchemeForWeb() || app.IsAuthSchemeForAPI() {
 				break
 			} else {
-				logErrorf("Application type '%v' is not applicable with auth scheme '%v'", appType, authScheme)
-				authScheme = ""
+				logErrorf("Application type '%v' is not applicable with auth scheme '%v'", app.Type, app.AuthScheme)
+				app.AuthScheme = ""
 			}
 		} else {
-			logErrorf("Unsupported Auth Scheme, choose either %v or 'none'", schemeNames)
-			authScheme = ""
+			logErrorf("Unsupported Auth Scheme")
+			app.AuthScheme = ""
 		}
 	}
 
-	if authScheme == authNone {
-		authScheme = ""
+	if app.AuthScheme == authNone {
+		app.AuthScheme = ""
 	}
-
-	return authScheme
 }
 
-func getBasicAuthMode(reader *bufio.Reader, authScheme string) string {
-	var basicAuthMode string
-	if authScheme == authBasic {
-		for {
-			basicAuthMode = readInput(reader, "\nChoose your basic auth mode (file-realm, dynamic), default is 'file-realm': ")
-			if ess.IsStrEmpty(basicAuthMode) || basicAuthMode == "dynamic" {
-				break
-			} else {
-				logError("Unsupported Basic auth mode")
-				basicAuthMode = ""
-			}
-		}
-
-		if ess.IsStrEmpty(basicAuthMode) {
-			basicAuthMode = basicFileRealm
+func basicAuthMode(reader *bufio.Reader, app *appTmplData) {
+	for {
+		app.BasicAuthMode = strings.ToLower(readInput(reader, "\nChoose your basic auth mode (file-realm, dynamic), default is 'file-realm': "))
+		if ess.IsStrEmpty(app.BasicAuthMode) || app.BasicAuthMode == "dynamic" {
+			break
+		} else {
+			logError("Unsupported Basic auth mode")
+			app.BasicAuthMode = ""
 		}
 	}
 
-	return basicAuthMode
+	if ess.IsStrEmpty(app.BasicAuthMode) {
+		app.BasicAuthMode = basicFileRealm
+	}
 }
 
-func getPasswordHashAlgorithm(reader *bufio.Reader, authScheme string) string {
-	var authPasswordAlgorithm string
-	if authScheme == authForm || authScheme == authBasic {
+func passwordHashAlgorithm(reader *bufio.Reader, app *appTmplData) {
+	if app.AuthScheme == authForm || app.AuthScheme == authBasic {
 		for {
-			authPasswordAlgorithm = readInput(reader, "\nChoose your password hash algorithm (bcrypt, scrypt, pbkdf2), default is 'bcrypt': ")
-
-			if ess.IsStrEmpty(authPasswordAlgorithm) || authPasswordAlgorithm == "bcrypt" ||
-				authPasswordAlgorithm == "scrypt" || authPasswordAlgorithm == "pbkdf2" {
+			app.PasswordEncoderAlgo = strings.ToLower(readInput(reader, "\nChoose your password hash algorithm (bcrypt, scrypt, pbkdf2), default is 'bcrypt': "))
+			if ess.IsStrEmpty(app.PasswordEncoderAlgo) || app.PasswordEncoderAlgo == "bcrypt" ||
+				app.PasswordEncoderAlgo == "scrypt" || app.PasswordEncoderAlgo == "pbkdf2" {
 				break
 			} else {
 				logError("Unsupported Password hash algorithm")
-				authPasswordAlgorithm = ""
+				app.PasswordEncoderAlgo = ""
 			}
 		}
 
-		if ess.IsStrEmpty(authPasswordAlgorithm) {
-			authPasswordAlgorithm = "bcrypt"
+		if ess.IsStrEmpty(app.PasswordEncoderAlgo) {
+			app.PasswordEncoderAlgo = "bcrypt"
 		}
 	}
-	return authPasswordAlgorithm
 }
 
-func getSessionInfo(reader *bufio.Reader, appType, authScheme string) string {
-	sessionStore := storeCookie
-
-	if appType == typeWeb && (authScheme == authForm || authScheme == authBasic) {
-		// Session Store
+func sessionInfo(reader *bufio.Reader, app *appTmplData) {
+	if app.IsAuthSchemeForWeb() {
 		for {
-			sessionStore = readInput(reader, "\nChoose your session store (cookie or file), default is 'cookie': ")
-			if ess.IsStrEmpty(sessionStore) || sessionStore == storeCookie || sessionStore == storeFile {
+			app.SessionStore = strings.ToLower(readInput(reader, "\nChoose your session store (cookie or file), default is 'cookie': "))
+			if ess.IsStrEmpty(app.SessionStore) || app.SessionStore == storeCookie || app.SessionStore == storeFile {
 				break
 			} else {
-				logError("Unsupported session store type, choose either 'cookie or 'file")
-				sessionStore = ""
+				logError("Unsupported session store type")
+				app.SessionStore = ""
 			}
 		}
 
-		if ess.IsStrEmpty(sessionStore) {
-			sessionStore = storeCookie
+		if ess.IsStrEmpty(app.SessionStore) {
+			app.SessionStore = storeCookie
 		}
 	}
-
-	return sessionStore
 }
 
-func getCORSInfo(reader *bufio.Reader) bool {
-	enable := false
+func collectYesOrNo(reader *bufio.Reader, msg string) bool {
 	var input string
 	for {
-		input = readInput(reader, "\nWould you like to enable CORS ([Y]es or [N]o), default is 'N': ")
-		input = strings.ToLower(strings.TrimSpace(input))
+		input = strings.ToLower(readInput(reader, "\n"+msg+": "))
 		if ess.IsStrEmpty(input) {
 			input = "n"
 		}
@@ -302,116 +316,177 @@ func getCORSInfo(reader *bufio.Reader) bool {
 			input = ""
 		}
 	}
+	return input == "y"
+}
 
-	if input == "yes" {
-		enable = true
-	}
-
-	return enable
+type file struct {
+	src, dst string
 }
 
 func createAahApp(appDir string, data map[string]interface{}) error {
-	appType := data["AppType"].(string)
-	viewEngine := data["AppViewEngine"].(string)
-	aahToolsPath := getAahToolsPath()
-	appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
+	app := data["App"].(*appTmplData)
+	appBaseDir := app.BaseDir
+	appTmplBaseDir := inferAppTmplBaseDir()
+	if ess.IsStrEmpty(appTmplBaseDir) {
+		logFatal("Unable to find aah app template at $HOME/.aah/app-templates")
+	}
 
 	// app directory creation
 	if err := ess.MkDirAll(appDir, permRWXRXRX); err != nil {
 		logFatal(err)
 	}
 
-	// aah.project
-	processFile(appDir, appTemplatePath, filepath.Join(appTemplatePath, "aah.project.atmpl"), data)
+	files := make([]file, 0)
 
-	// gitignore
-	processFile(appDir, appTemplatePath, filepath.Join(appTemplatePath, ".gitignore"), data)
+	// aah.project
+	files = append(files, file{
+		src: filepath.Join(appTmplBaseDir, "aah.project.atmpl"),
+		dst: filepath.Join(appBaseDir, "aah.project.atmpl"),
+	})
+
+	// .gitignore
+	files = append(files, file{
+		src: filepath.Join(appTmplBaseDir, ".gitignore"),
+		dst: filepath.Join(appBaseDir, ".gitignore"),
+	})
 
 	// source
-	processSection(appDir, appTemplatePath, "app", data)
+	files = append(files, sourceTmplFiles(app, appTmplBaseDir, appBaseDir)...)
 
 	// config
-	processSection(appDir, appTemplatePath, "config", data)
+	files = append(files, configTmplFiles(app.Type, appTmplBaseDir, appBaseDir)...)
 
-	if typeWeb == appType {
+	if app.IsWebApp() {
 		// i18n
-		processSection(appDir, appTemplatePath, "i18n", data)
+		files = append(files, tmplFiles(filepath.Join(appTmplBaseDir, "i18n"), appTmplBaseDir, appBaseDir, true)...)
 
 		// static
-		processSection(appDir, appTemplatePath, "static", data)
+		files = append(files, tmplFiles(filepath.Join(appTmplBaseDir, "static"), appTmplBaseDir, appBaseDir, true)...)
 
 		// views
-		switch viewEngine {
-		case "pug":
-			processSection(appDir, appTemplatePath, filepath.Join("views", "pug"), data)
-		default: // go
-			processSection(appDir, appTemplatePath, filepath.Join("views", "go"), data)
-		}
+		files = append(files, viewTmplFiles(app.ViewEngine, appTmplBaseDir, appBaseDir)...)
+	}
+
+	// processing app template files
+	for _, f := range files {
+		processFile(appBaseDir, f, data)
 	}
 
 	return nil
 }
 
-func processSection(destDir, srcDir, dir string, data map[string]interface{}) {
-	files, _ := ess.FilesPath(filepath.Join(srcDir, dir), true)
-	for _, v := range files {
-		if strings.Contains(v, "/app/security/") {
-			authScheme := data["AppAuthScheme"].(string)
-			if !ess.IsStrEmpty(authScheme) && authScheme != authNone {
-				if authScheme == authBasic {
-					basicAuthMode := data["AppBasicAuthMode"].(string)
-					if basicAuthMode == "dynamic" {
-						processFile(destDir, srcDir, v, data)
-					}
-				} else {
-					processFile(destDir, srcDir, v, data)
-				}
-			}
-		} else {
-			processFile(destDir, srcDir, v, data)
+func configTmplFiles(appType, appTmplBaseDir, appBaseDir string) []file {
+	srcDir := filepath.Join(appTmplBaseDir, "config")
+	flist, _ := ess.FilesPath(srcDir, true)
+	files := []file{}
+	for _, f := range flist {
+		if appType == typeWebSocket && strings.HasSuffix(f, "security.conf.atmpl") {
+			continue
 		}
+		files = append(files, file{src: f, dst: filepath.Join(appBaseDir, f[len(appTmplBaseDir):])})
 	}
+	return files
 }
 
-func processFile(destDir, srcDir, f string, data map[string]interface{}) {
-	dfPath := getDestPath(destDir, srcDir, f)
-	dfDir := filepath.Dir(dfPath)
-	if !ess.IsFileExists(dfDir) {
-		_ = ess.MkDirAll(dfDir, permRWXRXRX)
+func sourceTmplFiles(app *appTmplData, appTmplBaseDir, appBaseDir string) []file {
+	files := []file{}
+
+	fn := func(srcDir string, recur bool) {
+		flist, _ := ess.FilesPath(srcDir, recur)
+		for _, f := range flist {
+			files = append(files, file{src: f, dst: filepath.Join(appBaseDir, f[len(appTmplBaseDir):])})
+		}
 	}
 
-	sf, _ := os.Open(f)
-	df, _ := os.Create(dfPath)
+	// /app
+	fn(filepath.Join(appTmplBaseDir, "app"), false)
 
-	if strings.HasSuffix(f, aahTmplExt) {
+	// /app/controllers
+	if app.IsWebApp() || app.IsAPIApp() {
+		fn(filepath.Join(appTmplBaseDir, "app", "controllers"), false)
+
+	}
+
+	if app.IsAPIApp() {
+		fn(filepath.Join(appTmplBaseDir, "app", "controllers", "v1"), false)
+	}
+
+	if app.IsSubTypeAPI() {
+		files = append(files, file{
+			src: filepath.Join(appTmplBaseDir, filepath.FromSlash("app/controllers/v1/value.go.atmpl")),
+			dst: filepath.Join(appBaseDir, filepath.FromSlash("app/controllers/api/v1/value.go")),
+		})
+	}
+
+	// /app/websockets
+	if app.IsWebSocketApp() || app.IsSubTypeWebSocket() {
+		fn(filepath.Join(appTmplBaseDir, "app", "websockets"), true)
+	}
+
+	// /app/models
+	files = append(files, file{
+		src: filepath.Join(appTmplBaseDir, filepath.FromSlash("app/models/greet.go")),
+		dst: filepath.Join(appBaseDir, filepath.FromSlash("app/models/greet.go")),
+	})
+	if app.IsAPIApp() || app.IsSubTypeAPI() {
+		files = append(files, file{
+			src: filepath.Join(appTmplBaseDir, filepath.FromSlash("app/models/value.go")),
+			dst: filepath.Join(appBaseDir, filepath.FromSlash("app/models/value.go")),
+		})
+	}
+
+	// /app/security
+	if app.IsSecurityEnabled() && app.BasicAuthMode != basicFileRealm {
+		fn(filepath.Join(appTmplBaseDir, "app", "security"), true)
+	}
+
+	return files
+}
+
+func viewTmplFiles(engName, appTmplBaseDir, appBaseDir string) []file {
+	srcDir := filepath.Join(appTmplBaseDir, "views", engName)
+	flist, _ := ess.FilesPath(srcDir, true)
+	files := []file{}
+	for _, f := range flist {
+		files = append(files, file{src: f, dst: filepath.Join(appBaseDir, "views", f[len(srcDir):])})
+	}
+	return files
+}
+
+func tmplFiles(srcDir, appTmplBaseDir, appBaseDir string, recur bool) []file {
+	flist, _ := ess.FilesPath(srcDir, recur)
+	files := []file{}
+	for _, f := range flist {
+		files = append(files, file{src: f, dst: filepath.Join(appBaseDir, f[len(appTmplBaseDir):])})
+	}
+	return files
+}
+
+func processFile(appBaseDir string, f file, data map[string]interface{}) {
+	dst := strings.TrimSuffix(f.dst, aahTmplExt)
+
+	// create dst dir if not exists
+	dstDir := filepath.Dir(dst)
+	if !ess.IsFileExists(dstDir) {
+		_ = ess.MkDirAll(dstDir, permRWXRXRX)
+	}
+
+	// open src and create dst
+	sf, _ := os.Open(f.src)
+	df, _ := os.Create(dst)
+
+	// render or write it directly
+	if strings.HasSuffix(f.src, aahTmplExt) {
 		sfbytes, _ := ioutil.ReadAll(sf)
 		if err := renderTmpl(df, string(sfbytes), data); err != nil {
-			logFatalf("Unable to process file '%s': %s", dfPath, err)
+			logFatalf("Unable to process file '%s': %s", dst, err)
 		}
 	} else {
 		_, _ = io.Copy(df, sf)
 	}
 
-	_ = ess.ApplyFileMode(dfPath, permRWRWRW)
+	_ = ess.ApplyFileMode(dst, permRWRWRW)
 	ess.CloseQuietly(sf, df)
-}
-
-func getDestPath(destDir, srcDir, v string) string {
-	dpath := v[len(srcDir):]
-
-	// Handle specific - views files for multiple engine
-	if strings.HasPrefix(dpath[1:], "views") {
-		r := strings.SplitAfterN(dpath, string(filepath.Separator), 4)
-		dpath = filepath.Join(r[1], r[3])
-	}
-
-	dpath = filepath.Join(destDir, dpath)
-
-	if strings.HasSuffix(v, aahTmplExt) {
-		dpath = dpath[:len(dpath)-len(aahTmplExt)]
-	}
-
-	return dpath
 }
 
 func isAuthSchemeSupported(authScheme string) bool {
@@ -425,22 +500,27 @@ func checkAndGenerateInitgoFile(importPath, baseDir string) {
 		cliLog.Warn("***** In v0.10 'init.go' file introduced to evolve aah framework." +
 			" Since its not found, generating 'init.go' file. Please add it to your version control. *****\n")
 
-		aahToolsPath := getAahToolsPath()
+		aahToolsPath := aahToolsPath()
 		appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
 		appType := typeAPI
 		if ess.IsFileExists(filepath.Join(baseDir, "views")) {
 			appType = typeWeb
 		}
 		data := map[string]interface{}{
-			"AppType":       appType,
-			"AppViewEngine": aah.AppConfig().StringDefault("view.engine", "go"),
+			"App": &appTmplData{
+				Type:       appType,
+				ViewEngine: aah.AppConfig().StringDefault("view.engine", "go"),
+			},
 		}
 
-		processFile(baseDir, appTemplatePath, filepath.Join(appTemplatePath, "app", "init.go"+aahTmplExt), data)
+		processFile(baseDir, file{
+			src: filepath.Join(appTemplatePath, "app", "init.go.atmpl"),
+			dst: filepath.Join(baseDir, "app", "init.go"),
+		}, data)
 	}
 }
 
-func getAahToolsPath() *build.Package {
+func aahToolsPath() *build.Package {
 	aahToolsPath, err := build.Import(path.Join(libImportPath("tools"), "aah"), "", build.FindOnly)
 	if err != nil {
 		logFatal(err)

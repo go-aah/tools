@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"gopkg.in/urfave/cli.v1"
@@ -13,13 +14,14 @@ import (
 const (
 	releaseBranchName = "master"
 	edgeBranchName    = "v0-edge"
+	emojiThumpsUp     = `👍`
 )
 
 var switchCmd = cli.Command{
 	Name:    "switch",
 	Aliases: []string{"s"},
-	Usage:   "Switch between aah release and edge version",
-	Description: `Provides an ability to switch between aah release (currently on your GOPATH) and latest edge version.
+	Usage:   "Switches between aah release and edge version",
+	Description: `Provides an ability to switch between aah release and latest edge version.
 
 	Examples of short and long flags:
 		aah s
@@ -34,7 +36,7 @@ var switchCmd = cli.Command{
 		aah switch --refresh
 
 	Note:
-		- Currently it works with only GOPATH. Gradually I will add vendorize support too.
+		- Currently it works with only GOPATH.
 		- It always operates on latest edge version and current release version on your GOPATH, specific version is not supported.`,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -80,21 +82,25 @@ func whoami(branchName string) error {
 func doRefresh(branchName string) error {
 	fname := friendlyName(branchName)
 	if branchName == releaseBranchName {
-		cliLog.Infof("Refresh is only applicable to edge version, currently you're on '%s' version.\n", fname)
+		cliLog.Infof("Refresh option is for 'edge' version only, currently you're on '%s' version.\n", fname)
 		cliLog.Infof("Use 'aah update' command to update your aah to the latest release version on your GOPATH.\n")
 		return nil
 	}
 
 	cliLog.Infof("Refreshing aah '%s' version ...\n", fname)
 
+	aahLibDirs := aahLibraryDirs()
+
 	// Refresh to latest edge codebase
-	refreshCodebase(libNames...)
+	refreshLibCode(aahLibDirs)
 
 	// Refresh dependencies in grace mode
-	fetchAahDeps()
+	fetchLibDeps()
 
-	// Install aah CLI for the currently version
-	installAahCLI()
+	checkoutBranch(aahLibDirs, edgeBranchName)
+
+	// Install aah CLI for current version
+	installCLI()
 
 	cliLog.Infof("You have successfully refreshed aah '%s' version.\n", fname)
 	return nil
@@ -103,8 +109,17 @@ func doRefresh(branchName string) error {
 func doSwitch(branchName, target string) error {
 	fname := friendlyName(branchName)
 	if target == fname {
-		cliLog.Infof("You're already on '%s' version.\n", fname)
-		cliLog.Infof("To switch to latest release version. Run 'aah switch -v release'\n")
+		cliLog.Infof("Currently you're on aah '%s' version.\n", fname)
+		cliLog.Infof("To switch to release version. Run 'aah s -v release'\n")
+
+		if fname == "edge" {
+			ans := collectYesOrNo(reader, "Would you like to refresh 'edge' to latest updates? ([Y]es or [N]o), default is 'N'")
+			fmt.Println()
+			if ans {
+				doRefresh(branchName)
+			}
+		}
+
 		return nil
 	}
 
@@ -115,30 +130,29 @@ func doSwitch(branchName, target string) error {
 		toBranch = releaseBranchName
 	}
 
-	cliLog.Infof("Switching aah version to '%s' ...\n", friendlyName(toBranch))
+	cliLog.Infof("Switching aah to '%s' version ...\n", friendlyName(toBranch))
 
-	// Checkout the branch
-	for _, lib := range libNames {
-		if err := gitCheckout(libDir(lib), toBranch); err != nil {
-			logFatalf("Error occurred which switching aah version: %s", err)
-		}
-	}
+	// // Checkout the branch
+	aahLibDirs := aahLibraryDirs()
+	checkoutBranch(aahLibDirs, toBranch)
 
 	if toBranch == edgeBranchName {
-		cliLog.Infof("Refreshing aah version to latest '%s' ...\n", friendlyName(toBranch))
-		refreshCodebase(libNames...)
+		cliLog.Infof("Refreshing aah to latest '%s' updates ...\n", friendlyName(toBranch))
+		refreshLibCode(aahLibDirs)
 	}
 
 	// Refresh dependencies in grace mode
-	fetchAahDeps()
+	fetchLibDeps()
 
-	// Install aah CLI for the currently version
-	installAahCLI()
+	checkoutBranch(aahLibDirs, toBranch)
+
+	// Install aah CLI for current version
+	installCLI()
 
 	if toBranch == releaseBranchName {
-		cliLog.Infof("You have successfully switched to aah 'release' version.\n")
+		cliLog.Infof("You have successfully switched %s.\n", emojiThumpsUp)
 	} else {
-		cliLog.Infof("You have successfully switched to aah 'edge' version, your feedback is appreciated.\n")
+		cliLog.Infof("You have successfully switched %s, your feedback is appreciated.\n", emojiThumpsUp)
 	}
 	return nil
 }

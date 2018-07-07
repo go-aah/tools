@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -7,44 +7,31 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
-	"strings"
 
 	"gopkg.in/urfave/cli.v1"
 
-	"aahframework.org/aah.v0"
-	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/i18n.v0"
 	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/security.v0"
-	"aahframework.org/test.v0"
-	"aahframework.org/valpar.v0"
-	"aahframework.org/view.v0"
 )
 
 const (
-	permRWXRXRX   = 0755
-	permRWRWRW    = 0666
-	versionSeries = "v0"
-	importPrefix  = "aahframework.org"
+	permRWXRXRX  = 0755
+	permRWRWRW   = 0666
+	importPrefix = "aahframework.org"
 )
 
 var (
 	gopath   string
 	gocmd    string
 	gosrcDir string
-
-	libNames = []string{"tools", "aah", "ahttp", "aruntime", "config", "essentials", "forge", "i18n",
-		"log", "router", "security", "test", "valpar", "view"}
+	gitcmd   string
+	aahVer   string
 
 	// abstract it, so we can do unit test
 	fatal  = log.Fatal
@@ -53,7 +40,12 @@ var (
 
 	// cli logger
 	cliLog *log.Logger
+
+	// CliPackaged is identify cli from go get or binary dist
+	CliPackaged string
 )
+
+var errStopHere = errors.New("stop here")
 
 func checkPrerequisites() error {
 	// check go is installed or not
@@ -68,11 +60,37 @@ func checkPrerequisites() error {
 		return err
 	}
 
-	if gocmd, err = exec.LookPath("go"); err != nil {
+	// Go executable
+	gocmdName := goCmdName()
+	if gocmd, err = exec.LookPath(gocmdName); err != nil {
 		return err
 	}
 
 	gosrcDir = filepath.Join(gopath, "src")
+
+	// git
+	if gitcmd, err = exec.LookPath("git"); err != nil {
+		return err
+	}
+
+	// aah
+	if aahVer, err = aahVersion(); err == errVersionNotExists {
+		if collectYesOrNo(reader, "aah framework is not installed in GOPATH, would you like to install [Y]es or [N]o") {
+			args := []string{"get"}
+			if gocmdName == "go" {
+				args = append(args, "-u")
+			}
+			args = append(args, "aahframework.org/aah.v0")
+			if _, err := execCmd(gocmd, args, false); err != nil {
+				return err
+			}
+			aahVer, _ = aahVersion()
+			fmt.Printf("\naah framework successfully installed in GOPATH\n\n")
+			return nil
+		}
+		fmt.Printf("\nOkay, you could do it manually, run '%s get aahframework.org/aah.v0'\n", gocmdName)
+		return errStopHere
+	}
 
 	return nil
 }
@@ -82,14 +100,16 @@ func main() {
 	// if panic happens, recover and abort nicely :)
 	defer func() {
 		if r := recover(); r != nil {
-			cfg, _ := config.ParseString(``)
-			strace := aruntime.NewStacktrace(r, cfg)
+			strace := aruntime.NewStacktrace(r, config.NewEmpty())
 			strace.Print(os.Stdout)
 			exit(2)
 		}
 	}()
 
-	if err := checkPrerequisites(); err != nil {
+	err := checkPrerequisites()
+	if err == errStopHere {
+		return
+	} else if err != nil {
 		logFatal(err)
 	}
 
@@ -112,6 +132,7 @@ func main() {
 		switchCmd,
 		updateCmd,
 		generateCmd,
+		migrateCmd,
 	}
 
 	sort.Sort(cli.FlagsByName(app.Flags))
@@ -123,66 +144,39 @@ func main() {
 //___________________________________
 
 func printHeader(c *cli.Context) error {
-	hdr := fmt.Sprintf("aah framework v%s - https://aahframework.org", aah.Version)
-	improveRpt := "# Report improvements/bugs at https://github.com/go-aah/aah/issues #"
+	hdrCont := fmt.Sprintf("aah framework v%s", aahVer)
+	improveRpt := "# Report improvements/bugs at https://aahframework.org/issues #"
 	cnt := len(improveRpt)
-	sp := (cnt - len(hdr)) / 2
+	sp := (cnt - len(hdrCont)) / 2
 
-	if !isWindowsOS() {
-		fmt.Fprintf(c.App.Writer, "\033[1;32m")
-	}
+	fmt.Println(chr2str("-", cnt))
+	fmt.Println(chr2str(" ", sp) + hdrCont)
+	fmt.Println(chr2str("-", cnt))
+	fmt.Printf(improveRpt + "\n\n")
 
-	printChr(c.App.Writer, "‾", cnt)
-	fmt.Fprintf(c.App.Writer, "\n")
-	printChr(c.App.Writer, " ", sp)
-	fmt.Fprintf(c.App.Writer, hdr)
-	printChr(c.App.Writer, " ", sp)
-	fmt.Fprintf(c.App.Writer, "\n")
-	printChr(c.App.Writer, "_", cnt)
-	fmt.Fprintf(c.App.Writer, "\n")
-
-	if !isWindowsOS() {
-		fmt.Fprintf(c.App.Writer, "\033[0m")
-	}
-
-	fmt.Fprintf(c.App.Writer, improveRpt+"\n\n")
 	return nil
 }
 
-func printChr(w io.Writer, chr string, cnt int) {
+func chr2str(chr string, cnt int) string {
+	var str string
 	for idx := 0; idx < cnt; idx++ {
-		fmt.Fprintf(w, chr)
+		str += chr
 	}
+	return str
 }
 
 func init() {
 	cli.HelpFlag = cli.BoolFlag{
 		Name:  "h, help",
-		Usage: "show help",
+		Usage: "Shows help",
 	}
 
 	cli.VersionFlag = cli.BoolFlag{
 		Name:  "v, version",
-		Usage: "print aah framework version and go version",
+		Usage: "Prints cli, aah, go and aah libraries version",
 	}
 
-	cli.VersionPrinter = func(c *cli.Context) {
-		_ = printHeader(c)
-		fmt.Fprint(c.App.Writer, "Version Info:\n")
-		fmt.Fprintf(c.App.Writer, "\t%-17s v%s\n", "aah framework", aah.Version)
-		fmt.Fprintf(c.App.Writer, "\t%-17s v%s\n", "aah cli tool", Version)
-		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", "Modules: ", strings.Join(
-			[]string{
-				"ahttp v" + ahttp.Version, "aruntime v" + aruntime.Version, "config v" + config.Version,
-				"essentials v" + ess.Version, "i18n v" + i18n.Version, "log v" + log.Version}, ", "))
-		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", "", strings.Join(
-			[]string{"router v" + router.Version, "security v" + security.Version,
-				"test v" + test.Version, "valpar v" + valpar.Version, "view v" + view.Version}, ", "))
-		fmt.Println()
-		fmt.Fprintf(c.App.Writer, "\t%-17s %s\n", fmt.Sprintf("go[%s/%s]",
-			runtime.GOOS, runtime.GOARCH), runtime.Version()[2:])
-		fmt.Println()
-	}
+	cli.VersionPrinter = VersionPrinter
 
 	cli.AppHelpTemplate = `Usage:
   {{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}

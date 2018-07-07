@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools/aah source code and usage is governed by a MIT style
+// aahframework.org/tools/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -7,14 +7,16 @@ package main
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -26,7 +28,7 @@ import (
 )
 
 func importPathRelwd() string {
-	pwd, _ := os.Getwd()
+	pwd, _ := os.Getwd() // #nosec
 
 	var importPath string
 	if idx := strings.Index(pwd, "src"); idx > 0 {
@@ -103,21 +105,17 @@ func getAppVersion(appBaseDir string, cfg *config.Config) string {
 	version := cfg.StringDefault("build.version", "")
 
 	// git describe
-	if gitcmd, err := exec.LookPath("git"); err == nil {
-		if !ess.IsFileExists(filepath.Join(appBaseDir, ".git")) {
-			return version
-		}
-
-		gitArgs := []string{"-C", appBaseDir, "describe", "--always", "--dirty"}
-		output, err := execCmd(gitcmd, gitArgs, false)
-		if err != nil {
-			return version
-		}
-
-		version = strings.TrimSpace(output)
+	if !ess.IsFileExists(filepath.Join(appBaseDir, ".git")) {
+		return version
 	}
 
-	return version
+	gitArgs := []string{"-C", appBaseDir, "describe", "--always", "--dirty"}
+	output, err := execCmd(gitcmd, gitArgs, false)
+	if err != nil {
+		return version
+	}
+
+	return strings.TrimSpace(output)
 }
 
 // getBuildDate method returns application build date, which used to display
@@ -137,7 +135,8 @@ func getBuildDate() string {
 }
 
 func execCmd(cmdName string, args []string, stdout bool) (string, error) {
-	cmd := exec.Command(cmdName, args...)
+	cmd := exec.Command(cmdName, args...) // #nosec
+	cliLog = initCLILogger(nil)
 	cliLog.Trace("Executing ", strings.Join(cmd.Args, " "))
 
 	if stdout {
@@ -159,7 +158,7 @@ func execCmd(cmdName string, args []string, stdout bool) (string, error) {
 }
 
 func renderTmpl(w io.Writer, text string, data interface{}) error {
-	tmpl := template.Must(template.New("").Parse(text))
+	tmpl := template.Must(template.New("").Funcs(appTemplateFuncs).Parse(text))
 	return tmpl.Execute(w, data)
 }
 
@@ -220,7 +219,7 @@ func isAahProject(file string) bool {
 }
 
 func findAvailablePort() string {
-	lstn, err := net.Listen("tcp", ":0")
+	lstn, err := net.Listen("tcp", ":0") // #nosec
 	if err != nil {
 		logError(err)
 		return "0"
@@ -231,6 +230,9 @@ func findAvailablePort() string {
 }
 
 func initCLILogger(cfg *config.Config) *log.Logger {
+	if cliLog != nil {
+		return cliLog
+	}
 	if cfg == nil {
 		cfg, _ = config.ParseString("")
 	}
@@ -258,16 +260,15 @@ func initCLILogger(cfg *config.Config) *log.Logger {
 }
 
 func gitCheckout(dir, branch string) error {
-	if gitcmd, err := exec.LookPath("git"); err == nil {
-		gitArgs := []string{"-C", dir, "checkout", branch}
-		_, err := execCmd(gitcmd, gitArgs, false)
+	if ess.IsFileExists(filepath.Join(dir, ".git")) {
+		_, err := execCmd(gitcmd, []string{"-C", dir, "checkout", branch}, false)
 		return err
 	}
 	return nil
 }
 
 func libImportPath(name string) string {
-	return fmt.Sprintf("%s/%s.%s", importPrefix, name, versionSeries)
+	return fmt.Sprintf("%s/%s.%s", importPrefix, name, inferVersionSeries())
 }
 
 func libDir(name string) string {
@@ -281,18 +282,18 @@ func gitBranchName(dir string) string {
 		return ""
 	}
 
-	if gitcmd, err := exec.LookPath("git"); err == nil {
-		gitArgs := []string{"-C", dir, "rev-parse", "--abbrev-ref", "HEAD"}
-		output, _ := execCmd(gitcmd, gitArgs, false)
-		return strings.TrimSpace(output)
+	if !ess.IsFileExists(filepath.Join(dir, ".git")) {
+		return ""
 	}
-	return ""
+
+	gitArgs := []string{"-C", dir, "rev-parse", "--abbrev-ref", "HEAD"}
+	output, _ := execCmd(gitcmd, gitArgs, false)
+	return strings.TrimSpace(output)
 }
 
 func gitPull(dir string) error {
-	if gitcmd, err := exec.LookPath("git"); err == nil {
-		gitArgs := []string{"-C", dir, "pull"}
-		_, err := execCmd(gitcmd, gitArgs, false)
+	if ess.IsFileExists(filepath.Join(dir, ".git")) {
+		_, err := execCmd(gitcmd, []string{"-C", dir, "pull"}, false)
 		return err
 	}
 	return nil
@@ -300,8 +301,7 @@ func gitPull(dir string) error {
 
 func goGet(pkgs ...string) error {
 	for _, pkg := range pkgs {
-		args := []string{"get", pkg}
-		if _, err := execCmd(gocmd, args, false); err != nil {
+		if _, err := execCmd(gocmd, []string{"get", pkg}, false); err != nil {
 			return err
 		}
 	}
@@ -324,28 +324,54 @@ func waitForConnReady(port string) {
 	}
 }
 
-func installAahCLI() {
-	args := []string{"install", path.Join(importPrefix, "tools.v0", "aah")}
+func installCLI() {
+	if CliPackaged != "" {
+		return
+	}
+	verser := inferVersionSeries()
+	args := []string{"install", fmt.Sprintf("%s/tools.%s/aah", importPrefix, verser)}
 	if _, err := execCmd(gocmd, args, false); err != nil {
-		logFatalf("Unable to compile CLI tool: %s", err)
+		logFatalf("Unable to compile aah CLI: %s", err)
 	}
 }
 
-func fetchAahDeps() {
-	if err := goGet(path.Join(importPrefix, "tools.v0", "aah", "...")); err != nil {
-		logFatalf("Unable to refresh dependencies: %s", err)
+func fetchLibDeps() {
+	var notEixstsList []string
+	var wg sync.WaitGroup
+	for _, i := range aahImportPaths() {
+		wg.Add(1)
+		go func(p string) {
+			defer wg.Done()
+			if neList := inferNotExistsDeps(libDependencyImports(p)); len(neList) > 0 {
+				notEixstsList = append(notEixstsList, neList...)
+			}
+		}(i)
 	}
-}
+	wg.Wait()
 
-func refreshCodebase(names ...string) {
-	for _, lib := range names {
-		if err := gitPull(libDir(lib)); err != nil {
-			logFatalf("Unable to refresh library: %s.%s", lib, versionSeries)
+	// infer not exists libraries on GOPATH using importpath
+	if len(notEixstsList) > 0 {
+		if err := goGet(notEixstsList...); err != nil {
+			logFatalf("Error during go get: %s", err)
 		}
 	}
 }
 
-func getAppImportPath(c *cli.Context) string {
+func refreshLibCode(libDirs []string) {
+	var wg sync.WaitGroup
+	for _, dir := range libDirs {
+		wg.Add(1)
+		go func(d string) {
+			defer wg.Done()
+			if err := gitPull(d); err != nil {
+				logErrorf("Unable to refresh library, possibliy you may have local changes: %s", filepath.Base(d))
+			}
+		}(dir)
+	}
+	wg.Wait()
+}
+
+func appImportPath(c *cli.Context) string {
 	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
 	if ess.IsStrEmpty(importPath) {
 		importPath = importPathRelwd()
@@ -359,15 +385,23 @@ func getAppImportPath(c *cli.Context) string {
 }
 
 func logFatal(v ...interface{}) {
-	_ = log.SetPattern("%level %message")
-	fatal(v...)
-	_ = log.SetPattern(log.DefaultPattern)
+	if cliLog == nil {
+		_ = log.SetPattern("%level %message")
+		fatal(v...)
+		_ = log.SetPattern(log.DefaultPattern)
+	} else {
+		cliLog.Fatal(append([]interface{}{"FATAL"}, v...))
+	}
 }
 
 func logFatalf(format string, v ...interface{}) {
-	_ = log.SetPattern("%level %message")
-	fatalf(format, v...)
-	_ = log.SetPattern(log.DefaultPattern)
+	if cliLog == nil {
+		_ = log.SetPattern("%level %message")
+		fatalf(format, v...)
+		_ = log.SetPattern(log.DefaultPattern)
+	} else {
+		cliLog.Fatalf("FATAL "+format, v...)
+	}
 }
 
 func logError(v ...interface{}) {
@@ -376,4 +410,200 @@ func logError(v ...interface{}) {
 
 func logErrorf(format string, v ...interface{}) {
 	cliLog.Errorf("ERROR "+format, v...)
+}
+
+func stripGoSrcPath(pkgFilePath string) string {
+	idx := strings.Index(pkgFilePath, "src")
+	return filepath.Clean(pkgFilePath[idx+4:])
+}
+
+func inferVersionSeries() string {
+	verser := "v0"
+	for _, d := range aahLibraryDirs() {
+		baseName := filepath.Base(d)
+		if strings.HasPrefix(baseName, "aah") {
+			return strings.Split(baseName, ".")[1]
+		}
+	}
+	return verser
+}
+
+func aahLibraryDirs() []string {
+	dirs, err := ess.DirsPathExcludes(filepath.Join(gosrcDir, importPrefix), false, ess.Excludes{"examples"})
+	if err != nil {
+		return []string{}
+	}
+	return dirs
+}
+
+func aahImportPaths() []string {
+	var importPaths []string
+	gsLen := len(gosrcDir)
+	for _, d := range aahLibraryDirs() {
+		p := d[gsLen+1:]
+		if strings.Contains(p, "tools") {
+			p += "/aah" // Note: this import path so always forward slash
+		}
+		importPaths = append(importPaths, p)
+	}
+	return importPaths
+}
+
+func checkoutBranch(aahLibDirs []string, branchName string) {
+	var wg sync.WaitGroup
+	for _, dir := range aahLibDirs {
+		wg.Add(1)
+		go func(d string) {
+			defer wg.Done()
+			baseName := filepath.Base(d)
+			if err := gitCheckout(d, branchName); err != nil {
+				logErrorf("Unable to switch library version, possibliy you may have local changes[%s]: %s", baseName, err)
+			}
+			cliLog.Tracef("Library '%s' have been switched to '%s' successfully", baseName, branchName)
+		}(dir)
+	}
+	wg.Wait()
+}
+
+func libDependencyImports(importPath string) []string {
+	var depList []string
+	str, err := execCmd(gocmd, []string{"list", "-f", "{{.Imports}}", importPath}, false)
+	if err != nil {
+		logErrorf("Unable to infer dependency imports for %s", importPath)
+		return []string{}
+	}
+
+	str = strings.TrimSpace(str)
+	for _, i := range strings.Fields(str[1 : len(str)-1]) {
+		depList = append(depList, strings.TrimSpace(i))
+	}
+
+	return depList
+}
+
+func inferNotExistsDeps(depList []string) []string {
+	var notExistsList []string
+	for _, d := range depList {
+		if !ess.IsImportPathExists(d) && !ess.IsSliceContainsString(notExistsList, d) {
+			notExistsList = append(notExistsList, d)
+		}
+	}
+	return notExistsList
+}
+
+func readVersionNo(baseDir string) (string, error) {
+	versionFile := filepath.Join(baseDir, "version.go")
+	if !ess.IsFileExists(versionFile) {
+		return "", errVersionNotExists
+	}
+
+	bytes, err := ioutil.ReadFile(versionFile)
+	if err != nil {
+		return "", err
+	}
+
+	result := verRegex.FindStringSubmatch(string(bytes))
+	if len(result) >= 2 {
+		return result[1], nil
+	}
+
+	return "Unknown", nil
+}
+
+func cleanupAutoGenFiles(appBaseDir string) {
+	appMainGoFile := filepath.Join(appBaseDir, "app", "aah.go")
+	appBuildDir := filepath.Join(appBaseDir, "build")
+	cliLog.Debugf("Cleaning %s", appMainGoFile)
+	cliLog.Debugf("Cleaning build directory %s", appBuildDir)
+	ess.DeleteFiles(appMainGoFile, appBuildDir)
+}
+
+func cleanupAutoGenVFSFiles(appBaseDir string) {
+	vfsFiles, _ := filepath.Glob(filepath.Join(appBaseDir, "app", "aah_*_vfs.go"))
+	if len(vfsFiles) > 0 {
+		cliLog.Debugf("Cleaning embed files %s", strings.Join(vfsFiles, "\n\t"))
+		ess.DeleteFiles(vfsFiles...)
+	}
+}
+
+func toLowerCamelCase(v string) string {
+	var st []byte
+	for idx := 0; idx < len(v); idx++ {
+		c := v[idx]
+		if c == '_' || c == ' ' {
+			idx++
+			st = append(st, []byte(strings.ToUpper(string(v[idx])))...)
+		} else {
+			st = append(st, c)
+		}
+	}
+	return string(st)
+}
+
+func inferAppTmplBaseDir() string {
+	aahBasePath := aahPath()
+	baseDir := filepath.Join(aahBasePath, "app-templates", "generic")
+	if !ess.IsFileExists(baseDir) {
+		tmplRepo := "https://github.com/go-aah/app-templates.git"
+		cliLog.Debugf("Downloading aah quick start app templates from %s", tmplRepo)
+		gitArgs := []string{"clone", tmplRepo, filepath.Dir(baseDir)}
+		if _, err := execCmd(gitcmd, gitArgs, false); err != nil {
+			logErrorf("Unable to download aah app-template from %s", tmplRepo)
+			return ""
+		}
+	}
+	return baseDir
+}
+
+func aahPath() string {
+	s := os.Getenv("AAHPATH")
+	if s == "" {
+		return filepath.Join(userHomeDir(), ".aah")
+	}
+	return s
+}
+
+func userHomeDir() string {
+	if isWindowsOS() {
+		home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
+		if ess.IsStrEmpty(home) {
+			home = os.Getenv("USERPROFILE")
+		}
+		return filepath.Clean(home)
+	}
+
+	env := "HOME"
+	if runtime.GOOS == "plan9" {
+		env = "home"
+	}
+	if home := os.Getenv(env); home != "" {
+		return filepath.Clean(home)
+	}
+
+	return ""
+}
+
+func goCmdName() string {
+	if name := os.Getenv("AAHVGO"); name != "" {
+		return "vgo"
+	}
+	return "go"
+}
+
+func fetchFile(dst, src string) error {
+	resp, err := http.Get(src)
+	if err != nil {
+		return err
+	}
+	defer ess.CloseQuietly(resp.Body)
+
+	_ = ess.MkDirAll(filepath.Dir(dst), permRWXRXRX)
+	f, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer ess.CloseQuietly(f)
+
+	_, err = io.Copy(f, resp.Body)
+	return err
 }
