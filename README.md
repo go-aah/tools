@@ -10,6 +10,6 @@ aah - A secure, flexible, rapid Go web framework.
 
 ### News
 
-  * aah CLI <a href="https://github.com/go-aah/tools/releases/latest"><img src="https://img.shields.io/badge/version-0.11.0-blue.svg" alt="Release Version"></a> [released](https://github.com/go-aah/tools/releases/latest) and tagged on Jul 06, 2018.
+  * aah CLI <a href="https://github.com/go-aah/tools/releases/latest"><img src="https://img.shields.io/badge/version-0.12.0-blue.svg" alt="Release Version"></a> [released](https://github.com/go-aah/tools/releases/latest) and tagged on Jul 08, 2018.
 
 Visit official website https://aahframework.org to learn more about `aah` framework.
