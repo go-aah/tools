@@ -67,7 +67,7 @@ func switchAction(c *cli.Context) error {
 		return doRefresh(branchName)
 	}
 
-	return doSwitch(branchName, strings.ToLower(firstNonEmpty(c.String("v"), c.String("version"))))
+	return doSwitch(c, branchName, strings.ToLower(firstNonEmpty(c.String("v"), c.String("version"))))
 }
 
 func whoami(branchName string) error {
@@ -106,14 +106,20 @@ func doRefresh(branchName string) error {
 	return nil
 }
 
-func doSwitch(branchName, target string) error {
+func doSwitch(c *cli.Context, branchName, target string) error {
 	fname := friendlyName(branchName)
 	if target == fname {
 		cliLog.Infof("Currently you're on aah '%s' version.\n", fname)
 		cliLog.Infof("To switch to release version. Run 'aah s -v release'\n")
 
 		if fname == "edge" {
-			ans := collectYesOrNo(reader, "Would you like to refresh 'edge' to latest updates? ([Y]es or [N]o), default is 'N'")
+			var ans bool
+			if c.GlobalBool("y") || c.GlobalBool("yes") {
+				fmt.Println("\nWould you like to refresh 'edge' to latest updates? [y/N]: y")
+				ans = true
+			} else {
+				ans = collectYesOrNo(reader, "Would you like to refresh 'edge' to latest updates? [y/N]")
+			}
 			fmt.Println()
 			if ans {
 				doRefresh(branchName)

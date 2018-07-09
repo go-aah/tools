@@ -48,9 +48,10 @@ var (
 var errStopHere = errors.New("stop here")
 
 func checkPrerequisites() error {
+	gocmdName := goCmdName()
 	// check go is installed or not
-	if !ess.LookExecutable("go") {
-		return errors.New("Unable to find Go executable in PATH")
+	if !ess.LookExecutable(gocmdName) {
+		return fmt.Errorf("Unable to find '%s' executable in PATH", gocmdName)
 	}
 
 	var err error
@@ -61,36 +62,16 @@ func checkPrerequisites() error {
 	}
 
 	// Go executable
-	gocmdName := goCmdName()
 	if gocmd, err = exec.LookPath(gocmdName); err != nil {
 		return err
 	}
-
-	gosrcDir = filepath.Join(gopath, "src")
 
 	// git
 	if gitcmd, err = exec.LookPath("git"); err != nil {
 		return err
 	}
 
-	// aah
-	if aahVer, err = aahVersion(); err == errVersionNotExists {
-		if collectYesOrNo(reader, "aah framework is not installed in GOPATH, would you like to install [Y]es or [N]o") {
-			args := []string{"get"}
-			if gocmdName == "go" {
-				args = append(args, "-u")
-			}
-			args = append(args, "aahframework.org/aah.v0")
-			if _, err := execCmd(gocmd, args, false); err != nil {
-				return err
-			}
-			aahVer, _ = aahVersion()
-			fmt.Printf("\naah framework successfully installed in GOPATH\n\n")
-			return nil
-		}
-		fmt.Printf("\nOkay, you could do it manually, run '%s get aahframework.org/aah.v0'\n", gocmdName)
-		return errStopHere
-	}
+	gosrcDir = filepath.Join(gopath, "src")
 
 	return nil
 }
@@ -135,6 +116,14 @@ func main() {
 		migrateCmd,
 	}
 
+	// Global flags
+	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "y, yes",
+			Usage: `Automatic yes to prompts. Assume "yes" as answer to all prompts and run non-interactively.`,
+		},
+	}
+
 	sort.Sort(cli.FlagsByName(app.Flags))
 	_ = app.Run(os.Args)
 }
@@ -144,13 +133,14 @@ func main() {
 //___________________________________
 
 func printHeader(c *cli.Context) error {
-	hdrCont := fmt.Sprintf("aah framework v%s", aahVer)
+	aahVer, _ = aahVersion(c)
+	hdr := fmt.Sprintf("aah framework v%s", aahVer)
 	improveRpt := "# Report improvements/bugs at https://aahframework.org/issues #"
 	cnt := len(improveRpt)
-	sp := (cnt - len(hdrCont)) / 2
+	sp := ((cnt - len(hdr)) / 2) - 1
 
 	fmt.Println(chr2str("-", cnt))
-	fmt.Println(chr2str(" ", sp) + hdrCont)
+	fmt.Println(chr2str(" ", sp) + hdr)
 	fmt.Println(chr2str("-", cnt))
 	fmt.Printf(improveRpt + "\n\n")
 
