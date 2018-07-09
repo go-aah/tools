@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"go/format"
 	"io/ioutil"
 	"os"
@@ -73,7 +74,9 @@ func migrateCodeAction(c *cli.Context) error {
 	cliLog = initCLILogger(projectCfg)
 
 	cliLog.Warn("Migrate command does not take file backup. It assumes application use version control.")
-	if !collectYesOrNo(reader, "Would you like to continue ([Y]es or [N]o)? default is 'N'") {
+	if c.GlobalBool("y") || c.GlobalBool("yes") {
+		fmt.Println("\nWould you like to continue? [y/N]: y")
+	} else if !collectYesOrNo(reader, "Would you like to continue? [y/N]") {
 		cliLog.Info("Okay, I respect your choice. Bye.")
 		return nil
 	}
