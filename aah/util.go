@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -259,21 +260,16 @@ func initCLILogger(cfg *config.Config) *log.Logger {
 	return l
 }
 
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Git methods
+//___________________________________________________________________________
+
 func gitCheckout(dir, branch string) error {
 	if ess.IsFileExists(filepath.Join(dir, ".git")) {
 		_, err := execCmd(gitcmd, []string{"-C", dir, "checkout", branch}, false)
 		return err
 	}
 	return nil
-}
-
-func libImportPath(name string) string {
-	return fmt.Sprintf("%s/%s.%s", importPrefix, name, inferVersionSeries())
-}
-
-func libDir(name string) string {
-	importPath := libImportPath(name)
-	return filepath.FromSlash(filepath.Join(gopath, "src", importPath))
 }
 
 func gitBranchName(dir string) string {
@@ -299,6 +295,35 @@ func gitPull(dir string) error {
 	return nil
 }
 
+func checkoutBranch(aahLibDirs []string, branchName string) {
+	var wg sync.WaitGroup
+	for _, dir := range aahLibDirs {
+		wg.Add(1)
+		go func(d string) {
+			defer wg.Done()
+			baseName := filepath.Base(d)
+			if err := gitCheckout(d, branchName); err != nil {
+				logErrorf("Unable to switch library version, possibliy you may have local changes[%s]: %s", baseName, err)
+			}
+			cliLog.Tracef("Library '%s' have been switched to '%s' successfully", baseName, branchName)
+		}(dir)
+	}
+	wg.Wait()
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// aah discovery and processing methods
+//___________________________________________________________________________
+
+func libImportPath(name string) string {
+	return fmt.Sprintf("%s/%s.%s", importPrefix, name, inferVersionSeries())
+}
+
+func libDir(name string) string {
+	importPath := libImportPath(name)
+	return filepath.FromSlash(filepath.Join(gosrcDir, importPath))
+}
+
 func goGet(pkgs ...string) error {
 	for _, pkg := range pkgs {
 		if _, err := execCmd(gocmd, []string{"get", pkg}, false); err != nil {
@@ -306,22 +331,6 @@ func goGet(pkgs ...string) error {
 		}
 	}
 	return nil
-}
-
-func waitForConnReady(port string) {
-	port = ":" + port
-	startTime := time.Now()
-	for {
-		if _, err := net.Dial("tcp", port); err != nil {
-			if time.Since(startTime).Seconds() > (30 * time.Second).Seconds() {
-				return
-			}
-
-			time.Sleep(10 * time.Millisecond)
-			continue
-		}
-		return
-	}
 }
 
 func installCLI() {
@@ -371,6 +380,105 @@ func refreshLibCode(libDirs []string) {
 	wg.Wait()
 }
 
+func stripGoSrcPath(pkgFilePath string) string {
+	idx := strings.Index(pkgFilePath, "src")
+	return filepath.Clean(pkgFilePath[idx+4:])
+}
+
+func inferVersionSeries() string {
+	verser := "v0"
+	for _, d := range aahLibraryDirs() {
+		baseName := filepath.Base(d)
+		if strings.HasPrefix(baseName, "aah") {
+			return strings.Split(baseName, ".")[1]
+		}
+	}
+	return verser
+}
+
+func aahLibraryDirs() []string {
+	dirs, err := ess.DirsPathExcludes(filepath.Join(gosrcDir, importPrefix), false, ess.Excludes{"examples"})
+	if err != nil {
+		return []string{}
+	}
+	return dirs
+}
+
+func aahImportPaths() []string {
+	var importPaths []string
+	gsLen := len(gosrcDir)
+	for _, d := range aahLibraryDirs() {
+		p := d[gsLen+1:]
+		if strings.Contains(p, "tools") {
+			p += "/aah" // Note: this import path so always forward slash
+		}
+		importPaths = append(importPaths, p)
+	}
+	return importPaths
+}
+
+func libDependencyImports(importPath string) []string {
+	args := []string{"list", "-f", "{{.Imports}}", importPath}
+	output, err := execCmd(gocmd, args, false)
+	if err != nil {
+		logErrorf("Unable to infer dependency imports for %s", importPath)
+		return []string{}
+	}
+
+	pkgList := make(map[string]string)
+	replacer := strings.NewReplacer("[", "", "]", "")
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	for scanner.Scan() {
+		if ln := replacer.Replace(strings.TrimSpace(scanner.Text())); ln != "" {
+			for _, p := range strings.Fields(ln) {
+				if p := strings.TrimSpace(p); p != "" {
+					pkgList[p] = p
+				}
+			}
+		}
+	}
+
+	var depList []string
+	for _, p := range pkgList {
+		depList = append(depList, p)
+	}
+
+	return depList
+}
+
+func inferNotExistsDeps(depList []string) []string {
+	var notExistsList []string
+	for _, d := range depList {
+		if !ess.IsImportPathExists(d) && !ess.IsSliceContainsString(notExistsList, d) {
+			notExistsList = append(notExistsList, d)
+		}
+	}
+	return notExistsList
+}
+
+func readVersionNo(baseDir string) (string, error) {
+	versionFile := filepath.Join(baseDir, "version.go")
+	if !ess.IsFileExists(versionFile) {
+		return "", errVersionNotExists
+	}
+
+	bytes, err := ioutil.ReadFile(versionFile)
+	if err != nil {
+		return "", err
+	}
+
+	result := verRegex.FindStringSubmatch(string(bytes))
+	if len(result) >= 2 {
+		return result[1], nil
+	}
+
+	return "Unknown", nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// other helper methods
+//___________________________________________________________________________
+
 func appImportPath(c *cli.Context) string {
 	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
 	if ess.IsStrEmpty(importPath) {
@@ -412,102 +520,20 @@ func logErrorf(format string, v ...interface{}) {
 	cliLog.Errorf("ERROR "+format, v...)
 }
 
-func stripGoSrcPath(pkgFilePath string) string {
-	idx := strings.Index(pkgFilePath, "src")
-	return filepath.Clean(pkgFilePath[idx+4:])
-}
-
-func inferVersionSeries() string {
-	verser := "v0"
-	for _, d := range aahLibraryDirs() {
-		baseName := filepath.Base(d)
-		if strings.HasPrefix(baseName, "aah") {
-			return strings.Split(baseName, ".")[1]
-		}
-	}
-	return verser
-}
-
-func aahLibraryDirs() []string {
-	dirs, err := ess.DirsPathExcludes(filepath.Join(gosrcDir, importPrefix), false, ess.Excludes{"examples"})
-	if err != nil {
-		return []string{}
-	}
-	return dirs
-}
-
-func aahImportPaths() []string {
-	var importPaths []string
-	gsLen := len(gosrcDir)
-	for _, d := range aahLibraryDirs() {
-		p := d[gsLen+1:]
-		if strings.Contains(p, "tools") {
-			p += "/aah" // Note: this import path so always forward slash
-		}
-		importPaths = append(importPaths, p)
-	}
-	return importPaths
-}
-
-func checkoutBranch(aahLibDirs []string, branchName string) {
-	var wg sync.WaitGroup
-	for _, dir := range aahLibDirs {
-		wg.Add(1)
-		go func(d string) {
-			defer wg.Done()
-			baseName := filepath.Base(d)
-			if err := gitCheckout(d, branchName); err != nil {
-				logErrorf("Unable to switch library version, possibliy you may have local changes[%s]: %s", baseName, err)
+func waitForConnReady(port string) {
+	port = ":" + port
+	startTime := time.Now()
+	for {
+		if _, err := net.Dial("tcp", port); err != nil {
+			if time.Since(startTime).Seconds() > (30 * time.Second).Seconds() {
+				return
 			}
-			cliLog.Tracef("Library '%s' have been switched to '%s' successfully", baseName, branchName)
-		}(dir)
-	}
-	wg.Wait()
-}
 
-func libDependencyImports(importPath string) []string {
-	var depList []string
-	str, err := execCmd(gocmd, []string{"list", "-f", "{{.Imports}}", importPath}, false)
-	if err != nil {
-		logErrorf("Unable to infer dependency imports for %s", importPath)
-		return []string{}
-	}
-
-	str = strings.TrimSpace(str)
-	for _, i := range strings.Fields(str[1 : len(str)-1]) {
-		depList = append(depList, strings.TrimSpace(i))
-	}
-
-	return depList
-}
-
-func inferNotExistsDeps(depList []string) []string {
-	var notExistsList []string
-	for _, d := range depList {
-		if !ess.IsImportPathExists(d) && !ess.IsSliceContainsString(notExistsList, d) {
-			notExistsList = append(notExistsList, d)
+			time.Sleep(10 * time.Millisecond)
+			continue
 		}
+		return
 	}
-	return notExistsList
-}
-
-func readVersionNo(baseDir string) (string, error) {
-	versionFile := filepath.Join(baseDir, "version.go")
-	if !ess.IsFileExists(versionFile) {
-		return "", errVersionNotExists
-	}
-
-	bytes, err := ioutil.ReadFile(versionFile)
-	if err != nil {
-		return "", err
-	}
-
-	result := verRegex.FindStringSubmatch(string(bytes))
-	if len(result) >= 2 {
-		return result[1], nil
-	}
-
-	return "Unknown", nil
 }
 
 func cleanupAutoGenFiles(appBaseDir string) {

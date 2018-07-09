@@ -105,7 +105,7 @@ func generateSystemdScript(c *cli.Context) error {
 
 	fileName := fmt.Sprintf("%s.service", aah.AppName())
 	destFile := filepath.Join(aah.AppBaseDir(), fileName)
-	if checkAndConfirmOverwrite(destFile) {
+	if checkAndConfirmOverwrite(c, destFile) {
 		return nil
 	}
 
@@ -143,13 +143,13 @@ func generateDockerScript(c *cli.Context) error {
 
 	devFileName := "Dockerfile.dev"
 	devDestFile := filepath.Join(aah.AppBaseDir(), devFileName)
-	if checkAndConfirmOverwrite(devDestFile) {
+	if checkAndConfirmOverwrite(c, devDestFile) {
 		return nil
 	}
 
 	prodFileName := "Dockerfile.prod"
 	prodDestFile := filepath.Join(aah.AppBaseDir(), prodFileName)
-	if checkAndConfirmOverwrite(prodDestFile) {
+	if checkAndConfirmOverwrite(c, prodDestFile) {
 		return nil
 	}
 
@@ -198,12 +198,17 @@ func generateDockerScript(c *cli.Context) error {
 	return nil
 }
 
-func checkAndConfirmOverwrite(destFile string) bool {
+func checkAndConfirmOverwrite(c *cli.Context, destFile string) bool {
 	if ess.IsFileExists(destFile) {
 		cliLog.Warnf("File: %s already exists, it will be overwritten.", destFile)
+		if c.GlobalBool("y") || c.GlobalBool("yes") {
+			fmt.Println("\nWould you like to continue? [y/N]: y")
+			return true
+		}
+
 		var input string
 		for {
-			input = readInput(reader, "\nWould you like to continue [Y]es or [N]o, default is 'N'? ")
+			input = readInput(reader, "\nWould you like to continue? [y/N]: ")
 			input = strings.ToLower(strings.TrimSpace(input))
 			if ess.IsStrEmpty(input) || input == "n" {
 				// do not overwrite the file, abort

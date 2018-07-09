@@ -61,9 +61,9 @@ func newAction(c *cli.Context) error {
 
 	switch appType {
 	case typeWeb:
-		collectInputsForWebApp(app)
+		collectInputsForWebApp(c, app)
 	case typeAPI:
-		collectInputsForAPIApp(app)
+		collectInputsForAPIApp(c, app)
 	}
 
 	// Process it
@@ -143,7 +143,7 @@ func collectAppType(reader *bufio.Reader) string {
 // Collecting inputs for Web App
 //______________________________________________________________________________
 
-func collectInputsForWebApp(app *appTmplData) {
+func collectInputsForWebApp(c *cli.Context, app *appTmplData) {
 	viewEngine(reader, app)
 
 	authScheme(reader, app)
@@ -157,16 +157,16 @@ func collectInputsForWebApp(app *appTmplData) {
 	sessionInfo(reader, app)
 
 	// In the web application user may like to have API also WebSocket within it.
-	collectAppSubTypesChoice(reader, app)
+	collectAppSubTypesChoice(c, reader, app)
 
-	app.CORSEnable = collectYesOrNo(reader, "Would you like to enable CORS ([Y]es or [N]o)? default is 'N'")
+	app.CORSEnable = collectYesOrNo(reader, "Would you like to enable CORS? [y/N]")
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Collecting inputs for API App
 //______________________________________________________________________________
 
-func collectInputsForAPIApp(app *appTmplData) {
+func collectInputsForAPIApp(c *cli.Context, app *appTmplData) {
 	authScheme(reader, app)
 
 	if app.AuthScheme == authBasic {
@@ -175,20 +175,20 @@ func collectInputsForAPIApp(app *appTmplData) {
 
 	passwordHashAlgorithm(reader, app)
 
-	app.CORSEnable = collectYesOrNo(reader, "Would you like to enable CORS ([Y]es or [N]o)? default is 'N'")
+	app.CORSEnable = collectYesOrNo(reader, "Would you like to enable CORS? [y/N]")
 }
 
-func collectAppSubTypesChoice(reader *bufio.Reader, app *appTmplData) {
+func collectAppSubTypesChoice(c *cli.Context, reader *bufio.Reader, app *appTmplData) {
 	app.SubTypes = make([]string, 0)
 
 	// API choice
-	choice := collectYesOrNo(reader, "Would you like to add API [/api/v1/*] within your Web App ([Y]es or [N]o)? default is 'N'")
+	choice := collectYesOrNo(reader, "Would you like to add API (/api/v1/*) within your Web App? [y/N]")
 	if choice {
 		app.SubTypes = append(app.SubTypes, typeAPI)
 	}
 
 	// WebSocket choice
-	choice = collectYesOrNo(reader, "Would you like to add WebSocket [/ws/*] within your Web App ([Y]es or [N]o)? default is 'N'")
+	choice = collectYesOrNo(reader, "Would you like to add WebSocket (/ws/*) within your Web App? [y/N]")
 	if choice {
 		app.SubTypes = append(app.SubTypes, typeWebSocket)
 	}

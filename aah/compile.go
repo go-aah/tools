@@ -5,7 +5,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -232,30 +231,12 @@ var notExistRegex = regexp.MustCompile(`cannot find package "(.*)" in any of`)
 // 		go list -f '{{ join .Imports "\n" }}' aah-app/import/path/app/...
 //
 func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
-	importPath := path.Join(appImportPath, "app", "...")
-	args := []string{"list", "-f", "{{.Imports}}", importPath}
-	output, err := execCmd(gocmd, args, false)
-	if err != nil {
-		return err
+	debList := libDependencyImports(path.Join(appImportPath, "app", "..."))
+	if len(debList) == 0 {
+		return nil
 	}
 
-	pkgList := make(map[string]string)
-	replacer := strings.NewReplacer("[", "", "]", "")
-	scanner := bufio.NewScanner(strings.NewReader(output))
-	for scanner.Scan() {
-		if ln := replacer.Replace(strings.TrimSpace(scanner.Text())); ln != "" {
-			for _, p := range strings.Fields(ln) {
-				if p := strings.TrimSpace(p); p != "" {
-					pkgList[p] = p
-				}
-			}
-		}
-	}
-
-	args = []string{"list"}
-	for _, p := range pkgList {
-		args = append(args, p)
-	}
+	args := append([]string{"list"}, debList...)
 	b, _ := exec.Command(gocmd, args...).CombinedOutput()
 	notExistsPkgs := []string{}
 	matches := notExistRegex.FindAllStringSubmatch(string(b), -1)
@@ -264,7 +245,8 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 	}
 
 	if cfg.BoolDefault("build.dep_get", true) && len(notExistsPkgs) > 0 {
-		cliLog.Info("Getting application dependencies ...", notExistsPkgs)
+		cliLog.Infof("Getting application dependencies ...\n---> %s",
+			strings.Join(notExistsPkgs, "\n---> "))
 		if err := goGet(notExistsPkgs...); err != nil {
 			return err
 		}
