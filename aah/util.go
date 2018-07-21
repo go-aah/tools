@@ -39,13 +39,13 @@ func importPathRelwd() string {
 			if ess.IsFileExists(filepath.Join(appDir, aahProjectIdentifier)) {
 				importPath, _ = filepath.Rel(srcDir, appDir)
 				break
-			} else {
-				appDir = filepath.Dir(appDir)
 			}
 
 			if appDir == srcDir {
 				break
 			}
+
+			appDir = filepath.Dir(appDir)
 		}
 	}
 
