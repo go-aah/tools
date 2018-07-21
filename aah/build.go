@@ -198,7 +198,9 @@ func copyFilesToWorkingDir(projectCfg *config.Config, appBaseDir, appBinary stri
 
 		if ess.IsFileExists(srcdir) {
 			if err = ess.CopyDir(buildBaseDir, srcdir, subTreeExcludes); err != nil {
-				return "", err
+				if !strings.HasSuffix(err.Error(), "/bin") {
+					return "", err
+				}
 			}
 		}
 	}
