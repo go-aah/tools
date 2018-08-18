@@ -497,11 +497,14 @@ func isAuthSchemeSupported(authScheme string) bool {
 func checkAndGenerateInitgoFile(importPath, baseDir string) {
 	initGoFile := filepath.Join(baseDir, "app", "init.go")
 	if !ess.IsFileExists(initGoFile) {
-		cliLog.Warn("***** In v0.10 'init.go' file introduced to evolve aah framework." +
-			" Since its not found, generating 'init.go' file. Please add it to your version control. *****\n")
+		cliLog.Warn("***** In aah v0.10 'init.go' file introduced to evolve aah framework." +
+			" Since its not found, generating 'init.go' file. Please add 'init.go' into VCS. *****\n")
 
-		aahToolsPath := aahToolsPath()
-		appTemplatePath := filepath.Join(aahToolsPath.Dir, "app-template")
+		appTmplBaseDir := inferAppTmplBaseDir()
+		if ess.IsStrEmpty(appTmplBaseDir) {
+			aahToolsPath := aahToolsPath()
+			appTmplBaseDir = filepath.Join(aahToolsPath.Dir, "app-template")
+		}
 		appType := typeAPI
 		if ess.IsFileExists(filepath.Join(baseDir, "views")) {
 			appType = typeWeb
@@ -514,7 +517,7 @@ func checkAndGenerateInitgoFile(importPath, baseDir string) {
 		}
 
 		processFile(baseDir, file{
-			src: filepath.Join(appTemplatePath, "app", "init.go.atmpl"),
+			src: filepath.Join(appTmplBaseDir, "app", "init.go.atmpl"),
 			dst: filepath.Join(baseDir, "app", "init.go"),
 		}, data)
 	}
