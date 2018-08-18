@@ -17,7 +17,7 @@ import (
 )
 
 // Version no. of aah framework CLI tool
-const Version = "0.12.1"
+const Version = "0.12.2"
 
 var (
 	errVersionNotExists = errors.New("version not exists")
