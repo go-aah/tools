@@ -12,18 +12,18 @@ import (
 	"path/filepath"
 	"sort"
 
+	"aahframework.org/aruntime"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/log"
 	"gopkg.in/urfave/cli.v1"
-
-	"aahframework.org/aruntime.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 )
 
 const (
-	permRWXRXRX  = 0755
-	permRWRWRW   = 0666
-	importPrefix = "aahframework.org"
+	permRWXRXRX   = 0755
+	permRWRWRW    = 0666
+	importPrefix  = "aahframework.org"
+	aahImportPath = "aahframework.org"
 )
 
 var (

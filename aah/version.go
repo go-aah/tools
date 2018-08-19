@@ -7,12 +7,12 @@ package main
 import (
 	"errors"
 	"fmt"
+	"go/build"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"aahframework.org/essentials.v0"
-
+	"aahframework.org/essentials"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -27,11 +27,11 @@ var (
 // VersionPrinter method prints the versions info.
 func VersionPrinter(c *cli.Context) {
 	cliLog = initCLILogger(nil)
-	fmt.Printf("%-3s v%s\n", "cli", Version)
 	aahVer, _ = aahVersion(c)
 	if len(aahVer) > 0 {
 		fmt.Printf("%-3s v%s\n", "aah", aahVer)
 	}
+	fmt.Printf("%-3s v%s\n", "cli", Version)
 	if goVer := goVersion(); len(goVer) > 0 {
 		fmt.Printf("%-3s v%s\n", "go", goVer)
 	}
@@ -57,7 +57,7 @@ func aahVersion(c *cli.Context) (string, error) {
 	if len(importPath) > 0 {
 		vendorPath := filepath.Join(gosrcDir, importPath, "vendor")
 		if ess.IsFileExists(vendorPath) {
-			ver, _ := readVersionNo(filepath.Join(vendorPath, importPrefix, "aah.v0"))
+			ver, _ := readVersionNo(filepath.Join(vendorPath, aahImportPath))
 			if len(ver) > 0 && ver != "Unknown" {
 				return ver, nil
 			}
@@ -65,7 +65,11 @@ func aahVersion(c *cli.Context) (string, error) {
 	}
 
 	// GOPATH
-	return readVersionNo(filepath.Join(gosrcDir, importPrefix, "aah.v0"))
+	pkg, err := build.Import(aahImportPath, "", build.FindOnly)
+	if err != nil {
+		return "", nil
+	}
+	return readVersionNo(pkg.Dir)
 }
 
 func goVersion() string {

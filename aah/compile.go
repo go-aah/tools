@@ -16,11 +16,11 @@ import (
 	"regexp"
 	"strings"
 
-	"aahframework.org/aah.v0"
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/router.v0"
+	"aahframework.org"
+	"aahframework.org/ainsp"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/router"
 )
 
 type compileArgs struct {

@@ -10,9 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aahframework.org/essentials"
 	"gopkg.in/urfave/cli.v1"
-
-	"aahframework.org/essentials.v0"
 )
 
 const aahProjectIdentifier = "aah.project"

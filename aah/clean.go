@@ -5,9 +5,8 @@
 package main
 
 import (
+	"aahframework.org"
 	"gopkg.in/urfave/cli.v1"
-
-	"aahframework.org/aah.v0"
 )
 
 var cleanCmd = cli.Command{

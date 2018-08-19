@@ -23,12 +23,11 @@ import (
 	"syscall"
 	"time"
 
+	"aahframework.org"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
 	"gopkg.in/radovskyb/watcher.v1"
 	"gopkg.in/urfave/cli.v1"
-
-	"aahframework.org/aah.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
 )
 
 var runCmd = cli.Command{

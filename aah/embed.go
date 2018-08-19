@@ -18,9 +18,9 @@ import (
 	"text/template"
 	"time"
 
-	"aahframework.org/aah.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/vfs.v0"
+	"aahframework.org"
+	"aahframework.org/essentials"
+	"aahframework.org/vfs"
 )
 
 // Standard frame type MTU size is 1500 bytes so 1400 bytes would make sense

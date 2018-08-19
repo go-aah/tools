@@ -10,12 +10,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aahframework.org"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/log"
 	"gopkg.in/urfave/cli.v1"
-
-	"aahframework.org/aah.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 )
 
 var buildCmd = cli.Command{
