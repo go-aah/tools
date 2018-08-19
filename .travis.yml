@@ -14,10 +14,10 @@ go:
   - 1.x
   - tip
 
-go_import_path: aahframework.org/tools.v0/aah
+go_import_path: aahframework.org/cli/aah
 
 before_install:
-  - bash <(curl -s https://aahframework.org/base-before-install)
+  - go get aahframework.org
 
 install:
   - go get -t -v ./...
