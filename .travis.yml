@@ -17,7 +17,7 @@ go:
 go_import_path: aahframework.org/cli/aah
 
 before_install:
-  - go get aahframework.org
+  - go get -u aahframework.org
 
 install:
   - go get -t -v ./...
