@@ -23,9 +23,9 @@ import (
 	"syscall"
 	"time"
 
-	"aahframework.org"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
+	"aahframe.work/aah"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/essentials"
 	"gopkg.in/radovskyb/watcher.v1"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -349,7 +349,7 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 		for {
 			select {
 			case e := <-w.Event:
-				if !e.IsDir() {
+				if !e.IsDir() && !strings.EqualFold(filepath.Ext(e.Path), ".pid") {
 					watch <- true
 					if e.Op == watcher.Create {
 						_ = w.Add(e.Path)
@@ -384,6 +384,7 @@ func loadWatchFiles(projectCfg *config.Config, baseDir string, w *watcher.Watche
 	stdIgnoreList := []string{
 		filepath.Join(baseDir, aah.AppName()+".pid"),
 		filepath.Join(baseDir, "app", "aah.go"),
+		filepath.Join(baseDir, "app", "aah*_vfs.go"),
 	}
 
 	// user can provide their list via config

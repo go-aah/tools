@@ -16,11 +16,11 @@ import (
 	"regexp"
 	"strings"
 
-	"aahframework.org"
-	"aahframework.org/ainsp"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/router"
+	"aahframe.work/aah"
+	"aahframe.work/aah/ainsp"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/router"
 )
 
 type compileArgs struct {
@@ -84,15 +84,15 @@ func compileApp(args *compileArgs) (string, error) {
 	}
 
 	appImportPaths := map[string]string{
-		"aahframework.org/aah.v0":        "aah",
-		"aahframework.org/aruntime.v0":   "aruntime",
-		"aahframework.org/config.v0":     "config",
-		"aahframework.org/essentials.v0": "ess",
-		"aahframework.org/log.v0":        "log",
+		"aahframe.work/aah":            "aah",
+		"aahframe.work/aah/aruntime":   "aruntime",
+		"aahframe.work/aah/config":     "config",
+		"aahframe.work/aah/essentials": "ess",
+		"aahframe.work/aah/log":        "log",
 	}
 
 	// get all the types info referred aah framework context embedded
-	appControllers := acntlr.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", libImportPath("aah")))
+	appControllers := acntlr.FindTypeByEmbeddedType(aahImportPath + ".Context")
 	appImportPaths = acntlr.CreateImportPaths(appControllers, appImportPaths)
 	appSecurity := appSecurity(aah.AppConfig(), appImportPaths)
 
@@ -123,7 +123,7 @@ func compileApp(args *compileArgs) (string, error) {
 		}
 	}
 
-	appWebSockets := wsc.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", libImportPath("ws")))
+	appWebSockets := wsc.FindTypeByEmbeddedType(aahImportPath + "/ws.Context")
 	appImportPaths = wsc.CreateImportPaths(appWebSockets, appImportPaths)
 
 	if len(appControllers) == 0 && len(appWebSockets) == 0 {
@@ -131,7 +131,7 @@ func compileApp(args *compileArgs) (string, error) {
 	}
 
 	if len(appControllers) > 0 || len(appWebSockets) > 0 {
-		appImportPaths[libImportPath("ainsp")] = "ainsp"
+		appImportPaths[aahImportPath+"/ainsp"] = "ainsp"
 	}
 
 	// prepare aah application version and build date
@@ -357,8 +357,8 @@ import (
 	"regexp"
 	"syscall"
 	{{ if .AppSecurity }}
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/authz"{{ end }}{{ range $k, $v := $.AppImportPaths }}
+	"aahframe.work/aah/security/authc"
+	"aahframe.work/aah/security/authz"{{ end }}{{ range $k, $v := $.AppImportPaths }}
 	{{ $v }} "{{ $k }}"{{ end }}
 )
 
@@ -561,6 +561,5 @@ func main() {
 	aah.AppLog().Info("aah application shutdown successful")
 
 	// bye bye, see you later.
-	os.Exit(0)
 }
 `
