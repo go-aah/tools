@@ -5,7 +5,7 @@
 package main
 
 import (
-	"aahframework.org"
+	"aahframe.work/aah"
 	"gopkg.in/urfave/cli.v1"
 )
 

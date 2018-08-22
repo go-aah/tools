@@ -21,10 +21,10 @@ import (
 	"text/template"
 	"time"
 
-	"aahframework.org"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframe.work/aah"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/log"
 	"gopkg.in/urfave/cli.v1"
 )
 

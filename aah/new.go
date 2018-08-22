@@ -15,8 +15,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org"
-	"aahframework.org/essentials"
+	"aahframe.work/aah"
+	"aahframe.work/aah/essentials"
 	"gopkg.in/urfave/cli.v1"
 )
 

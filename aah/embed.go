@@ -18,9 +18,9 @@ import (
 	"text/template"
 	"time"
 
-	"aahframework.org"
-	"aahframework.org/essentials"
-	"aahframework.org/vfs"
+	"aahframe.work/aah"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/vfs"
 )
 
 // Standard frame type MTU size is 1500 bytes so 1400 bytes would make sense
@@ -232,9 +232,9 @@ package main
 import ({{ if .Mode }}
   "time"{{ end }}
 
-  "aahframework.org/aah.v0"
-  "aahframework.org/log.v0"{{ if .Mode }}
-	"aahframework.org/vfs.v0"{{ end }}
+  "aahframe.work/aah"
+  "aahframe.work/aah/log"{{ if .Mode }}
+	"aahframe.work/aah/vfs"{{ end }}
 )
 
 func init() {

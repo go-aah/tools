@@ -44,7 +44,7 @@ func updateAction(c *cli.Context) error {
 	if gocmdName == "go" {
 		args = append(args, "-u")
 	}
-	args = append(args, path.Join(importPrefix, "tools.v0", "aah"))
+	args = append(args, path.Join(aahImportPath, "cli", "aah"))
 	if _, err := execCmd(gocmd, args, false); err != nil {
 		logFatalf("Unable to update aah to the latest release version: %s", err)
 	}
