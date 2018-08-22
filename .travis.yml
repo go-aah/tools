@@ -14,10 +14,10 @@ go:
   - 1.x
   - tip
 
-go_import_path: aahframework.org/cli/aah
+go_import_path: aahframe.work/cli/aah
 
 before_install:
-  - go get -u aahframework.org
+  - git clone https://github.com/go-aah/aah.git $GOPATH/src/aahframe.work/aah
 
 install:
   - go get -t -v ./...
