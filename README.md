@@ -3,7 +3,7 @@
   <h2 align="center">Home of all CLI tools by aah framework</h2>
 </p>
 <p align="center">
-  <p align="center"><a href="https://travis-ci.org/go-aah/tools"><img src="https://travis-ci.org/go-aah/tools.svg?branch=master" alt="Build Status"></a> <a href="https://goreportcard.com/report/aahframework.org/tools.v0"><img src="https://goreportcard.com/badge/aahframework.org/tools.v0" alt="Go Report Card"></a>  <a href="https://godoc.org/aahframework.org/tools.v0"><img src="https://godoc.org/aahframework.org/tools.v0?status.svg" alt="Godoc"></a> <a href="https://twitter.com/aahframework"><img src="https://img.shields.io/badge/twitter-@aahframework-55acee.svg" alt="Twitter @aahframework"></a></p>
+  <p align="center"><a href="https://travis-ci.org/go-aah/tools"><img src="https://travis-ci.org/go-aah/tools.svg?branch=master" alt="Build Status"></a> <a href="https://goreportcard.com/report/aahframe.work/cli"><img src="https://goreportcard.com/badge/aahframe.work/cli" alt="Go Report Card"></a>  <a href="https://godoc.org/aahframe.work/cli"><img src="https://godoc.org/aahframe.work/cli?status.svg" alt="Godoc"></a> <a href="https://twitter.com/aahframework"><img src="https://img.shields.io/badge/twitter-@aahframework-55acee.svg" alt="Twitter @aahframework"></a></p>
 </p>
 
 aah - A secure, flexible, rapid Go web framework.
