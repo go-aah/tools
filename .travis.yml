@@ -16,9 +16,6 @@ go:
 
 go_import_path: aahframe.work/cli/aah
 
-before_install:
-  - git clone https://github.com/go-aah/aah.git $GOPATH/src/aahframe.work/aah
-
 install:
   - go get -t -v ./...
 
