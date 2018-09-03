@@ -34,7 +34,7 @@ var generateCmd = cli.Command{
 		aah generate help script
 `,
 	Subcommands: []cli.Command{
-		cli.Command{
+		{
 			Name:    "script",
 			Aliases: []string{"s"},
 			Usage:   "Generates complement scripts such as systemd, dockerize, etc.",

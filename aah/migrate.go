@@ -38,7 +38,7 @@ var migrateCmd = cli.Command{
 		aah migrate help code
 `,
 	Subcommands: []cli.Command{
-		cli.Command{
+		{
 			Name:    "code",
 			Aliases: []string{"c"},
 			Usage:   "Migrates application codebase by making it compatible with current version of aah",
@@ -65,6 +65,10 @@ var migrateCmd = cli.Command{
 }
 
 func migrateCodeAction(c *cli.Context) error {
+	if ess.IsStrEmpty(aahVer) {
+		logFatalf("Ensure you're in application base directory or supplying import path argument")
+	}
+
 	importPath := appImportPath(c)
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)
@@ -73,13 +77,18 @@ func migrateCodeAction(c *cli.Context) error {
 	projectCfg := aahProjectCfg(aah.AppBaseDir())
 	cliLog = initCLILogger(projectCfg)
 
-	cliLog.Warn("Migrate command does not take file backup. It assumes application use version control.")
+	cliLog.Warn("Migrate command does not take file backup. Command assumes application use version control.")
 	if c.GlobalBool("y") || c.GlobalBool("yes") {
 		fmt.Println("\nWould you like to continue? [y/N]: y")
 	} else if !collectYesOrNo(reader, "Would you like to continue? [y/N]") {
 		cliLog.Info("Okay, I respect your choice. Bye.")
 		return nil
 	}
+
+	grammerIdentifier := "migrate-" + strings.Join(strings.Split(Version, ".")[:2], ".") + ".conf"
+	fmt.Println("grammerIdentifier", grammerIdentifier)
+
+	return nil
 
 	grammarFile := filepath.Join(aahPath(), aahGrammarIdentifier)
 	if !ess.IsFileExists(grammarFile) {

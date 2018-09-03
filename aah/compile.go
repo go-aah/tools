@@ -58,7 +58,7 @@ func compileApp(args *compileArgs) (string, error) {
 	registeredActions := aah.AppRouter().RegisteredActions()
 
 	// Go AST processing for Controllers
-	acntlr, errs := ainsp.Inspect(appControllersPath, ess.Excludes(excludes), registeredActions)
+	acntlr, errs := ainsp.Inspect(appControllersPath, appImportPath, ess.Excludes(excludes), registeredActions)
 	if len(acntlr.Packages) > 0 {
 		if len(errs) > 0 {
 			errMsgs := []string{}
@@ -98,7 +98,7 @@ func compileApp(args *compileArgs) (string, error) {
 
 	// Go AST processing for WebSockets
 	registeredWSActions := aah.AppRouter().RegisteredWSActions()
-	wsc, errs := ainsp.Inspect(appWebSocketsPath, ess.Excludes(excludes), registeredWSActions)
+	wsc, errs := ainsp.Inspect(appWebSocketsPath, appImportPath, ess.Excludes(excludes), registeredWSActions)
 	if len(wsc.Packages) > 0 {
 		if len(errs) > 0 {
 			errMsgs := []string{}
@@ -231,6 +231,9 @@ var notExistRegex = regexp.MustCompile(`cannot find package "(.*)" in any of`)
 // 		go list -f '{{ join .Imports "\n" }}' aah-app/import/path/app/...
 //
 func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
+	if goModFile && go111AndAbove {
+		return nil
+	}
 	debList := libDependencyImports(path.Join(appImportPath, "app", "..."))
 	if len(debList) == 0 {
 		return nil

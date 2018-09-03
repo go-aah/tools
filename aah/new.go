@@ -86,6 +86,8 @@ func newAction(c *cli.Context) error {
 	fmt.Printf("You shall run your application via the command: 'aah run --importpath %s'\n", app.ImportPath)
 	fmt.Println("\nGo to https://docs.aahframework.org to learn more and customize your aah application.")
 
+	aahInventory.AddProject(app.ImportPath, app.BaseDir)
+
 	if app.BasicAuthMode == basicFileRealm {
 		fmt.Println("\nNext step:")
 		fmt.Println("\tCreate basic auth realm file per your application requirements.")

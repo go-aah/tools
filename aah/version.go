@@ -27,8 +27,9 @@ var (
 // VersionPrinter method prints the versions info.
 func VersionPrinter(c *cli.Context) {
 	cliLog = initCLILogger(nil)
-	aahVer, _ = aahVersion(c)
-	if len(aahVer) > 0 {
+	var err error
+	aahVer, err = aahVersion(c)
+	if err == nil && len(aahVer) > 0 {
 		fmt.Printf("%-3s v%s\n", "aah", aahVer)
 	}
 	fmt.Printf("%-3s v%s\n", "cli", Version)
@@ -52,8 +53,23 @@ func VersionPrinter(c *cli.Context) {
 }
 
 func aahVersion(c *cli.Context) (string, error) {
+	// go.mod
+	if ess.IsFileExists("aah.project") && goModFile && go111AndAbove {
+		output, err := execCmd(gocmd, []string{"list", "-m", "-json", "all"}, false)
+		if err != nil {
+			return "", err
+		}
+		mods := parseGoListModJSON(output)
+		for _, m := range mods {
+			if m.Path == aahImportPath {
+				return readVersionNo(m.Dir)
+			}
+		}
+		return "", errors.New("aah import path not found")
+	}
+
 	// Vendor Directory
-	importPath := importPathRelwd()
+	importPath := appImportPath(c)
 	if len(importPath) > 0 {
 		vendorPath := filepath.Join(gosrcDir, importPath, "vendor")
 		if ess.IsFileExists(vendorPath) {
@@ -70,11 +86,4 @@ func aahVersion(c *cli.Context) (string, error) {
 		return "", nil
 	}
 	return readVersionNo(pkg.Dir)
-}
-
-func goVersion() string {
-	if ver, err := execCmd(gocmd, []string{"version"}, false); err == nil {
-		return strings.TrimLeft(strings.Fields(ver)[2], "go")
-	}
-	return ""
 }

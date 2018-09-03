@@ -51,6 +51,7 @@ var buildCmd = cli.Command{
 
 func buildAction(c *cli.Context) error {
 	importPath := appImportPath(c)
+	chdirIfRequired(importPath)
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)
 	}

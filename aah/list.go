@@ -6,11 +6,7 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
-	"aahframe.work/aah/essentials"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -27,35 +23,12 @@ var listCmd = cli.Command{
 
 func listAction(c *cli.Context) error {
 	cliLog = initCLILogger(nil)
-	cliLog.Infof("Scanning GOPATH: %s\n", filepath.Join(gopath, "..."))
+	createProjectInventory()
 
-	var aahProjects []string
-	_ = ess.Walk(gosrcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		// Skip Git Directory
-		if strings.Contains(path, "/.git/") || strings.Contains(path, "\\.git\\") {
-			return nil
-		}
-
-		if isAahProject(path) {
-			aahProjects = append(aahProjects, filepath.Dir(path))
-		}
-
-		return nil
-	})
-
-	if count := len(aahProjects); count > 0 {
+	if count := len(aahInventory.Projects); count > 0 {
 		cliLog.Infof("%d aah projects were found, import paths are:\n", count)
-		prefix := gosrcDir + string(filepath.Separator)
-		for _, p := range aahProjects {
-			fmt.Printf("    %s\n", filepath.ToSlash(strings.TrimPrefix(p, prefix)))
+		for _, m := range aahInventory.Projects {
+			fmt.Printf("    %s\n", m.Path)
 		}
 		fmt.Println()
 		return nil

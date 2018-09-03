@@ -6,7 +6,9 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"go/build"
 	"io"
 	"io/ioutil"
 	"net"
@@ -28,9 +30,76 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
-func importPathRelwd() string {
-	pwd, _ := os.Getwd() // #nosec
+func goVersion() string {
+	ver, err := execCmd(gocmd, []string{"version"}, false)
+	if err != nil {
+		logFatalf("Unable to infer go version: %v", err)
+	}
+	return strings.TrimPrefix(strings.Fields(ver)[2], "go")
+}
 
+func inferGo111AndAbove() bool {
+	ver := strings.Join(strings.Split(goVersion(), ".")[:2], ".")
+	verNum, err := strconv.ParseFloat(ver, 64)
+	if err != nil {
+		return false
+	}
+	return verNum >= float64(1.11)
+}
+
+func inferInsideGopath() bool {
+	gopaths := filepath.SplitList(build.Default.GOPATH)
+	cwd, err := os.Getwd()
+	if err != nil {
+		logFatalf("Unable to infer current directory: %v", err)
+	}
+	cwd = strings.ToLower(cwd)
+	for _, gp := range gopaths {
+		if strings.HasPrefix(cwd, strings.ToLower(gp)) {
+			return true
+		}
+	}
+	return false
+}
+
+func appImportPath(c *cli.Context) string {
+	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
+	if ess.IsStrEmpty(importPath) {
+		importPath = importPathRelwd()
+	}
+	return importPath
+}
+
+func parseGoListModJSON(rawCmdJSON string) []*module {
+	if ess.IsStrEmpty(rawCmdJSON) {
+		return nil
+	}
+	rawCmdJSON = strings.Replace(strings.Replace(strings.Replace(rawCmdJSON, "\n", "", -1), "\t", "", -1), "}{", "}\n{", -1)
+	scanner := bufio.NewScanner(strings.NewReader(rawCmdJSON))
+	var mods []*module
+	for scanner.Scan() {
+		m := &module{}
+		if err := json.Unmarshal([]byte(scanner.Text()), m); err != nil {
+			continue
+		}
+		mods = append(mods, m)
+	}
+	return mods
+}
+
+func importPathRelwd() string {
+	if goModFile && go111AndAbove {
+		output, err := execCmd(gocmd, []string{"list", "-m", "-json"}, false)
+		if err == nil {
+			mods := parseGoListModJSON(output)
+			if len(mods) > 0 {
+				return mods[0].Path
+			}
+			return "" // import path not found
+		}
+	}
+
+	pwd, _ := os.Getwd() // #nosec
 	var importPath string
 	if idx := strings.Index(pwd, "src"); idx > 0 {
 		srcDir := pwd[:idx+3]
@@ -40,16 +109,24 @@ func importPathRelwd() string {
 				importPath, _ = filepath.Rel(srcDir, appDir)
 				break
 			}
-
 			if appDir == srcDir {
 				break
 			}
-
 			appDir = filepath.Dir(appDir)
 		}
 	}
 
 	return filepath.ToSlash(importPath)
+}
+
+func chdirIfRequired(importPath string) {
+	if p := aahInventory.Lookup(importPath); p != nil {
+		if cwd, err := os.Getwd(); err == nil {
+			if !ess.IsFileExists(aahProjectIdentifier) && !strings.HasPrefix(cwd, p.Dir) {
+				_ = os.Chdir(p.Dir)
+			}
+		}
+	}
 }
 
 func aahProjectCfg(baseDir string) *config.Config {
@@ -479,27 +556,8 @@ func readVersionNo(baseDir string) (string, error) {
 // other helper methods
 //___________________________________________________________________________
 
-func appImportPath(c *cli.Context) string {
-	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
-	if ess.IsStrEmpty(importPath) {
-		importPath = importPathRelwd()
-	}
-
-	if !ess.IsImportPathExists(importPath) {
-		logFatalf("Given import path '%s' does not exists", importPath)
-	}
-
-	return importPath
-}
-
 func logFatal(v ...interface{}) {
-	if cliLog == nil {
-		_ = log.SetPattern("%level %message")
-		fatal(v...)
-		_ = log.SetPattern(log.DefaultPattern)
-	} else {
-		cliLog.Fatal(append([]interface{}{"FATAL"}, v...))
-	}
+	logFatalf("", v...)
 }
 
 func logFatalf(format string, v ...interface{}) {
@@ -513,11 +571,17 @@ func logFatalf(format string, v ...interface{}) {
 }
 
 func logError(v ...interface{}) {
-	cliLog.Error(append([]interface{}{"ERROR"}, v...))
+	logErrorf("", v...)
 }
 
 func logErrorf(format string, v ...interface{}) {
-	cliLog.Errorf("ERROR "+format, v...)
+	if cliLog == nil {
+		_ = log.SetPattern("%level %message")
+		log.Errorf(format, v...)
+		_ = log.SetPattern(log.DefaultPattern)
+	} else {
+		cliLog.Errorf("ERROR "+format, v...)
+	}
 }
 
 func waitForConnReady(port string) {

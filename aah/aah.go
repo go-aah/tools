@@ -27,11 +27,14 @@ const (
 )
 
 var (
-	gopath   string
-	gocmd    string
-	gosrcDir string
-	gitcmd   string
-	aahVer   string
+	go111AndAbove bool
+	insideGopath  bool
+	goModFile     bool
+	gopath        string
+	gocmd         string
+	gosrcDir      string
+	gitcmd        string
+	aahVer        string
 
 	// abstract it, so we can do unit test
 	fatal  = log.Fatal
@@ -41,7 +44,7 @@ var (
 	// cli logger
 	cliLog *log.Logger
 
-	// CliPackaged is identify cli from go get or binary dist
+	// CliPackaged is to identify cli from go get or binary dist
 	CliPackaged string
 )
 
@@ -56,13 +59,17 @@ func checkPrerequisites() error {
 
 	var err error
 
-	// get GOPATH, refer https://godoc.org/aahframework.org/essentials.v0#GoPath
-	if gopath, err = ess.GoPath(); err != nil {
+	// Go executable
+	if gocmd, err = exec.LookPath(gocmdName); err != nil {
 		return err
 	}
 
-	// Go executable
-	if gocmd, err = exec.LookPath(gocmdName); err != nil {
+	go111AndAbove = inferGo111AndAbove()
+	insideGopath = inferInsideGopath()
+	goModFile = ess.IsFileExists("go.mod")
+
+	// get GOPATH, refer https://godoc.org/aahframework.org/essentials.v0#GoPath
+	if gopath, err = ess.GoPath(); err != nil {
 		return err
 	}
 
@@ -110,8 +117,6 @@ func main() {
 		buildCmd,
 		listCmd,
 		cleanCmd,
-		switchCmd,
-		updateCmd,
 		generateCmd,
 		migrateCmd,
 	}
@@ -134,7 +139,7 @@ func main() {
 
 func printHeader(c *cli.Context) error {
 	aahVer, _ = aahVersion(c)
-	hdr := fmt.Sprintf("aah framework v%s", aahVer)
+	hdr := "aah framework v" + aahVer + " (cli v" + Version + ")"
 	improveRpt := "# Report improvements/bugs at https://aahframework.org/issues #"
 	cnt := len(improveRpt)
 	sp := ((cnt - len(hdr)) / 2) - 1
