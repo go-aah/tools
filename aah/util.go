@@ -557,7 +557,13 @@ func readVersionNo(baseDir string) (string, error) {
 //___________________________________________________________________________
 
 func logFatal(v ...interface{}) {
-	logFatalf("", v...)
+	if cliLog == nil {
+		_ = log.SetPattern("%level %message")
+		fatal(v...)
+		_ = log.SetPattern(log.DefaultPattern)
+	} else {
+		cliLog.Fatal(append([]interface{}{"FATAL "}, v...))
+	}
 }
 
 func logFatalf(format string, v ...interface{}) {
@@ -571,7 +577,13 @@ func logFatalf(format string, v ...interface{}) {
 }
 
 func logError(v ...interface{}) {
-	logErrorf("", v...)
+	if cliLog == nil {
+		_ = log.SetPattern("%level %message")
+		log.Error(v...)
+		_ = log.SetPattern(log.DefaultPattern)
+	} else {
+		cliLog.Error(append([]interface{}{"ERROR "}, v...))
+	}
 }
 
 func logErrorf(format string, v ...interface{}) {

@@ -77,7 +77,7 @@ func (inv *inventory) Persist() {
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
 	if err = enc.Encode(inv); err != nil {
-		logError("Unable to write aah projects inventory to %s: %v", inventoryPath, err)
+		logErrorf("Unable to write aah projects inventory to %s: %v", inventoryPath, err)
 	}
 }
 
