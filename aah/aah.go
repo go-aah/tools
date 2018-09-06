@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	permRWXRXRX   = 0755
-	permRWRWRW    = 0666
+	permRWXRXRX   = os.FileMode(0755)
+	permRWRWRW    = os.FileMode(0666)
 	importPrefix  = "aahframe.work/aah"
 	aahImportPath = "aahframe.work/aah"
 )

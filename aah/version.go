@@ -36,19 +36,6 @@ func VersionPrinter(c *cli.Context) {
 	if goVer := goVersion(); len(goVer) > 0 {
 		fmt.Printf("%-3s v%s\n", "go", goVer)
 	}
-
-	if c.Bool("all") { // currently not-executed intentionally
-		fmt.Printf("\nLibraries:\n")
-		for _, bd := range aahLibraryDirs() {
-			bn := filepath.Base(bd)
-			if strings.HasPrefix(bn, "aah") || strings.HasPrefix(bn, "tools") {
-				continue
-			}
-			if verNo, err := readVersionNo(bd); err == nil {
-				fmt.Printf("  %s v%s\n", bn[:len(bn)-3], verNo)
-			}
-		}
-	}
 	fmt.Println()
 }
 
@@ -57,6 +44,12 @@ func aahVersion(c *cli.Context) (string, error) {
 	if ess.IsFileExists("aah.project") && goModFile && go111AndAbove {
 		output, err := execCmd(gocmd, []string{"list", "-m", "-json", "all"}, false)
 		if err != nil {
+			if insideGopath && strings.Contains(err.Error(), "go list -m: not using modules") {
+				logError("It seems aah project resides inside the GOPATH. Either move the aah project\n" +
+					"outside the GOPATH or enable module support via setting 'GO111MODULE=on'.\n" +
+					"For more info 'go help modules'.")
+				exit(0)
+			}
 			return "", err
 		}
 		mods := parseGoListModJSON(output)

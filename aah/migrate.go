@@ -65,67 +65,62 @@ var migrateCmd = cli.Command{
 }
 
 func migrateCodeAction(c *cli.Context) error {
-	if ess.IsStrEmpty(aahVer) {
-		logFatalf("Ensure you're in application base directory or supplying import path argument")
+	if !ess.IsFileExists(aahProjectIdentifier) {
+		logFatalf("Ensure you're in aah application base directory")
 	}
+
+	grammarFile := filepath.Join(aahPath(), aahGrammarIdentifier)
+	if err := os.Remove(grammarFile); err != nil && !os.IsNotExist(err) {
+		logFatal(err)
+	}
+	cliLog.Info("Fetching migrate configuration: ", aahGrammarFetchLoc)
+	if err := fetchFile(grammarFile, aahGrammarFetchLoc); err != nil {
+		logFatal(err)
+	}
+	grammarCfg, err := config.LoadFile(grammarFile)
+	if err != nil {
+		logFatal(err)
+	}
+	cliLog.Info("Loaded migrate configuration: ", grammarFile)
 
 	importPath := appImportPath(c)
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)
 	}
-
 	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	cliLog.Info("Loaded aah project file: ", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
 	cliLog = initCLILogger(projectCfg)
 
 	cliLog.Warn("Migrate command does not take file backup. Command assumes application use version control.")
 	if c.GlobalBool("y") || c.GlobalBool("yes") {
-		fmt.Println("\nWould you like to continue? [y/N]: y")
+		fmt.Println("Would you like to continue? [y/N]: y")
 	} else if !collectYesOrNo(reader, "Would you like to continue? [y/N]") {
 		cliLog.Info("Okay, I respect your choice. Bye.")
 		return nil
 	}
 
-	grammerIdentifier := "migrate-" + strings.Join(strings.Split(Version, ".")[:2], ".") + ".conf"
-	fmt.Println("grammerIdentifier", grammerIdentifier)
-
-	return nil
-
-	grammarFile := filepath.Join(aahPath(), aahGrammarIdentifier)
-	if !ess.IsFileExists(grammarFile) {
-		cliLog.Info("Fetch migrate configuration from ", aahGrammarFetchLoc)
-		if err := fetchFile(grammarFile, aahGrammarFetchLoc); err != nil {
-			logFatal(err)
-		}
-	}
-
-	grammarCfg, err := config.LoadFile(grammarFile)
-	if err != nil {
-		logFatal(err)
-	}
-
 	cliLog.Info("\nNote:")
 	cliLog.Info("-----")
-	cliLog.Info("Command works based on `migrate.conf` file. If you identify a new grammar entry, \n" +
+	cliLog.Info("Command works based on 'migrate.conf' file. If you identify a new grammar entry, \n" +
 		"create an issue at https://aahframework.org/issues.\n")
-
-	cliLog.Infof("Loaded migrate configuration: %s", grammarFile)
-	cliLog.Infof("Loaded aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
 	cliLog.Infof("Migrate starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 
 	// Go Source files
 	cliLog.Infof("Go source code migrate starts ...")
 	if migrateGoSrcFiles(projectCfg, grammarCfg) == 0 {
-		cliLog.Info("   It seems application Go source code are up-to-date")
+		cliLog.Info("  |-- It seems application Go source code are up-to-date")
+	} else {
+		cliLog.Infof("Go source code migrate successful")
 	}
-	cliLog.Infof("Go source code migrate successful")
 
+	// View files
 	if ess.IsFileExists(filepath.Join(aah.AppBaseDir(), "views")) {
-		// View files
 		cliLog.Infof("View file migrate starts ...")
 		if migrateViewFiles(projectCfg, grammarCfg) == 0 {
-			cliLog.Info("   It seems application view files are up-to-date")
+			cliLog.Info("  |-- It seems application view files are up-to-date")
+		} else {
+			cliLog.Infof("View file migrate successful")
 		}
-		cliLog.Infof("View file migrate successful")
 	}
 
 	cliLog.Infof("Migrate successful for '%s' [%s]\n", aah.AppName(), aah.AppImportPath())
@@ -197,7 +192,7 @@ func migrateFile(f string, fixer *strings.Replacer) bool {
 
 	if filepath.Ext(f) == ".go" {
 		// format go src file
-		var err error
+		// var err error
 		if modFileBytes, err = format.Source(modFileBytes); err != nil {
 			logErrorf("While formating: %s", err)
 			cliLog.Infof("  |-- skipped: %s", df)
@@ -213,7 +208,7 @@ func migrateFile(f string, fixer *strings.Replacer) bool {
 
 	if err = ioutil.WriteFile(f, modFileBytes, permRWRWRW); err != nil {
 		logError(err)
-		cliLog.Infof("  |-- [ERROR] processed: %s", df)
+		cliLog.Infof("  |-- [ERROR] processing: %s", df)
 	} else {
 		cliLog.Infof("  |-- processed: %s", df)
 	}

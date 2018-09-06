@@ -19,7 +19,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 
@@ -95,8 +94,8 @@ func importPathRelwd() string {
 			if len(mods) > 0 {
 				return mods[0].Path
 			}
-			return "" // import path not found
 		}
+		return ""
 	}
 
 	pwd, _ := os.Getwd() // #nosec
@@ -341,29 +340,6 @@ func initCLILogger(cfg *config.Config) *log.Logger {
 // Git methods
 //___________________________________________________________________________
 
-func gitCheckout(dir, branch string) error {
-	if ess.IsFileExists(filepath.Join(dir, ".git")) {
-		_, err := execCmd(gitcmd, []string{"-C", dir, "checkout", branch}, false)
-		return err
-	}
-	return nil
-}
-
-func gitBranchName(dir string) string {
-	if !ess.IsDir(dir) {
-		cliLog.Tracef("Given path '%s' is not a directory", dir)
-		return ""
-	}
-
-	if !ess.IsFileExists(filepath.Join(dir, ".git")) {
-		return ""
-	}
-
-	gitArgs := []string{"-C", dir, "rev-parse", "--abbrev-ref", "HEAD"}
-	output, _ := execCmd(gitcmd, gitArgs, false)
-	return strings.TrimSpace(output)
-}
-
 func gitPull(dir string) error {
 	if ess.IsFileExists(filepath.Join(dir, ".git")) {
 		_, err := execCmd(gitcmd, []string{"-C", dir, "pull"}, false)
@@ -372,34 +348,9 @@ func gitPull(dir string) error {
 	return nil
 }
 
-func checkoutBranch(aahLibDirs []string, branchName string) {
-	var wg sync.WaitGroup
-	for _, dir := range aahLibDirs {
-		wg.Add(1)
-		go func(d string) {
-			defer wg.Done()
-			baseName := filepath.Base(d)
-			if err := gitCheckout(d, branchName); err != nil {
-				logErrorf("Unable to switch library version, possibliy you may have local changes[%s]: %s", baseName, err)
-			}
-			cliLog.Tracef("Library '%s' have been switched to '%s' successfully", baseName, branchName)
-		}(dir)
-	}
-	wg.Wait()
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // aah discovery and processing methods
 //___________________________________________________________________________
-
-func libImportPath(name string) string {
-	return fmt.Sprintf("%s/%s.%s", importPrefix, name, inferVersionSeries())
-}
-
-func libDir(name string) string {
-	importPath := libImportPath(name)
-	return filepath.FromSlash(filepath.Join(gosrcDir, importPath))
-}
 
 func goGet(pkgs ...string) error {
 	for _, pkg := range pkgs {
@@ -410,88 +361,9 @@ func goGet(pkgs ...string) error {
 	return nil
 }
 
-func installCLI() {
-	if CliPackaged != "" {
-		return
-	}
-	verser := inferVersionSeries()
-	args := []string{"install", fmt.Sprintf("%s/tools.%s/aah", importPrefix, verser)}
-	if _, err := execCmd(gocmd, args, false); err != nil {
-		logFatalf("Unable to compile aah CLI: %s", err)
-	}
-}
-
-func fetchLibDeps() {
-	var notEixstsList []string
-	var wg sync.WaitGroup
-	for _, i := range aahImportPaths() {
-		wg.Add(1)
-		go func(p string) {
-			defer wg.Done()
-			if neList := inferNotExistsDeps(libDependencyImports(p)); len(neList) > 0 {
-				notEixstsList = append(notEixstsList, neList...)
-			}
-		}(i)
-	}
-	wg.Wait()
-
-	// infer not exists libraries on GOPATH using importpath
-	if len(notEixstsList) > 0 {
-		if err := goGet(notEixstsList...); err != nil {
-			logFatalf("Error during go get: %s", err)
-		}
-	}
-}
-
-func refreshLibCode(libDirs []string) {
-	var wg sync.WaitGroup
-	for _, dir := range libDirs {
-		wg.Add(1)
-		go func(d string) {
-			defer wg.Done()
-			if err := gitPull(d); err != nil {
-				logErrorf("Unable to refresh library, possibliy you may have local changes: %s", filepath.Base(d))
-			}
-		}(dir)
-	}
-	wg.Wait()
-}
-
 func stripGoSrcPath(pkgFilePath string) string {
 	idx := strings.Index(pkgFilePath, "src")
 	return filepath.Clean(pkgFilePath[idx+4:])
-}
-
-func inferVersionSeries() string {
-	verser := "v0"
-	for _, d := range aahLibraryDirs() {
-		baseName := filepath.Base(d)
-		if strings.HasPrefix(baseName, "aah") {
-			return strings.Split(baseName, ".")[1]
-		}
-	}
-	return verser
-}
-
-func aahLibraryDirs() []string {
-	dirs, err := ess.DirsPathExcludes(filepath.Join(gosrcDir, importPrefix), false, ess.Excludes{"examples"})
-	if err != nil {
-		return []string{}
-	}
-	return dirs
-}
-
-func aahImportPaths() []string {
-	var importPaths []string
-	gsLen := len(gosrcDir)
-	for _, d := range aahLibraryDirs() {
-		p := d[gsLen+1:]
-		if strings.Contains(p, "tools") {
-			p += "/aah" // Note: this import path so always forward slash
-		}
-		importPaths = append(importPaths, p)
-	}
-	return importPaths
 }
 
 func libDependencyImports(importPath string) []string {
@@ -508,7 +380,7 @@ func libDependencyImports(importPath string) []string {
 	for scanner.Scan() {
 		if ln := replacer.Replace(strings.TrimSpace(scanner.Text())); ln != "" {
 			for _, p := range strings.Fields(ln) {
-				if p := strings.TrimSpace(p); p != "" {
+				if p = strings.TrimSpace(p); p != "" {
 					pkgList[p] = p
 				}
 			}
@@ -521,16 +393,6 @@ func libDependencyImports(importPath string) []string {
 	}
 
 	return depList
-}
-
-func inferNotExistsDeps(depList []string) []string {
-	var notExistsList []string
-	for _, d := range depList {
-		if !ess.IsImportPathExists(d) && !ess.IsSliceContainsString(notExistsList, d) {
-			notExistsList = append(notExistsList, d)
-		}
-	}
-	return notExistsList
 }
 
 func readVersionNo(baseDir string) (string, error) {
@@ -562,7 +424,7 @@ func logFatal(v ...interface{}) {
 		fatal(v...)
 		_ = log.SetPattern(log.DefaultPattern)
 	} else {
-		cliLog.Fatal(append([]interface{}{"FATAL "}, v...))
+		cliLog.Fatal(append([]interface{}{"FATAL "}, v...)...)
 	}
 }
 
@@ -582,7 +444,7 @@ func logError(v ...interface{}) {
 		log.Error(v...)
 		_ = log.SetPattern(log.DefaultPattern)
 	} else {
-		cliLog.Error(append([]interface{}{"ERROR "}, v...))
+		cliLog.Error(append([]interface{}{"ERROR "}, v...)...)
 	}
 }
 
@@ -640,21 +502,6 @@ func toLowerCamelCase(v string) string {
 		}
 	}
 	return string(st)
-}
-
-func inferAppTmplBaseDir() string {
-	aahBasePath := aahPath()
-	baseDir := filepath.Join(aahBasePath, "app-templates", "generic")
-	if !ess.IsFileExists(baseDir) {
-		tmplRepo := "https://github.com/go-aah/app-templates.git"
-		cliLog.Debugf("Downloading aah quick start app templates from %s", tmplRepo)
-		gitArgs := []string{"clone", tmplRepo, filepath.Dir(baseDir)}
-		if _, err := execCmd(gitcmd, gitArgs, false); err != nil {
-			logErrorf("Unable to download aah app-template from %s", tmplRepo)
-			return ""
-		}
-	}
-	return baseDir
 }
 
 func aahPath() string {

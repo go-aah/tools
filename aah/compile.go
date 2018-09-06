@@ -240,7 +240,7 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 	}
 
 	args := append([]string{"list"}, debList...)
-	b, _ := exec.Command(gocmd, args...).CombinedOutput()
+	b, _ := exec.Command(gocmd, args...).CombinedOutput() // #nosec
 	notExistsPkgs := []string{}
 	matches := notExistRegex.FindAllStringSubmatch(string(b), -1)
 	for _, m := range matches {

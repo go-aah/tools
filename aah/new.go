@@ -7,11 +7,9 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"go/build"
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -86,7 +84,7 @@ func newAction(c *cli.Context) error {
 	fmt.Printf("You shall run your application via the command: 'aah run --importpath %s'\n", app.ImportPath)
 	fmt.Println("\nGo to https://docs.aahframework.org to learn more and customize your aah application.")
 
-	aahInventory.AddProject(app.ImportPath, app.BaseDir)
+	_ = aahInventory.AddProject(app.ImportPath, app.BaseDir)
 
 	if app.BasicAuthMode == basicFileRealm {
 		fmt.Println("\nNext step:")
@@ -503,8 +501,7 @@ func checkAndGenerateInitgoFile(importPath, baseDir string) {
 
 		appTmplBaseDir := inferAppTmplBaseDir()
 		if ess.IsStrEmpty(appTmplBaseDir) {
-			aahToolsPath := aahToolsPath()
-			appTmplBaseDir = filepath.Join(aahToolsPath.Dir, "app-template")
+			logFatal("Unable to find aah app template at $HOME/.aah/app-templates")
 		}
 		appType := typeAPI
 		if ess.IsFileExists(filepath.Join(baseDir, "views")) {
@@ -524,10 +521,25 @@ func checkAndGenerateInitgoFile(importPath, baseDir string) {
 	}
 }
 
-func aahToolsPath() *build.Package {
-	aahToolsPath, err := build.Import(path.Join(libImportPath("tools"), "aah"), "", build.FindOnly)
-	if err != nil {
-		logFatal(err)
+func inferAppTmplBaseDir() string {
+	aahBasePath := aahPath()
+	baseDir := filepath.Join(aahBasePath, "app-templates", "generic")
+	if ess.IsFileExists(baseDir) {
+		if err := gitPull(baseDir); err == nil {
+			return baseDir
+		}
+		if err := os.RemoveAll(baseDir); err != nil {
+			logError(err)
+			return ""
+		}
 	}
-	return aahToolsPath
+
+	tmplRepo := "https://github.com/go-aah/app-templates.git"
+	cliLog.Infof("Downloading aah quick start app templates from %s", tmplRepo)
+	gitArgs := []string{"clone", tmplRepo, filepath.Dir(baseDir)}
+	if _, err := execCmd(gitcmd, gitArgs, false); err != nil {
+		logErrorf("Unable to download aah app-template from %s", tmplRepo)
+		return ""
+	}
+	return baseDir
 }
