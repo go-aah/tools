@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -30,14 +31,9 @@ var buildCmd = cli.Command{
 	Examples of short and long flags:
     aah build  OR  aah b
 		aah build --single  OR  aah b -s
-    aah build -i github.com/user/appname -o /Users/jeeva
-		aah build -i github.com/user/appname -o /Users/jeeva/aahwebsite.zip`,
-	Action: buildAction,
+    aah build -o /Users/jeeva -s
+		aah build -o /Users/jeeva/aahwebsite.zip`,
 	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "i, importpath",
-			Usage: "Import path of aah application",
-		},
 		cli.StringFlag{
 			Name:  "o, output",
 			Usage: "Output of aah application build artifact; the default is '<appbasedir>/build/<appbinaryname>-<appversion>-<goos>-<goarch>.zip'",
@@ -47,9 +43,14 @@ var buildCmd = cli.Command{
 			Usage: "Creates aah single application binary",
 		},
 	},
+	Action: buildAction,
 }
 
 func buildAction(c *cli.Context) error {
+	if !isAahProject() {
+		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
+	}
+
 	importPath := appImportPath(c)
 	chdirIfRequired(importPath)
 	if err := aah.Init(importPath); err != nil {

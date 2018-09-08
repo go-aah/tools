@@ -22,14 +22,11 @@ import (
 const (
 	permRWXRXRX   = os.FileMode(0755)
 	permRWRWRW    = os.FileMode(0666)
-	importPrefix  = "aahframe.work/aah"
 	aahImportPath = "aahframe.work/aah"
 )
 
 var (
 	go111AndAbove bool
-	insideGopath  bool
-	goModFile     bool
 	gopath        string
 	gocmd         string
 	gosrcDir      string
@@ -65,8 +62,6 @@ func checkPrerequisites() error {
 	}
 
 	go111AndAbove = inferGo111AndAbove()
-	insideGopath = inferInsideGopath()
-	goModFile = ess.IsFileExists("go.mod")
 
 	// get GOPATH, refer https://godoc.org/aahframework.org/essentials.v0#GoPath
 	if gopath, err = ess.GoPath(); err != nil {
@@ -139,7 +134,10 @@ func main() {
 
 func printHeader(c *cli.Context) error {
 	aahVer, _ = aahVersion(c)
-	hdr := "aah framework v" + aahVer + " (cli v" + Version + ")"
+	if len(aahVer) > 0 {
+		aahVer = " v" + aahVer
+	}
+	hdr := "aah framework" + aahVer + " (cli v" + Version + ")"
 	improveRpt := "# Report improvements/bugs at https://aahframework.org/issues #"
 	cnt := len(improveRpt)
 	sp := ((cnt - len(hdr)) / 2) - 1
@@ -168,7 +166,7 @@ func init() {
 
 	cli.VersionFlag = cli.BoolFlag{
 		Name:  "v, version",
-		Usage: "Prints cli, aah, go and aah libraries version",
+		Usage: "Prints aah, cli, aah and go version",
 	}
 
 	cli.VersionPrinter = VersionPrinter

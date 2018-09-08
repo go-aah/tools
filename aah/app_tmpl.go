@@ -30,6 +30,8 @@ const (
 	basicFileRealm = "file-realm"
 )
 
+var domainNameKeyReplacer = strings.NewReplacer(" ", "_", "-", "_", ".", "_", "*", "_")
+
 // appTmplData struct holds inputs collected from user for new aah creation
 type appTmplData struct {
 	Name                   string
@@ -63,7 +65,7 @@ func (a *appTmplData) IsWebSocketApp() bool {
 }
 
 func (a *appTmplData) DomainNameKey() string {
-	return strings.Replace(strings.Replace(a.Name, " ", "_", -1), "-", "_", -1)
+	return domainNameKeyReplacer.Replace(a.Name)
 }
 
 func (a *appTmplData) IsAuthSchemeForWeb() bool {

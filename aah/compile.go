@@ -231,7 +231,7 @@ var notExistRegex = regexp.MustCompile(`cannot find package "(.*)" in any of`)
 // 		go list -f '{{ join .Imports "\n" }}' aah-app/import/path/app/...
 //
 func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
-	if goModFile && go111AndAbove {
+	if ess.IsFileExists(goModIdentifier) && go111AndAbove {
 		return nil
 	}
 	debList := libDependencyImports(path.Join(appImportPath, "app", "..."))

@@ -50,24 +50,22 @@ var migrateCmd = cli.Command{
 	Note: Migrate does not take file backup, assumes application use version control.
 
 	Example of script command:
-		aah m c -i github.com/user/appname
-		aah migrate code --importpath github.com/user/appname
+		aah m c
+		aah migrate code
 			`,
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "i, importpath",
-					Usage: "Import path of aah application",
-				},
-			},
 			Action: migrateCodeAction,
 		},
 	},
 }
 
 func migrateCodeAction(c *cli.Context) error {
-	if !ess.IsFileExists(aahProjectIdentifier) {
-		logFatalf("Ensure you're in aah application base directory")
+	if !isAahProject() {
+		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
 	}
+
+	pwd, _ := os.Getwd()
+	createProjectInventory()
+	_ = os.Chdir(pwd)
 
 	grammarFile := filepath.Join(aahPath(), aahGrammarIdentifier)
 	if err := os.Remove(grammarFile); err != nil && !os.IsNotExist(err) {

@@ -49,10 +49,6 @@ var generateCmd = cli.Command{
 					Name:  "n, name",
 					Usage: "Provide script name such as 'systemd', 'docker', etc",
 				},
-				cli.StringFlag{
-					Name:  "i, importpath",
-					Usage: "Import path of aah application",
-				},
 			},
 			Action: generateScriptsAction,
 		},
@@ -93,6 +89,7 @@ func generateScriptsAction(c *cli.Context) error {
 
 func generateSystemdScript(c *cli.Context) error {
 	importPath := appImportPath(c)
+	chdirIfRequired(importPath)
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)
 	}

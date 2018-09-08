@@ -46,15 +46,9 @@ func inferGo111AndAbove() bool {
 	return verNum >= float64(1.11)
 }
 
-func inferInsideGopath() bool {
-	gopaths := filepath.SplitList(build.Default.GOPATH)
-	cwd, err := os.Getwd()
-	if err != nil {
-		logFatalf("Unable to infer current directory: %v", err)
-	}
-	cwd = strings.ToLower(cwd)
-	for _, gp := range gopaths {
-		if strings.HasPrefix(cwd, strings.ToLower(gp)) {
+func inferInsideGopath(dir string) bool {
+	for _, gp := range filepath.SplitList(build.Default.GOPATH) {
+		if strings.HasPrefix(dir, gp) {
 			return true
 		}
 	}
@@ -62,11 +56,33 @@ func inferInsideGopath() bool {
 }
 
 func appImportPath(c *cli.Context) string {
-	importPath := firstNonEmpty(c.String("i"), c.String("importpath"))
-	if ess.IsStrEmpty(importPath) {
-		importPath = importPathRelwd()
+	// get import path from go.mod
+	if ess.IsFileExists(goModIdentifier) && go111AndAbove {
+		output, err := execCmd(gocmd, []string{"list", "-m", "-json"}, false)
+		if err == nil {
+			mods := parseGoListModJSON(output)
+			if len(mods) > 0 {
+				return mods[0].Path
+			}
+		}
 	}
-	return importPath
+
+	var importPath string
+	pwd, _ := os.Getwd() // #nosec
+	if i := strings.Index(pwd, "src"); i > 0 {
+		srcDir, appDir := pwd[:i+3], pwd
+		for {
+			if ess.IsFileExists(filepath.Join(appDir, aahProjectIdentifier)) {
+				importPath, _ = filepath.Rel(srcDir, appDir)
+				break
+			}
+			if appDir == srcDir {
+				break
+			}
+			appDir = filepath.Dir(appDir)
+		}
+	}
+	return filepath.ToSlash(importPath)
 }
 
 func parseGoListModJSON(rawCmdJSON string) []*module {
@@ -86,43 +102,13 @@ func parseGoListModJSON(rawCmdJSON string) []*module {
 	return mods
 }
 
-func importPathRelwd() string {
-	if goModFile && go111AndAbove {
-		output, err := execCmd(gocmd, []string{"list", "-m", "-json"}, false)
-		if err == nil {
-			mods := parseGoListModJSON(output)
-			if len(mods) > 0 {
-				return mods[0].Path
-			}
-		}
-		return ""
-	}
-
-	pwd, _ := os.Getwd() // #nosec
-	var importPath string
-	if idx := strings.Index(pwd, "src"); idx > 0 {
-		srcDir := pwd[:idx+3]
-		appDir := pwd
-		for {
-			if ess.IsFileExists(filepath.Join(appDir, aahProjectIdentifier)) {
-				importPath, _ = filepath.Rel(srcDir, appDir)
-				break
-			}
-			if appDir == srcDir {
-				break
-			}
-			appDir = filepath.Dir(appDir)
-		}
-	}
-
-	return filepath.ToSlash(importPath)
-}
-
 func chdirIfRequired(importPath string) {
 	if p := aahInventory.Lookup(importPath); p != nil {
 		if cwd, err := os.Getwd(); err == nil {
-			if !ess.IsFileExists(aahProjectIdentifier) && !strings.HasPrefix(cwd, p.Dir) {
-				_ = os.Chdir(p.Dir)
+			if !ess.IsFileExists(aahProjectIdentifier) && !strings.EqualFold(cwd, p.Dir) {
+				if err = os.Chdir(p.Dir); err != nil {
+					logError(err)
+				}
 			}
 		}
 	}
@@ -157,7 +143,8 @@ func getNonEmptyAbsPath(patha, pathb string) string {
 
 func firstNonEmpty(values ...string) string {
 	for _, v := range values {
-		if !ess.IsStrEmpty(v) {
+		v = strings.TrimSpace(v)
+		if len(v) > 0 {
 			return v
 		}
 	}
@@ -291,8 +278,11 @@ func excludeAndCreateSlice(arr []string, str string) []string {
 	return result
 }
 
-func isAahProject(file string) bool {
-	return strings.HasSuffix(file, aahProjectIdentifier)
+func isAahProject(dir ...string) bool {
+	if len(dir) == 0 {
+		return ess.IsFileExists(aahProjectIdentifier)
+	}
+	return strings.HasSuffix(dir[0], aahProjectIdentifier) && ess.IsFileExists(dir[0])
 }
 
 func findAvailablePort() string {
@@ -336,10 +326,6 @@ func initCLILogger(cfg *config.Config) *log.Logger {
 	return l
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Git methods
-//___________________________________________________________________________
-
 func gitPull(dir string) error {
 	if ess.IsFileExists(filepath.Join(dir, ".git")) {
 		_, err := execCmd(gitcmd, []string{"-C", dir, "pull"}, false)
@@ -347,10 +333,6 @@ func gitPull(dir string) error {
 	}
 	return nil
 }
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// aah discovery and processing methods
-//___________________________________________________________________________
 
 func goGet(pkgs ...string) error {
 	for _, pkg := range pkgs {
@@ -414,10 +396,6 @@ func readVersionNo(baseDir string) (string, error) {
 	return "Unknown", nil
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// other helper methods
-//___________________________________________________________________________
-
 func logFatal(v ...interface{}) {
 	if cliLog == nil {
 		_ = log.SetPattern("%level %message")
@@ -471,22 +449,6 @@ func waitForConnReady(port string) {
 			continue
 		}
 		return
-	}
-}
-
-func cleanupAutoGenFiles(appBaseDir string) {
-	appMainGoFile := filepath.Join(appBaseDir, "app", "aah.go")
-	appBuildDir := filepath.Join(appBaseDir, "build")
-	cliLog.Debugf("Cleaning %s", appMainGoFile)
-	cliLog.Debugf("Cleaning build directory %s", appBuildDir)
-	ess.DeleteFiles(appMainGoFile, appBuildDir)
-}
-
-func cleanupAutoGenVFSFiles(appBaseDir string) {
-	vfsFiles, _ := filepath.Glob(filepath.Join(appBaseDir, "app", "aah_*_vfs.go"))
-	if len(vfsFiles) > 0 {
-		cliLog.Debugf("Cleaning embed files %s", strings.Join(vfsFiles, "\n\t"))
-		ess.DeleteFiles(vfsFiles...)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -41,10 +42,11 @@ func VersionPrinter(c *cli.Context) {
 
 func aahVersion(c *cli.Context) (string, error) {
 	// go.mod
-	if ess.IsFileExists("aah.project") && goModFile && go111AndAbove {
+	if ess.IsFileExists(aahProjectIdentifier) && ess.IsFileExists(goModIdentifier) && go111AndAbove {
 		output, err := execCmd(gocmd, []string{"list", "-m", "-json", "all"}, false)
 		if err != nil {
-			if insideGopath && strings.Contains(err.Error(), "go list -m: not using modules") {
+			cwd, _ := os.Getwd()
+			if inferInsideGopath(cwd) && strings.Contains(err.Error(), "go list -m: not using modules") {
 				logError("It seems aah project resides inside the GOPATH. Either move the aah project\n" +
 					"outside the GOPATH or enable module support via setting 'GO111MODULE=on'.\n" +
 					"For more info 'go help modules'.")

@@ -5,7 +5,11 @@
 package main
 
 import (
+	"path/filepath"
+	"strings"
+
 	"aahframe.work/aah"
+	"aahframe.work/aah/essentials"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -18,21 +22,13 @@ var cleanCmd = cli.Command{
 	Such as aah.go and <app-base-dir>/build directory.
 
 	Examples of short and long flags:
-		aah clean
-		aah clean -i github.com/user/appname
-		aah clean --importpath github.com/user/appname`,
+		aah clean`,
 	Action: cleanAction,
-	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "i, importpath",
-			Usage: "Import path of aah application",
-		},
-	},
 }
 
 func cleanAction(c *cli.Context) error {
 	importPath := appImportPath(c)
-
+	chdirIfRequired(importPath)
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)
 	}
@@ -45,4 +41,20 @@ func cleanAction(c *cli.Context) error {
 	cliLog.Infof("Import Path '%v' clean successful.\n", importPath)
 
 	return nil
+}
+
+func cleanupAutoGenFiles(appBaseDir string) {
+	appMainGoFile := filepath.Join(appBaseDir, "app", "aah.go")
+	appBuildDir := filepath.Join(appBaseDir, "build")
+	cliLog.Debugf("Cleaning %s", appMainGoFile)
+	cliLog.Debugf("Cleaning build directory %s", appBuildDir)
+	ess.DeleteFiles(appMainGoFile, appBuildDir)
+}
+
+func cleanupAutoGenVFSFiles(appBaseDir string) {
+	vfsFiles, _ := filepath.Glob(filepath.Join(appBaseDir, "app", "aah_*_vfs.go"))
+	if len(vfsFiles) > 0 {
+		cliLog.Debugf("Cleaning embed files %s", strings.Join(vfsFiles, "\n\t"))
+		ess.DeleteFiles(vfsFiles...)
+	}
 }

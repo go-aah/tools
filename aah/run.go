@@ -41,21 +41,17 @@ var runCmd = cli.Command{
     aah run
 		aah run -e qa
 
-		aah run -i github.com/user/appname
-		aah run -i github.com/user/appname -e qa
-		aah run -i github.com/user/appname -e qa -c /path/to/config/external.conf
+		aah run
+		aah run -e qa
+		aah run -e qa -c /path/to/config/external.conf
 
-    aah run --importpath github.com/user/appname
-		aah run --importpath github.com/user/appname --envprofile qa
-		aah run --importpath github.com/user/appname --envprofile qa --config /path/to/config/external.conf
+    aah run
+		aah run --envprofile qa
+		aah run --envprofile qa --config /path/to/config/external.conf
 
 	Note: For production use, it is recommended to follow build and deploy approach instead of
 	using 'aah run'.`,
 	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "i, importpath",
-			Usage: "Import path of aah application",
-		},
 		cli.StringFlag{
 			Name:  "e, envprofile",
 			Usage: "Environment profile name to activate (e.g: dev, qa, prod)"},
@@ -98,6 +94,10 @@ type (
 )
 
 func runAction(c *cli.Context) error {
+	if !isAahProject() {
+		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
+	}
+
 	importPath := appImportPath(c)
 	chdirIfRequired(importPath)
 	appStartArgs := []string{}

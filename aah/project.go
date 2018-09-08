@@ -6,6 +6,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/build"
 	"os"
@@ -22,12 +23,12 @@ type inventory struct {
 }
 
 type module struct {
-	Path     string     `json:"path"`
+	Path     string     `json:"path,omitempty"`
 	Version  string     `json:"version,omitempty"`
 	Time     *time.Time `json:"time,omitempty"`
 	Main     bool       `json:"main,omitempty"`
 	Indirect bool       `json:"indirect,omitempty"`
-	Dir      string     `json:"dir"`
+	Dir      string     `json:"dir,omitempty"`
 	GoMod    string     `json:"go_mod,omitempty"`
 }
 
@@ -45,12 +46,15 @@ func (inv *inventory) Lookup(importPath string) *module {
 }
 
 func (inv *inventory) AddProject(importPath, dir string) error {
+	if len(importPath) == 0 || len(dir) == 0 {
+		return errors.New("missing required inputs to added aah project into inventory")
+	}
 	if m := inv.Lookup(importPath); m != nil {
 		return fmt.Errorf("aah project '%s' already exists at %s", m.Path, m.Dir)
 	}
 	inv.Projects = append(inv.Projects, &module{Path: importPath, Dir: dir})
-	inv.Persist()
 	inv.SortProjects()
+	inv.Persist()
 	return nil
 }
 
@@ -63,8 +67,8 @@ func (inv *inventory) DelProject(importPath string) {
 		}
 	}
 	inv.Projects = append(inv.Projects[:f], inv.Projects[f+1:]...)
-	inv.Persist()
 	inv.SortProjects()
+	inv.Persist()
 }
 
 func (inv *inventory) Persist() {
@@ -86,38 +90,37 @@ func (inv *inventory) SortProjects() {
 }
 
 func createProjectInventory() {
-	if len(aahInventory.Projects) > 0 {
-		return
+	cliLog.Info("Creating aah projects inventory from GOPATH(s), its an one-time activity\n")
+	for _, gp := range filepath.SplitList(build.Default.GOPATH) {
+		scanProjects2Inventory(filepath.Join(gp, "src"))
 	}
-	cliLog.Info("Creating aah projects inventory from GOPATH(s), its an one-time activity")
-	gopaths := filepath.SplitList(build.Default.GOPATH)
-	for _, gp := range gopaths {
-		srcDir := filepath.Join(gp, "src")
-		cliLog.Infof("Scanning GOPATH: %s\n", filepath.Join(gp, "..."))
-		prefix := srcDir + string(filepath.Separator)
-		_ = filepath.Walk(gosrcDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return nil
-			}
-			// Skip Git Directory
-			if strings.Contains(path, "/.git/") || strings.Contains(path, "\\.git\\") ||
-				path[0] == '.' {
-				return nil
-			}
-			if isAahProject(path) {
-				dir := filepath.Dir(path)
-				importPath := filepath.ToSlash(strings.TrimPrefix(dir, prefix))
+}
+
+func scanProjects2Inventory(baseDir string) {
+	cliLog.Infof("Scanning aah projects on %s...\n", baseDir)
+	_ = filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		// Skip Git Directory
+		if strings.Contains(path, "/.git/") || strings.Contains(path, "\\.git\\") ||
+			path[0] == '.' {
+			return nil
+		}
+		if isAahProject(path) {
+			dir := filepath.Dir(path)
+			if err := os.Chdir(dir); err == nil {
+				importPath := appImportPath(nil)
 				if !strings.Contains(importPath, "testdata") {
 					_ = aahInventory.AddProject(importPath, dir)
 				}
 			}
-			return nil
-		})
-	}
-	aahInventory.Persist()
+		}
+		return nil
+	})
 }
 
 func loadInventory() *inventory {
@@ -135,6 +138,20 @@ func loadInventory() *inventory {
 	if err = json.NewDecoder(f).Decode(inv); err != nil {
 		logError(err)
 	}
-	inv.SortProjects()
+
+	filter := make([]*module, 0)
+	for _, m := range inv.Projects {
+		if isAahProject(filepath.Join(m.Dir, aahProjectIdentifier)) {
+			filter = append(filter, m)
+		}
+	}
+
+	if len(inv.Projects) != len(filter) {
+		inv.Projects = filter
+		inv.SortProjects()
+		inv.Persist()
+	} else {
+		inv.SortProjects()
+	}
 	return inv
 }

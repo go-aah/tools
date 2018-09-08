@@ -6,34 +6,67 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
+	"strconv"
 
 	"gopkg.in/urfave/cli.v1"
 )
 
-const aahProjectIdentifier = "aah.project"
+const (
+	aahProjectIdentifier = "aah.project"
+	goModIdentifier      = "go.mod"
+)
 
 var listCmd = cli.Command{
 	Name:    "list",
 	Aliases: []string{"l"},
-	Usage:   "Lists all the aah projects on your GOPATH",
-	Description: `Command 'list' helps you to view all the aah application projects on your GOPATH.
+	Usage:   "Lists all the aah projects",
+	Description: `Command 'list' helps you to view all the aah application projects on your System.
+
+	Note: aah CLI is only aware of projects created using 'aah new' otherwise you have to teach 
+	it using 'aah list --scan /base/dir/to/scan/aah-projects'.
 	`,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "s, scan",
+			Usage: "Directory path to scan aah projects",
+		},
+	},
 	Action: listAction,
 }
 
 func listAction(c *cli.Context) error {
 	cliLog = initCLILogger(nil)
-	createProjectInventory()
+
+	scanDir := firstNonEmpty(c.String("s"), c.String("scan"))
+	if len(scanDir) > 0 {
+		if !filepath.IsAbs(scanDir) {
+			logFatal("Absolute directory path required for scanning")
+		}
+		scanProjects2Inventory(scanDir)
+	}
 
 	if count := len(aahInventory.Projects); count > 0 {
-		cliLog.Infof("%d aah projects were found, import paths are:\n", count)
+		cliLog.Infof("%d aah projects were found, import paths are: ", count)
+		l, ll := 0, 0
 		for _, m := range aahInventory.Projects {
-			fmt.Printf("    %s\n", m.Path)
+			pl := len(m.Path)
+			if pl > l {
+				l = pl
+			}
+			if ml := pl + len(m.Dir); ml > ll {
+				ll = ml
+			}
 		}
-		fmt.Println()
+		fmtStr := "    %-" + strconv.Itoa(l) + "s %s\n"
+		fmt.Printf(fmtStr, "Import Path", "Location")
+		fmt.Println("    " + chr2str("-", ll-4))
+		for _, m := range aahInventory.Projects {
+			fmt.Printf(fmtStr, m.Path, m.Dir)
+		}
 		return nil
 	}
 
-	cliLog.Info("No aah projects was found, you can create one with 'aah new'\n")
+	cliLog.Info("No aah projects was found, you can create one with 'aah new'.")
 	return nil
 }
