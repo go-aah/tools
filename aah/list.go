@@ -29,7 +29,7 @@ var listCmd = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "s, scan",
-			Usage: "Directory path to scan aah projects",
+			Usage: "Directory path to scan for aah projects",
 		},
 	},
 	Action: listAction,

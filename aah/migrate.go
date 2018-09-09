@@ -19,7 +19,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
-const aahGrammarIdentifier = "migrate.conf"
+const aahGrammarIdentifier = "migrate-0.12.x.conf"
 const aahGrammarFetchLoc = "https://cdn.aahframework.org/" + aahGrammarIdentifier
 
 var migrateCmd = cli.Command{
@@ -27,7 +27,7 @@ var migrateCmd = cli.Command{
 	Aliases: []string{"m"},
 	Usage:   "Migrates application codebase to current version of aah (currently beta)",
 	Description: `Command migrate is to house migration related sub-commands of aah.
-  Currently it supports Go source code migrate.
+  Currently it supports application Go source code and view files migration.
 
 	To know more about available 'migrate' sub commands:
 		aah h m
@@ -68,12 +68,11 @@ func migrateCodeAction(c *cli.Context) error {
 	_ = os.Chdir(pwd)
 
 	grammarFile := filepath.Join(aahPath(), aahGrammarIdentifier)
-	if err := os.Remove(grammarFile); err != nil && !os.IsNotExist(err) {
-		logFatal(err)
-	}
-	cliLog.Info("Fetching migrate configuration: ", aahGrammarFetchLoc)
-	if err := fetchFile(grammarFile, aahGrammarFetchLoc); err != nil {
-		logFatal(err)
+	if !ess.IsFileExists(grammarFile) {
+		cliLog.Info("Fetching migrate configuration: ", aahGrammarFetchLoc)
+		if err := fetchFile(grammarFile, aahGrammarFetchLoc); err != nil {
+			logFatal(err)
+		}
 	}
 	grammarCfg, err := config.LoadFile(grammarFile)
 	if err != nil {

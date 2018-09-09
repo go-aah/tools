@@ -19,9 +19,10 @@ var cleanCmd = cli.Command{
 	Usage:   "Cleans the aah generated files and build directory",
 	Description: `Cleans the aah generated files and build directory.
 
-	Such as aah.go and <app-base-dir>/build directory.
+	Such as aah.go, aah*_vfs.go and <app-base-dir>/build directory.
 
 	Examples of short and long flags:
+		aah c
 		aah clean`,
 	Action: cleanAction,
 }

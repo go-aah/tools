@@ -49,8 +49,7 @@ var runCmd = cli.Command{
 		aah run --envprofile qa
 		aah run --envprofile qa --config /path/to/config/external.conf
 
-	Note: For production use, it is recommended to follow build and deploy approach instead of
-	using 'aah run'.`,
+	Note: For production use, it is recommended to follow build and deploy approach. Do not use 'aah run'.`,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "e, envprofile",

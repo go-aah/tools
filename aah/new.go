@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -23,12 +24,12 @@ var (
 		Name:    "new",
 		Aliases: []string{"n"},
 		Usage:   "Creates new aah 'web', 'api' or 'websocket' application (interactive)",
-		Description: `aah new command is an interactive program to assist you to quick start aah application.
+		Description: `Command 'new' is an interactive program to assist you to quick start aah application.
 
-	Just provide your inputs based on your use case to generate base structure to kick
-	start your development.
+	Just provide your inputs based on your use case to generate base structure to kickstart 
+	your development.
 
-	Application templates are kept at '$HOME/.aah/app-templates' for CLI binary distribution.
+	Application templates are kept at '$HOME/.aah/app-templates'.
 
 	Go to https://docs.aahframework.org to learn more and customize your aah application.
 	`,
@@ -42,15 +43,17 @@ func newAction(c *cli.Context) error {
 	cliLog = initCLILogger(nil)
 	fmt.Println("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
 	fmt.Println()
-	fmt.Println("Based on your inputs, aah CLI tool generates the aah application structure for you.")
+	fmt.Println("Based on your inputs, aah CLI generates the aah application structure for you.")
 
 	// Collect inputs for aah app creation
 	importPath := collectImportPath(reader)
+	appDir := collectAppDir(reader, importPath)
 	appType := collectAppType(reader)
 
 	// Depends on application type choice, collect subsequent inputs
 	app := &appTmplData{
 		ImportPath:     importPath,
+		BaseDir:        appDir,
 		Type:           appType,
 		TmplDelimLeft:  "{{",
 		TmplDelimRight: "}}",
@@ -64,7 +67,6 @@ func newAction(c *cli.Context) error {
 	}
 
 	// Process it
-	app.BaseDir = filepath.Join(gosrcDir, filepath.FromSlash(importPath))
 	app.Name = filepath.Base(app.BaseDir)
 	app.SessionFileStorePath = filepath.ToSlash(filepath.Join(app.BaseDir, "sessions"))
 
@@ -81,7 +83,7 @@ func newAction(c *cli.Context) error {
 	}
 
 	fmt.Printf("\nYour aah %s application was created successfully at '%s'\n", app.Type, app.BaseDir)
-	fmt.Printf("You shall run your application via the command: 'aah run --importpath %s'\n", app.ImportPath)
+	fmt.Println("You shall run your application via the command 'aah run' from application base directory.")
 	fmt.Println("\nGo to https://docs.aahframework.org to learn more and customize your aah application.")
 
 	_ = aahInventory.AddProject(app.ImportPath, app.BaseDir)
@@ -110,15 +112,44 @@ func collectImportPath(reader *bufio.Reader) string {
 	for {
 		importPath = filepath.ToSlash(readInput(reader, "\nEnter your application import path: "))
 		if !ess.IsStrEmpty(importPath) {
-			if ess.IsImportPathExists(importPath) {
-				logErrorf("Given import path '%s' already exists", importPath)
+			if m := aahInventory.Lookup(importPath); m != nil {
+				logErrorf("Given import path '%s' already exists at '%s'", importPath, m.Dir)
 				importPath = ""
 				continue
+			} else {
+				if ess.IsImportPathExists(importPath) {
+					logErrorf("Given import path '%s' already exists in GOPATH", importPath)
+					importPath = ""
+					continue
+				}
 			}
 			break
 		}
 	}
 	return strings.Replace(importPath, " ", "-", -1)
+}
+
+func collectAppDir(reader *bufio.Reader, importPath string) string {
+	var dir string
+	for {
+		dir = filepath.ToSlash(readInput(reader, "\nEnter your application location: "))
+		dir = filepath.Clean(dir)
+		if !ess.IsStrEmpty(dir) {
+			dir = filepath.Join(dir, path.Base(importPath))
+			if inferInsideGopath(dir) {
+				logError("Given directory is inside the GOPATH, it is highly recommneded to keep aah project outside the GOPATH")
+				dir = ""
+				continue
+			}
+			if ess.IsFileExists(dir) {
+				logErrorf("Given directory already exists at '%s'", dir)
+				dir = ""
+				continue
+			}
+			break
+		}
+	}
+	return dir
 }
 
 func collectAppType(reader *bufio.Reader) string {
@@ -343,6 +374,12 @@ func createAahApp(appDir string, data map[string]interface{}) error {
 		dst: filepath.Join(appBaseDir, "aah.project.atmpl"),
 	})
 
+	// go.mod
+	files = append(files, file{
+		src: filepath.Join(appTmplBaseDir, "go.mod.atmpl"),
+		dst: filepath.Join(appBaseDir, "go.mod.atmpl"),
+	})
+
 	// .gitignore
 	files = append(files, file{
 		src: filepath.Join(appTmplBaseDir, ".gitignore"),
@@ -521,24 +558,33 @@ func checkAndGenerateInitgoFile(importPath, baseDir string) {
 	}
 }
 
+const templateBranchName = "0.12.x"
+
 func inferAppTmplBaseDir() string {
 	aahBasePath := aahPath()
 	baseDir := filepath.Join(aahBasePath, "app-templates", "generic")
-	if ess.IsFileExists(baseDir) {
-		if err := gitPull(baseDir); err == nil {
+	gitBaseDir := filepath.Dir(baseDir)
+	if ess.IsFileExists(gitBaseDir) {
+		err1 := gitPull(gitBaseDir)
+		err2 := gitCheckout(gitBaseDir, templateBranchName)
+		if err1 == nil && err2 == nil {
 			return baseDir
-		}
-		if err := os.RemoveAll(baseDir); err != nil {
-			logError(err)
-			return ""
 		}
 	}
 
+	if err := os.RemoveAll(gitBaseDir); err != nil {
+		logError(err)
+		return ""
+	}
 	tmplRepo := "https://github.com/go-aah/app-templates.git"
 	cliLog.Infof("Downloading aah quick start app templates from %s", tmplRepo)
-	gitArgs := []string{"clone", tmplRepo, filepath.Dir(baseDir)}
+	gitArgs := []string{"clone", tmplRepo, gitBaseDir}
 	if _, err := execCmd(gitcmd, gitArgs, false); err != nil {
 		logErrorf("Unable to download aah app-template from %s", tmplRepo)
+		return ""
+	}
+	if err := gitCheckout(gitBaseDir, templateBranchName); err != nil {
+		logError(err)
 		return ""
 	}
 	return baseDir

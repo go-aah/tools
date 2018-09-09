@@ -21,7 +21,7 @@ import (
 var buildCmd = cli.Command{
 	Name:    "build",
 	Aliases: []string{"b"},
-	Usage:   "Builds aah application for deployment (single or non-single)",
+	Usage:   "Builds aah application for deployment (single or non-single binary)",
 	Description: `Builds aah application for deployment. It supports single and non-single
 	binary. It is a trade-off learn more https://docs.aahframework.org/vfs.html
 

@@ -328,7 +328,15 @@ func initCLILogger(cfg *config.Config) *log.Logger {
 
 func gitPull(dir string) error {
 	if ess.IsFileExists(filepath.Join(dir, ".git")) {
-		_, err := execCmd(gitcmd, []string{"-C", dir, "pull"}, false)
+		_, err := execCmd(gitcmd, []string{"-C", dir, "pull", "--all"}, false)
+		return err
+	}
+	return nil
+}
+
+func gitCheckout(dir, branch string) error {
+	if ess.IsFileExists(filepath.Join(dir, ".git")) {
+		_, err := execCmd(gitcmd, []string{"-C", dir, "checkout", branch}, false)
 		return err
 	}
 	return nil
