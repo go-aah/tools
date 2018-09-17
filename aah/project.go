@@ -66,9 +66,11 @@ func (inv *inventory) DelProject(importPath string) {
 			break
 		}
 	}
-	inv.Projects = append(inv.Projects[:f], inv.Projects[f+1:]...)
-	inv.SortProjects()
-	inv.Persist()
+	if f > -1 {
+		inv.Projects = append(inv.Projects[:f], inv.Projects[f+1:]...)
+		inv.SortProjects()
+		inv.Persist()
+	}
 }
 
 func (inv *inventory) Persist() {
