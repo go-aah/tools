@@ -47,7 +47,7 @@ func aahVersion(c *cli.Context) (string, error) {
 		if err != nil {
 			cwd, _ := os.Getwd()
 			if inferInsideGopath(cwd) && strings.Contains(err.Error(), "go list -m: not using modules") {
-				logError("It seems aah project resides inside the GOPATH. Either move the aah project\n" +
+				logError("It seems aah project is using 'go.mod' and resides inside the GOPATH. Either move the aah project\n" +
 					"outside the GOPATH or enable module support via setting 'GO111MODULE=on'.\n" +
 					"For more info 'go help modules'.")
 				exit(0)

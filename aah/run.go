@@ -350,13 +350,13 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 			select {
 			case e := <-w.Event:
 				if !e.IsDir() && !strings.EqualFold(filepath.Ext(e.Path), ".pid") {
-					if e.FileInfo != nil {
-						pathType := "file"
-						if e.IsDir() {
-							pathType = "directory"
-						}
-						cliLog.Infof("Hot-reload tracking (%s -> %s -> %s)", pathType, strings.ToLower(e.Op.String()), e.Path)
-					}
+					// if e.FileInfo != nil {
+					// 	pathType := "file"
+					// 	if e.IsDir() {
+					// 		pathType = "directory"
+					// 	}
+					// 	cliLog.Infof("Hot-reload tracking (%s -> %s -> %s)", pathType, strings.ToLower(e.Op.String()), e.Path)
+					// }
 					watch <- true
 					if e.Op == watcher.Create {
 						_ = w.Add(e.Path)
