@@ -5,6 +5,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -28,7 +29,14 @@ var cleanCmd = cli.Command{
 }
 
 func cleanAction(c *cli.Context) error {
+	if !isAahProject() {
+		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
+	}
+
 	importPath := appImportPath(c)
+	if ess.IsStrEmpty(importPath) {
+		logFatalf("Unable to infer import path, ensure you're in the application base directory")
+	}
 	chdirIfRequired(importPath)
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)

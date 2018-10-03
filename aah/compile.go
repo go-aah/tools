@@ -231,7 +231,7 @@ var notExistRegex = regexp.MustCompile(`cannot find package "(.*)" in any of`)
 // 		go list -f '{{ join .Imports "\n" }}' aah-app/import/path/app/...
 //
 func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
-	if ess.IsFileExists(goModIdentifier) && go111AndAbove {
+	if ess.IsFileExists(goModIdentifier) || !strings.HasPrefix(aah.AppBaseDir(), gopath) {
 		return nil
 	}
 	debList := libDependencyImports(path.Join(appImportPath, "app", "..."))
@@ -475,7 +475,7 @@ func main() {
 		aah.OnInit(ActivateAppEnvProfile)
 	}
 
-	log.Infof("aah framework v%s, requires ≥ go1.8", aah.Version)
+	log.Infof("aah framework v%s, requires >= go1.11", aah.Version)
 
 	if err := aah.Init("{{ .AppImportPath }}"); err != nil {
 		log.Fatal(err)

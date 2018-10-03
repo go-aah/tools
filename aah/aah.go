@@ -62,6 +62,9 @@ func checkPrerequisites() error {
 	}
 
 	go111AndAbove = inferGo111AndAbove()
+	if !go111AndAbove {
+		logFatal("aah framework requires >= go1.11, since aah v0.12.0 and cli v0.13.0 release.")
+	}
 
 	// get GOPATH, refer https://godoc.org/aahframework.org/essentials.v0#GoPath
 	if gopath, err = ess.GoPath(); err != nil {

@@ -52,6 +52,9 @@ func buildAction(c *cli.Context) error {
 	}
 
 	importPath := appImportPath(c)
+	if ess.IsStrEmpty(importPath) {
+		logFatalf("Unable to infer import path, ensure you're in the application base directory")
+	}
 	chdirIfRequired(importPath)
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)

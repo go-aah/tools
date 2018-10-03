@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -60,6 +61,10 @@ var generateCmd = cli.Command{
 //___________________________________
 
 func generateScriptsAction(c *cli.Context) error {
+	if !isAahProject() {
+		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
+	}
+
 	scriptName := strings.TrimSpace(firstNonEmpty(c.String("n"), c.String("name")))
 	if ess.IsStrEmpty(scriptName) {
 		_ = cli.ShowSubcommandHelp(c)
@@ -89,6 +94,9 @@ func generateScriptsAction(c *cli.Context) error {
 
 func generateSystemdScript(c *cli.Context) error {
 	importPath := appImportPath(c)
+	if ess.IsStrEmpty(importPath) {
+		logFatalf("Unable to infer import path, ensure you're in the application base directory")
+	}
 	chdirIfRequired(importPath)
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)
@@ -128,7 +136,9 @@ func generateSystemdScript(c *cli.Context) error {
 
 func generateDockerScript(c *cli.Context) error {
 	importPath := appImportPath(c)
-
+	if ess.IsStrEmpty(importPath) {
+		logFatalf("Unable to infer import path, ensure you're in the application base directory")
+	}
 	if err := aah.Init(importPath); err != nil {
 		logFatal(err)
 	}

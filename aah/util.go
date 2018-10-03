@@ -57,7 +57,7 @@ func inferInsideGopath(dir string) bool {
 
 func appImportPath(c *cli.Context) string {
 	// get import path from go.mod
-	if ess.IsFileExists(goModIdentifier) && go111AndAbove {
+	if ess.IsFileExists(goModIdentifier) {
 		output, err := execCmd(gocmd, []string{"list", "-m", "-json"}, false)
 		if err == nil {
 			mods := parseGoListModJSON(output)
@@ -82,6 +82,12 @@ func appImportPath(c *cli.Context) string {
 			appDir = filepath.Dir(appDir)
 		}
 	}
+
+	if ess.IsStrEmpty(importPath) && ess.IsFileExists(aahProjectIdentifier) {
+		pwd, _ := os.Getwd() // #nosec
+		return filepath.Base(pwd)
+	}
+
 	return filepath.ToSlash(importPath)
 }
 
