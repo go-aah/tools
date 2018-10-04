@@ -303,11 +303,11 @@ func findAvailablePort() string {
 }
 
 func initCLILogger(cfg *config.Config) *log.Logger {
-	if cliLog != nil {
+	if cliLog != nil && cfg == nil {
 		return cliLog
 	}
 	if cfg == nil {
-		cfg, _ = config.ParseString("")
+		cfg = config.NewEmpty()
 	}
 
 	printDeprecateInfo := false

@@ -26,6 +26,8 @@ import (
 	"aahframe.work/aah"
 	"aahframe.work/aah/config"
 	"aahframe.work/aah/essentials"
+
+	// "github.com/radovskyb/watcher"
 	"gopkg.in/radovskyb/watcher.v1"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -61,36 +63,6 @@ var runCmd = cli.Command{
 	},
 	Action: runAction,
 }
-
-type (
-	hotReload struct {
-		ChangedOrError bool
-		IsSSL          bool
-		ProxyPort      string
-		BaseDir        string
-		Addr           string
-		Port           string
-		SSLCert        string
-		SSLKey         string
-		Args           []string
-		ProxyURL       *url.URL
-		Proxy          *httputil.ReverseProxy
-		Process        *process
-		ProjectConfig  *config.Config
-		Watcher        *watcher.Watcher
-	}
-
-	process struct {
-		cmd *exec.Cmd
-		nw  *notifyWriter
-	}
-
-	notifyWriter struct {
-		w          io.Writer
-		checkBytes []byte
-		notify     chan bool
-	}
-)
 
 func runAction(c *cli.Context) error {
 	if !isAahProject() {
@@ -177,6 +149,23 @@ func runAction(c *cli.Context) error {
 	return nil
 }
 
+type hotReload struct {
+	ChangedOrError bool
+	IsSSL          bool
+	ProxyPort      string
+	BaseDir        string
+	Addr           string
+	Port           string
+	SSLCert        string
+	SSLKey         string
+	Args           []string
+	ProxyURL       *url.URL
+	Proxy          *httputil.ReverseProxy
+	Process        *process
+	ProjectConfig  *config.Config
+	Watcher        *watcher.Watcher
+}
+
 func (hr *hotReload) Start() {
 	// Starting Hot-Reload server
 	go func() {
@@ -202,7 +191,7 @@ func (hr *hotReload) Start() {
 			err = server.ListenAndServe()
 		}
 		if err != nil {
-			logFatalf("Unable to start proxy server, %s", err.Error())
+			logFatalf("Unable to start aah dev hot-reload server, %s", err.Error())
 		}
 	}()
 
@@ -234,15 +223,14 @@ func (hr *hotReload) CompileAndStart() error {
 		nw: &notifyWriter{
 			w:          os.Stdout,
 			notify:     make(chan bool),
-			checkBytes: []byte("aah go server running on"),
+			checkBytes: []byte("aah go server running"),
 		},
 	}
 
+	go hr.StartWatcher()
 	if err = hr.Process.Start(); err != nil {
 		return err
 	}
-
-	hr.RefreshWatcher()
 
 	return nil
 }
@@ -251,22 +239,10 @@ func (hr *hotReload) Stop() {
 	hr.Process.Stop()
 }
 
-func (hr *hotReload) RefreshWatcher() {
-	hr.Watcher = watcher.New()
-	watch := make(chan bool)
-	go startWatcher(hr.ProjectConfig, hr.BaseDir, hr.Watcher, watch)
-	go func() {
-		for {
-			hr.ChangedOrError = <-watch
-		}
-	}()
-}
-
 func (hr *hotReload) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if hr.ChangedOrError {
 		cliLog.Info("Application file change(s) detected")
 		hr.ChangedOrError = false
-		ess.CloseQuietly(hr.Watcher)
 		hr.Stop()
 		if err := hr.CompileAndStart(); err != nil {
 			logError(err)
@@ -340,37 +316,40 @@ func (hr *hotReload) tunnel(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
-func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher, watch chan<- bool) {
-	w.IgnoreHiddenFiles(true)
-	w.SetMaxEvents(1)
+func (hr *hotReload) StartWatcher() {
+	if hr.Watcher != nil {
+		return
+	}
+	hr.Watcher = watcher.New()
+	watch := make(chan bool)
+	go func() {
+		for {
+			hr.ChangedOrError = <-watch
+		}
+	}()
+	hr.Watcher.IgnoreHiddenFiles(true)
+	hr.Watcher.SetMaxEvents(1)
+	hr.Watcher.FilterOps(watcher.Create, watcher.Write, watcher.Remove, watcher.Rename, watcher.Move)
+	hr.AddWatchFiles()
 
-	loadWatchFiles(projectCfg, baseDir, w)
-
-	go func() { w.Wait() }()
-
+	appDir := filepath.Join(hr.BaseDir, "app")
 	go func() {
 		for {
 			select {
-			case e := <-w.Event:
-				if !e.IsDir() && !strings.EqualFold(filepath.Ext(e.Path), ".pid") {
-					// if e.FileInfo != nil {
-					// 	pathType := "file"
-					// 	if e.IsDir() {
-					// 		pathType = "directory"
-					// 	}
-					// 	cliLog.Infof("Hot-reload tracking (%s -> %s -> %s)", pathType, strings.ToLower(e.Op.String()), e.Path)
-					// }
-					watch <- true
-					if e.Op == watcher.Create {
-						_ = w.Add(e.Path)
+			case e := <-hr.Watcher.Event:
+				if !strings.EqualFold(filepath.Ext(e.Path), ".pid") && hr.BaseDir != e.Path && appDir != e.Path {
+					if e.Op == watcher.Create || e.Op == watcher.Rename || e.Op == watcher.Move {
+						_ = hr.Watcher.Add(e.Path)
+					} else if e.Op == watcher.Remove {
+						_ = hr.Watcher.Remove(e.Path)
 					}
+					watch <- true
 				}
-			case err := <-w.Error:
+			case err := <-hr.Watcher.Error:
 				if err == watcher.ErrWatchedFileDeleted {
-					// treat as trace information, not an error
-					cliLog.Trace("Watched file/directory is deleted, just move on")
+					watch <- true
 				}
-			case <-w.Closed:
+			case <-hr.Watcher.Closed:
 				return
 			}
 		}
@@ -378,32 +357,35 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 
 	if cliLog.IsLevelTrace() {
 		var fileList []string
-		for path := range w.WatchedFiles() {
+		for path := range hr.Watcher.WatchedFiles() {
 			fileList = append(fileList, stripGoSrcPath(path))
 		}
 		cliLog.Trace("Watched files:\n\t", strings.Join(fileList, "\n\t"))
 	}
 
-	if err := w.Start(time.Millisecond * 100); err != nil {
+	go func() { hr.Watcher.Wait() }()
+	if err := hr.Watcher.Start(time.Millisecond * 100); err != nil {
 		logError(err)
 	}
 }
 
-func loadWatchFiles(projectCfg *config.Config, baseDir string, w *watcher.Watcher) {
+func (hr *hotReload) AddWatchFiles() {
+	pidName := hr.ProjectConfig.StringDefault("build.binary_name", aah.AppName())
 	// standard file ignore list for aah project
 	stdIgnoreList := []string{
-		filepath.Join(baseDir, aah.AppName()+".pid"),
-		filepath.Join(baseDir, "app", "aah.go"),
-		filepath.Join(baseDir, "app", "aah*_vfs.go"),
+		filepath.Join(hr.BaseDir, pidName+".pid"),
+		filepath.Join(hr.BaseDir, "app", "aah.go"),
+		filepath.Join(hr.BaseDir, "app", "aah*_vfs.go"),
+		filepath.Join(hr.BaseDir, "build"),
 	}
 
 	// user can provide their list via config
-	dirExcludes, _ := projectCfg.StringList("hot_reload.watch.dir_excludes")
+	dirExcludes, _ := hr.ProjectConfig.StringList("hot_reload.watch.dir_excludes")
 	if len(dirExcludes) == 0 { // put defaults
 		dirExcludes = append(dirExcludes, ".*")
 	}
 
-	fileExcludes, _ := projectCfg.StringList("hot_reload.watch.file_excludes")
+	fileExcludes, _ := hr.ProjectConfig.StringList("hot_reload.watch.file_excludes")
 	if len(fileExcludes) == 0 { // put defaults
 		fileExcludes = append(fileExcludes, ".*", "_test.go", "LICENSE", "README.md")
 	}
@@ -411,22 +393,22 @@ func loadWatchFiles(projectCfg *config.Config, baseDir string, w *watcher.Watche
 	// standard dir ignore list for aah project
 	dirExcludes = append(dirExcludes, "build", "static", "vendor", "views", "tests", "logs")
 
-	dirs, _ := ess.DirsPathExcludes(baseDir, true, dirExcludes)
+	dirs, _ := ess.DirsPathExcludes(hr.BaseDir, true, dirExcludes)
 	for _, d := range dirs {
-		if err := w.Add(d); err != nil {
+		if err := hr.Watcher.Add(d); err != nil {
 			logErrorf("Unable add watch for '%v'", d)
 		}
 
 		files, _ := ess.FilesPathExcludes(d, false, fileExcludes)
 		for _, f := range files {
-			if err := w.Add(f); err != nil {
+			if err := hr.Watcher.Add(f); err != nil {
 				logErrorf("Unable add watch for '%v'", f)
 			}
 		}
 	}
 
 	// Add ignore list
-	if err := w.Ignore(stdIgnoreList...); err != nil {
+	if err := hr.Watcher.Ignore(stdIgnoreList...); err != nil {
 		logError(err)
 	}
 }
@@ -434,6 +416,11 @@ func loadWatchFiles(projectCfg *config.Config, baseDir string, w *watcher.Watche
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // process methods
 //___________________________________
+
+type process struct {
+	cmd *exec.Cmd
+	nw  *notifyWriter
+}
 
 func (p *process) Start() error {
 	cliLog.Debug("Executing ", strings.Join(p.cmd.Args, " "))
@@ -443,13 +430,11 @@ func (p *process) Start() error {
 		return err
 	}
 
-	for {
-		select {
-		case <-p.nw.notify:
-			return nil
-		case <-p.processWait():
-			return errors.New("aah application did not start")
-		}
+	select {
+	case <-p.nw.notify:
+		return nil
+	case <-p.processWait():
+		return errors.New("aah application did not start")
 	}
 }
 
@@ -464,13 +449,11 @@ func (p *process) Stop() {
 			p.nw.notify = make(chan bool)
 			_ = p.cmd.Process.Signal(os.Interrupt)
 			// wait for process to finish or return after grace time
-			for {
-				select {
-				case <-p.nw.notify:
-					return
-				case <-time.After(time.Millisecond * 300):
-					return
-				}
+			select {
+			case <-p.nw.notify:
+				return
+			case <-time.After(time.Millisecond * 300):
+				return
 			}
 		}
 	} else {
@@ -493,6 +476,12 @@ func (p *process) processWait() <-chan bool {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // notifyWriter methods
 //___________________________________
+
+type notifyWriter struct {
+	w          io.Writer
+	checkBytes []byte
+	notify     chan bool
+}
 
 func (nw *notifyWriter) Write(b []byte) (n int, err error) {
 	if nw.notify != nil && bytes.Contains(b, nw.checkBytes) {
