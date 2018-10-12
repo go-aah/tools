@@ -14,7 +14,7 @@ go:
   - 1.x
   - tip
 
-go_import_path: aahframe.work/cmd
+go_import_path: aahframe.work/cli
 
 install:
   - go get -t -v ./...
