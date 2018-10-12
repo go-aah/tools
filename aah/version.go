@@ -13,7 +13,7 @@ import (
 	"regexp"
 	"strings"
 
-	"aahframe.work/aah/essentials"
+	"aahframe.work/essentials"
 	"gopkg.in/urfave/cli.v1"
 )
 

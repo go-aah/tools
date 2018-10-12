@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"aahframe.work/aah"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/log"
+	"aahframe.work"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
 	"gopkg.in/urfave/cli.v1"
 )
 

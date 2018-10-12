@@ -12,17 +12,17 @@ import (
 	"path/filepath"
 	"sort"
 
-	"aahframe.work/aah/aruntime"
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/log"
+	"aahframe.work/aruntime"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
 	"gopkg.in/urfave/cli.v1"
 )
 
 const (
 	permRWXRXRX   = os.FileMode(0755)
 	permRWRWRW    = os.FileMode(0666)
-	aahImportPath = "aahframe.work/aah"
+	aahImportPath = "aahframe.work"
 )
 
 var (
@@ -43,6 +43,12 @@ var (
 
 	// CliPackaged is to identify cli from go get or binary dist
 	CliPackaged string
+
+	// CliOS target build os name
+	CliOS string
+
+	// CliArch target build arch name
+	CliArch string
 )
 
 var errStopHere = errors.New("stop here")

@@ -16,11 +16,11 @@ import (
 	"regexp"
 	"strings"
 
-	"aahframe.work/aah"
-	"aahframe.work/aah/ainsp"
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/router"
+	"aahframe.work"
+	"aahframe.work/ainsp"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/router"
 )
 
 type compileArgs struct {
@@ -84,11 +84,11 @@ func compileApp(args *compileArgs) (string, error) {
 	}
 
 	appImportPaths := map[string]string{
-		"aahframe.work/aah":            "aah",
-		"aahframe.work/aah/aruntime":   "aruntime",
-		"aahframe.work/aah/config":     "config",
-		"aahframe.work/aah/essentials": "ess",
-		"aahframe.work/aah/log":        "log",
+		"aahframe.work":            "aah",
+		"aahframe.work/aruntime":   "aruntime",
+		"aahframe.work/config":     "config",
+		"aahframe.work/essentials": "ess",
+		"aahframe.work/log":        "log",
 	}
 
 	// get all the types info referred aah framework context embedded
@@ -360,8 +360,8 @@ import (
 	"regexp"
 	"syscall"
 	{{ if .AppSecurity }}
-	"aahframe.work/aah/security/authc"
-	"aahframe.work/aah/security/authz"{{ end }}{{ range $k, $v := $.AppImportPaths }}
+	"aahframe.work/security/authc"
+	"aahframe.work/security/authz"{{ end }}{{ range $k, $v := $.AppImportPaths }}
 	{{ $v }} "{{ $k }}"{{ end }}
 )
 

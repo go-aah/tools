@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"aahframe.work/aah/essentials"
+	"aahframe.work/essentials"
 )
 
 type inventory struct {

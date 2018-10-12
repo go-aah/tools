@@ -23,12 +23,11 @@ import (
 	"syscall"
 	"time"
 
-	"aahframe.work/aah"
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/essentials"
+	"aahframe.work"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
 
-	// "github.com/radovskyb/watcher"
-	"gopkg.in/radovskyb/watcher.v1"
+	"github.com/radovskyb/watcher"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -228,11 +227,7 @@ func (hr *hotReload) CompileAndStart() error {
 	}
 
 	go hr.StartWatcher()
-	if err = hr.Process.Start(); err != nil {
-		return err
-	}
-
-	return nil
+	return hr.Process.Start()
 }
 
 func (hr *hotReload) Stop() {
