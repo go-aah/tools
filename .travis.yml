@@ -10,15 +10,14 @@ branches:
     - /^v[0-9.]+$/
 
 go:
-  - 1.10.x
-  - 1.x
+  - 1.11.x
   - tip
 
 go_import_path: aahframe.work/cli
 
 install:
   - export GO111MODULE=on
-  - cd aah && go mod download
+  - cd aah
 
 script:
   - bash <(curl -s https://aahframework.org/go-test)
