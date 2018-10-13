@@ -17,7 +17,8 @@ go:
 go_import_path: aahframe.work/cli
 
 install:
-  - go get -t -v ./...
+  - export GO111MODULE=on
+  - cd aah && go mod download
 
 script:
   - bash <(curl -s https://aahframework.org/go-test)
