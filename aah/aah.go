@@ -14,9 +14,9 @@ import (
 
 	"aahframe.work/aruntime"
 	"aahframe.work/config"
+	"aahframe.work/console"
 	"aahframe.work/essentials"
 	"aahframe.work/log"
-	"gopkg.in/urfave/cli.v1"
 )
 
 const (
@@ -105,7 +105,7 @@ func main() {
 		logFatal(err)
 	}
 
-	app := cli.NewApp()
+	app := console.NewApp()
 	app.Name = "aah"
 	app.Usage = "framework CLI tool"
 	app.Version = Version
@@ -115,7 +115,7 @@ func main() {
 	app.EnableBashCompletion = true
 
 	app.Before = printHeader
-	app.Commands = []cli.Command{
+	app.Commands = []console.Command{
 		newCmd,
 		runCmd,
 		buildCmd,
@@ -126,14 +126,14 @@ func main() {
 	}
 
 	// Global flags
-	app.Flags = []cli.Flag{
-		cli.BoolFlag{
+	app.Flags = []console.Flag{
+		console.BoolFlag{
 			Name:  "y, yes",
 			Usage: `Automatic yes to prompts. Assume "yes" as answer to all prompts and run non-interactively.`,
 		},
 	}
 
-	sort.Sort(cli.FlagsByName(app.Flags))
+	sort.Sort(console.FlagsByName(app.Flags))
 	_ = app.Run(os.Args)
 }
 
@@ -141,7 +141,7 @@ func main() {
 // Unexported methods
 //___________________________________
 
-func printHeader(c *cli.Context) error {
+func printHeader(c *console.Context) error {
 	aahVer, _ = aahVersion(c)
 	if len(aahVer) > 0 {
 		aahVer = " v" + aahVer
@@ -168,42 +168,10 @@ func chr2str(chr string, cnt int) string {
 }
 
 func init() {
-	cli.HelpFlag = cli.BoolFlag{
-		Name:  "h, help",
-		Usage: "Shows help",
-	}
-
-	cli.VersionFlag = cli.BoolFlag{
+	console.VersionFlag(console.BoolFlag{
 		Name:  "v, version",
 		Usage: "Prints aah, cli, aah and go version",
-	}
+	})
 
-	cli.VersionPrinter = VersionPrinter
-
-	cli.AppHelpTemplate = `Usage:
-  {{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}
-{{if .Commands}}
-Commands:
-{{range .Commands}}{{if not .HideHelp}}  {{join .Names ", "}}{{ "\t   " }}{{.Usage}}{{ "\n" }}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
-Global Options:
-  {{range .VisibleFlags}}{{.}}
-  {{end}}{{end}}
-`
-
-	cli.CommandHelpTemplate = `Name:
-  {{.HelpName}} - {{.Usage}}
-
-Usage:
-  {{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{if .Category}}
-
-Category:
-  {{.Category}}{{end}}{{if .Description}}
-
-Description:
-  {{.Description}}{{end}}{{if .VisibleFlags}}
-
-Options:
-   {{range .VisibleFlags}}{{.}}
-   {{end}}{{end}}
-`
+	console.VersionPrinter(VersionPrinter)
 }

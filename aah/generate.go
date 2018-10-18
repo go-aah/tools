@@ -14,12 +14,12 @@ import (
 	"time"
 
 	"aahframe.work"
+	"aahframe.work/console"
 	"aahframe.work/essentials"
 	"aahframe.work/log"
-	"gopkg.in/urfave/cli.v1"
 )
 
-var generateCmd = cli.Command{
+var generateCmd = console.Command{
 	Name:    "generate",
 	Aliases: []string{"g"},
 	Usage:   "Generates boilerplate code, configurations, complement scripts (systemd, docker), etc.",
@@ -34,7 +34,7 @@ var generateCmd = cli.Command{
 		aah g h s
 		aah generate help script
 `,
-	Subcommands: []cli.Command{
+	Subcommands: []console.Command{
 		{
 			Name:    "script",
 			Aliases: []string{"s"},
@@ -45,8 +45,8 @@ var generateCmd = cli.Command{
 		aah g s -n systemd -i github.com/user/appname
 		aah generate script --name systemd --importpath github.com/user/appname
 			`,
-			Flags: []cli.Flag{
-				cli.StringFlag{
+			Flags: []console.Flag{
+				console.StringFlag{
 					Name:  "n, name",
 					Usage: "Provide script name such as 'systemd', 'docker', etc",
 				},
@@ -60,14 +60,14 @@ var generateCmd = cli.Command{
 // Generate Subcommand - Script
 //___________________________________
 
-func generateScriptsAction(c *cli.Context) error {
+func generateScriptsAction(c *console.Context) error {
 	if !isAahProject() {
 		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
 	}
 
 	scriptName := strings.TrimSpace(firstNonEmpty(c.String("n"), c.String("name")))
 	if ess.IsStrEmpty(scriptName) {
-		_ = cli.ShowSubcommandHelp(c)
+		_ = console.ShowSubcommandHelp(c)
 		return nil
 	}
 
@@ -92,7 +92,7 @@ func generateScriptsAction(c *cli.Context) error {
 // Implementation methods
 //___________________________________
 
-func generateSystemdScript(c *cli.Context) error {
+func generateSystemdScript(c *console.Context) error {
 	importPath := appImportPath(c)
 	if ess.IsStrEmpty(importPath) {
 		logFatalf("Unable to infer import path, ensure you're in the application base directory")
@@ -134,7 +134,7 @@ func generateSystemdScript(c *cli.Context) error {
 	return nil
 }
 
-func generateDockerScript(c *cli.Context) error {
+func generateDockerScript(c *console.Context) error {
 	importPath := appImportPath(c)
 	if ess.IsStrEmpty(importPath) {
 		logFatalf("Unable to infer import path, ensure you're in the application base directory")
@@ -204,7 +204,7 @@ func generateDockerScript(c *cli.Context) error {
 	return nil
 }
 
-func checkAndConfirmOverwrite(c *cli.Context, destFile string) bool {
+func checkAndConfirmOverwrite(c *console.Context, destFile string) bool {
 	if ess.IsFileExists(destFile) {
 		cliLog.Warnf("File: %s already exists, it will be overwritten.", destFile)
 		if c.GlobalBool("y") || c.GlobalBool("yes") {

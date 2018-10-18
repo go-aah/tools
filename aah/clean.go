@@ -10,11 +10,11 @@ import (
 	"strings"
 
 	"aahframe.work"
+	"aahframe.work/console"
 	"aahframe.work/essentials"
-	"gopkg.in/urfave/cli.v1"
 )
 
-var cleanCmd = cli.Command{
+var cleanCmd = console.Command{
 	Name:    "clean",
 	Aliases: []string{"c"},
 	Usage:   "Cleans the aah generated files and build directory",
@@ -28,7 +28,7 @@ var cleanCmd = cli.Command{
 	Action: cleanAction,
 }
 
-func cleanAction(c *cli.Context) error {
+func cleanAction(c *console.Context) error {
 	if !isAahProject() {
 		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
 	}

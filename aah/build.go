@@ -13,12 +13,12 @@ import (
 
 	"aahframe.work"
 	"aahframe.work/config"
+	"aahframe.work/console"
 	"aahframe.work/essentials"
 	"aahframe.work/log"
-	"gopkg.in/urfave/cli.v1"
 )
 
-var buildCmd = cli.Command{
+var buildCmd = console.Command{
 	Name:    "build",
 	Aliases: []string{"b"},
 	Usage:   "Builds aah application for deployment (single or non-single binary)",
@@ -33,12 +33,12 @@ var buildCmd = cli.Command{
 		aah build --single  OR  aah b -s
     aah build -o /Users/jeeva -s
 		aah build -o /Users/jeeva/aahwebsite.zip`,
-	Flags: []cli.Flag{
-		cli.StringFlag{
+	Flags: []console.Flag{
+		console.StringFlag{
 			Name:  "o, output",
 			Usage: "Output of aah application build artifact; the default is '<appbasedir>/build/<appbinaryname>-<appversion>-<goos>-<goarch>.zip'",
 		},
-		cli.BoolFlag{
+		console.BoolFlag{
 			Name:  "s, single",
 			Usage: "Creates aah single application binary",
 		},
@@ -46,7 +46,7 @@ var buildCmd = cli.Command{
 	Action: buildAction,
 }
 
-func buildAction(c *cli.Context) error {
+func buildAction(c *console.Context) error {
 	if !isAahProject() {
 		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
 	}
@@ -75,7 +75,7 @@ func buildAction(c *cli.Context) error {
 	return nil
 }
 
-func buildBinary(c *cli.Context, projectCfg *config.Config) {
+func buildBinary(c *console.Context, projectCfg *config.Config) {
 	appBaseDir := aah.AppBaseDir()
 	processVFSConfig(projectCfg, false)
 
@@ -104,7 +104,7 @@ func buildBinary(c *cli.Context, projectCfg *config.Config) {
 	cliLog.Infof("Application artifact is here: %s\n", destArchiveFile)
 }
 
-func buildSingleBinary(c *cli.Context, projectCfg *config.Config) {
+func buildSingleBinary(c *console.Context, projectCfg *config.Config) {
 	cliLog.Infof("Embed starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
 	processVFSConfig(projectCfg, true)
 	cliLog.Infof("Embed successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
@@ -222,7 +222,7 @@ func createZipArchive(buildBaseDir, destArchiveFile string) error {
 	return ess.Zip(destArchiveFile, buildBaseDir)
 }
 
-func createZipArchiveName(c *cli.Context, projectCfg *config.Config, appBaseDir, appBinary string) string {
+func createZipArchiveName(c *console.Context, projectCfg *config.Config, appBaseDir, appBinary string) string {
 	var err error
 	outputFile := firstNonEmpty(c.String("o"), c.String("output"))
 	archiveName := ess.StripExt(filepath.Base(appBinary)) + "-" + getAppVersion(appBaseDir, projectCfg)

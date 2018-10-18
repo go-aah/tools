@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"gopkg.in/urfave/cli.v1"
+	"aahframe.work/console"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 	goModIdentifier      = "go.mod"
 )
 
-var listCmd = cli.Command{
+var listCmd = console.Command{
 	Name:    "list",
 	Aliases: []string{"l"},
 	Usage:   "Lists all the aah projects",
@@ -26,8 +26,8 @@ var listCmd = cli.Command{
 	Note: aah CLI is only aware of projects created using 'aah new' otherwise you have to teach 
 	it using 'aah list --scan /base/dir/to/scan/aah-projects'.
 	`,
-	Flags: []cli.Flag{
-		cli.StringFlag{
+	Flags: []console.Flag{
+		console.StringFlag{
 			Name:  "s, scan",
 			Usage: "Directory path to scan for aah projects",
 		},
@@ -35,7 +35,7 @@ var listCmd = cli.Command{
 	Action: listAction,
 }
 
-func listAction(c *cli.Context) error {
+func listAction(c *console.Context) error {
 	cliLog = initCLILogger(nil)
 
 	scanDir := firstNonEmpty(c.String("s"), c.String("scan"))

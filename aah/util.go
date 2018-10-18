@@ -24,9 +24,9 @@ import (
 
 	"aahframe.work"
 	"aahframe.work/config"
+	"aahframe.work/console"
 	"aahframe.work/essentials"
 	"aahframe.work/log"
-	"gopkg.in/urfave/cli.v1"
 )
 
 func goVersion() string {
@@ -55,7 +55,7 @@ func inferInsideGopath(dir string) bool {
 	return false
 }
 
-func appImportPath(c *cli.Context) string {
+func appImportPath(c *console.Context) string {
 	// get import path from go.mod
 	if ess.IsFileExists(goModIdentifier) {
 		output, err := execCmd(gocmd, []string{"list", "-m", "-json"}, false)

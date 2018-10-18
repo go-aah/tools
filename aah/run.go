@@ -25,13 +25,13 @@ import (
 
 	"aahframe.work"
 	"aahframe.work/config"
+	"aahframe.work/console"
 	"aahframe.work/essentials"
 
 	"github.com/radovskyb/watcher"
-	"gopkg.in/urfave/cli.v1"
 )
 
-var runCmd = cli.Command{
+var runCmd = console.Command{
 	Name:    "run",
 	Aliases: []string{"r"},
 	Usage:   "Runs aah application (supports hot-reload)",
@@ -51,11 +51,11 @@ var runCmd = cli.Command{
 		aah run --envprofile qa --config /path/to/config/external.conf
 
 	Note: For production use, it is recommended to follow build and deploy approach. Do not use 'aah run'.`,
-	Flags: []cli.Flag{
-		cli.StringFlag{
+	Flags: []console.Flag{
+		console.StringFlag{
 			Name:  "e, envprofile",
 			Usage: "Environment profile name to activate (e.g: dev, qa, prod)"},
-		cli.StringFlag{
+		console.StringFlag{
 			Name:  "c, config",
 			Usage: "External config file for overriding aah.conf values",
 		},
@@ -63,7 +63,7 @@ var runCmd = cli.Command{
 	Action: runAction,
 }
 
-func runAction(c *cli.Context) error {
+func runAction(c *console.Context) error {
 	if !isAahProject() {
 		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
 	}

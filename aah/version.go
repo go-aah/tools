@@ -13,8 +13,8 @@ import (
 	"regexp"
 	"strings"
 
+	"aahframe.work/console"
 	"aahframe.work/essentials"
-	"gopkg.in/urfave/cli.v1"
 )
 
 // Version no. of aah framework CLI tool
@@ -26,7 +26,7 @@ var (
 )
 
 // VersionPrinter method prints the versions info.
-func VersionPrinter(c *cli.Context) {
+func VersionPrinter(c *console.Context) {
 	cliLog = initCLILogger(nil)
 	var err error
 	aahVer, err = aahVersion(c)
@@ -40,7 +40,7 @@ func VersionPrinter(c *cli.Context) {
 	fmt.Println()
 }
 
-func aahVersion(c *cli.Context) (string, error) {
+func aahVersion(c *console.Context) (string, error) {
 	// go.mod
 	if ess.IsFileExists(aahProjectIdentifier) && ess.IsFileExists(goModIdentifier) && go111AndAbove {
 		output, err := execCmd(gocmd, []string{"list", "-m", "-json", "all"}, false)

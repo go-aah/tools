@@ -15,12 +15,12 @@ import (
 	"strings"
 
 	"aahframe.work"
+	"aahframe.work/console"
 	"aahframe.work/essentials"
-	"gopkg.in/urfave/cli.v1"
 )
 
 var (
-	newCmd = cli.Command{
+	newCmd = console.Command{
 		Name:    "new",
 		Aliases: []string{"n"},
 		Usage:   "Creates new aah 'web', 'api' or 'websocket' application (interactive)",
@@ -39,7 +39,7 @@ var (
 	reader = bufio.NewReader(os.Stdin)
 )
 
-func newAction(c *cli.Context) error {
+func newAction(c *console.Context) error {
 	cliLog = initCLILogger(nil)
 	fmt.Println("\nWelcome to interactive way to create your aah application, press ^C to exit :)")
 	fmt.Println()
@@ -173,7 +173,7 @@ func collectAppType(reader *bufio.Reader) string {
 // Collecting inputs for Web App
 //______________________________________________________________________________
 
-func collectInputsForWebApp(c *cli.Context, app *appTmplData) {
+func collectInputsForWebApp(c *console.Context, app *appTmplData) {
 	viewEngine(reader, app)
 
 	authScheme(reader, app)
@@ -196,7 +196,7 @@ func collectInputsForWebApp(c *cli.Context, app *appTmplData) {
 // Collecting inputs for API App
 //______________________________________________________________________________
 
-func collectInputsForAPIApp(c *cli.Context, app *appTmplData) {
+func collectInputsForAPIApp(c *console.Context, app *appTmplData) {
 	authScheme(reader, app)
 
 	if app.AuthScheme == authBasic {
@@ -208,7 +208,7 @@ func collectInputsForAPIApp(c *cli.Context, app *appTmplData) {
 	app.CORSEnable = collectYesOrNo(reader, "Would you like to enable CORS? [y/N]")
 }
 
-func collectAppSubTypesChoice(c *cli.Context, reader *bufio.Reader, app *appTmplData) {
+func collectAppSubTypesChoice(c *console.Context, reader *bufio.Reader, app *appTmplData) {
 	app.SubTypes = make([]string, 0)
 
 	// API choice

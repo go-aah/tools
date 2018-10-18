@@ -15,14 +15,14 @@ import (
 
 	"aahframe.work"
 	"aahframe.work/config"
+	"aahframe.work/console"
 	"aahframe.work/essentials"
-	"gopkg.in/urfave/cli.v1"
 )
 
 const aahGrammarIdentifier = "migrate-0.12.x.conf"
 const aahGrammarFetchLoc = "https://cdn.aahframework.org/" + aahGrammarIdentifier
 
-var migrateCmd = cli.Command{
+var migrateCmd = console.Command{
 	Name:    "migrate",
 	Aliases: []string{"m"},
 	Usage:   "Migrates application codebase to current version of aah (currently beta)",
@@ -37,7 +37,7 @@ var migrateCmd = cli.Command{
 		aah m h c
 		aah migrate help code
 `,
-	Subcommands: []cli.Command{
+	Subcommands: []console.Command{
 		{
 			Name:    "code",
 			Aliases: []string{"c"},
@@ -58,7 +58,7 @@ var migrateCmd = cli.Command{
 	},
 }
 
-func migrateCodeAction(c *cli.Context) error {
+func migrateCodeAction(c *console.Context) error {
 	if !isAahProject() {
 		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
 	}
