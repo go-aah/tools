@@ -98,26 +98,27 @@ func generateSystemdScript(c *console.Context) error {
 		logFatalf("Unable to infer import path, ensure you're in the application base directory")
 	}
 	chdirIfRequired(importPath)
-	if err := aah.Init(importPath); err != nil {
+	app := aah.App()
+	if err := app.Init(importPath); err != nil {
 		logFatal(err)
 	}
 
-	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
 
-	cliLog.Infof("Loaded aah project file: %s\n", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
+	cliLog.Infof("Loaded aah project file: %s\n", filepath.Join(app.BaseDir(), aahProjectIdentifier))
 
-	fileName := fmt.Sprintf("%s.service", aah.AppName())
-	destFile := filepath.Join(aah.AppBaseDir(), fileName)
+	fileName := fmt.Sprintf("%s.service", app.Name())
+	destFile := filepath.Join(app.BaseDir(), fileName)
 	if checkAndConfirmOverwrite(c, destFile) {
 		return nil
 	}
 
 	data := map[string]interface{}{
-		"AppName":    aah.AppName(),
+		"AppName":    app.Name(),
 		"FileName":   fileName,
 		"CreateDate": time.Now().Format(time.RFC1123Z),
-		"Desc":       fmt.Sprintf("%s application", aah.AppName()),
+		"Desc":       fmt.Sprintf("%s application", app.Name()),
 	}
 
 	buf := &bytes.Buffer{}
@@ -139,22 +140,23 @@ func generateDockerScript(c *console.Context) error {
 	if ess.IsStrEmpty(importPath) {
 		logFatalf("Unable to infer import path, ensure you're in the application base directory")
 	}
-	if err := aah.Init(importPath); err != nil {
+	app := aah.App()
+	if err := app.Init(importPath); err != nil {
 		logFatal(err)
 	}
-	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
 
-	cliLog.Infof("Loaded aah project file: %s\n", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
+	cliLog.Infof("Loaded aah project file: %s\n", filepath.Join(app.BaseDir(), aahProjectIdentifier))
 
 	devFileName := "Dockerfile.dev"
-	devDestFile := filepath.Join(aah.AppBaseDir(), devFileName)
+	devDestFile := filepath.Join(app.BaseDir(), devFileName)
 	if checkAndConfirmOverwrite(c, devDestFile) {
 		return nil
 	}
 
 	prodFileName := "Dockerfile.prod"
-	prodDestFile := filepath.Join(aah.AppBaseDir(), prodFileName)
+	prodDestFile := filepath.Join(app.BaseDir(), prodFileName)
 	if checkAndConfirmOverwrite(c, prodDestFile) {
 		return nil
 	}
@@ -165,16 +167,16 @@ func generateDockerScript(c *console.Context) error {
 	}
 
 	devData := map[string]interface{}{
-		"AppName":       aah.AppName(),
-		"AppImportPath": aah.AppImportPath(),
+		"AppName":       app.Name(),
+		"AppImportPath": app.ImportPath(),
 		"FileName":      devFileName,
 		"CreateDate":    time.Now().Format(time.RFC1123Z),
 		"CodeVersion":   codeVersion,
 	}
 
 	prodData := map[string]interface{}{
-		"AppName":       aah.AppName(),
-		"AppImportPath": aah.AppImportPath(),
+		"AppName":       app.Name(),
+		"AppImportPath": app.ImportPath(),
 		"FileName":      prodFileName,
 		"CreateDate":    time.Now().Format(time.RFC1123Z),
 		"CodeVersion":   codeVersion,

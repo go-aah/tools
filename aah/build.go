@@ -56,15 +56,16 @@ func buildAction(c *console.Context) error {
 		logFatalf("Unable to infer import path, ensure you're in the application base directory")
 	}
 	chdirIfRequired(importPath)
-	if err := aah.Init(importPath); err != nil {
+	app := aah.App()
+	if err := app.Init(importPath); err != nil {
 		logFatal(err)
 	}
 
-	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
 
-	cliLog.Infof("Loaded aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
-	cliLog.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Loaded aah project file: %s", filepath.Join(app.BaseDir(), aahProjectIdentifier))
+	cliLog.Infof("Build starts for '%s' [%s]", app.Name(), app.ImportPath())
 
 	if c.Bool("s") || c.Bool("single") {
 		buildSingleBinary(c, projectCfg)
@@ -76,7 +77,8 @@ func buildAction(c *console.Context) error {
 }
 
 func buildBinary(c *console.Context, projectCfg *config.Config) {
-	appBaseDir := aah.AppBaseDir()
+	app := aah.App()
+	appBaseDir := app.BaseDir()
 	processVFSConfig(projectCfg, false)
 
 	appBinary, err := compileApp(&compileArgs{
@@ -100,14 +102,15 @@ func buildBinary(c *console.Context, projectCfg *config.Config) {
 		logFatal(err)
 	}
 
-	cliLog.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Build successful for '%s' [%s]", app.Name(), app.ImportPath())
 	cliLog.Infof("Application artifact is here: %s\n", destArchiveFile)
 }
 
 func buildSingleBinary(c *console.Context, projectCfg *config.Config) {
-	cliLog.Infof("Embed starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	app := aah.App()
+	cliLog.Infof("Embed starts for '%s' [%s]", app.Name(), app.ImportPath())
 	processVFSConfig(projectCfg, true)
-	cliLog.Infof("Embed successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Embed successful for '%s' [%s]", app.Name(), app.ImportPath())
 
 	appBinary, err := compileApp(&compileArgs{
 		Cmd:        "BuildCmd",
@@ -120,17 +123,17 @@ func buildSingleBinary(c *console.Context, projectCfg *config.Config) {
 	}
 
 	// Creating app archive
-	destArchiveFile := createZipArchiveName(c, projectCfg, aah.AppBaseDir(), appBinary)
+	destArchiveFile := createZipArchiveName(c, projectCfg, app.BaseDir(), appBinary)
 	if err = createZipArchive(appBinary, destArchiveFile); err != nil {
 		logFatal(err)
 	}
 
-	cliLog.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Build successful for '%s' [%s]", app.Name(), app.ImportPath())
 	cliLog.Infof("Application artifact is here: %s\n", destArchiveFile)
 }
 
 func processVFSConfig(projectCfg *config.Config, mode bool) {
-	appBaseDir := aah.AppBaseDir()
+	appBaseDir := aah.App().BaseDir()
 	cleanupAutoGenVFSFiles(appBaseDir)
 
 	excludes, _ := projectCfg.StringList("build.excludes")

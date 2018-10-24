@@ -38,14 +38,15 @@ func cleanAction(c *console.Context) error {
 		logFatalf("Unable to infer import path, ensure you're in the application base directory")
 	}
 	chdirIfRequired(importPath)
-	if err := aah.Init(importPath); err != nil {
+	app := aah.App()
+	if err := app.Init(importPath); err != nil {
 		logFatal(err)
 	}
-	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
 
-	cleanupAutoGenFiles(aah.AppBaseDir())
-	cleanupAutoGenVFSFiles(aah.AppBaseDir())
+	cleanupAutoGenFiles(app.BaseDir())
+	cleanupAutoGenVFSFiles(app.BaseDir())
 
 	cliLog.Infof("Import Path '%v' clean successful.\n", importPath)
 

@@ -238,9 +238,10 @@ import ({{ if .Mode }}
 )
 
 func init() {
-	{{ if .Mode }}aah.AppVFS().SetEmbeddedMode(){{ end }}
+	app := aah.App()
+	{{ if .Mode }}app.VFS().SetEmbeddedMode(){{ end }}
 
-	if err := aah.AppVFS().AddMount("{{ .MountPath }}", "{{ .PhysicalPath }}"); err != nil {
+	if err := app.VFS().AddMount("{{ .MountPath }}", "{{ .PhysicalPath }}"); err != nil {
 		log.Fatal("vfs: ", err)
 	}
 {{ end }}
@@ -248,7 +249,7 @@ func init() {
 {{ define "vfs_start_embed" }}{{ template "vfs_start_mount" . }}
 
   // Find Mount point
-  m, err := aah.AppVFS().FindMount("{{ .MountPath }}")
+  m, err := app.VFS().FindMount("{{ .MountPath }}")
   if err != nil {
 		log.Fatal("vfs: ", err)
 	}

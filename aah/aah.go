@@ -128,8 +128,8 @@ func main() {
 	// Global flags
 	app.Flags = []console.Flag{
 		console.BoolFlag{
-			Name:  "y, yes",
-			Usage: `Automatic yes to prompts. Assume "yes" as answer to all prompts and run non-interactively.`,
+			Name:  "yes, y",
+			Usage: `Automatic yes to prompts. Assume "yes" as answer to all prompts and run non-interactively`,
 		},
 	}
 
@@ -169,9 +169,41 @@ func chr2str(chr string, cnt int) string {
 
 func init() {
 	console.VersionFlag(console.BoolFlag{
-		Name:  "v, version",
+		Name:  "version, v",
 		Usage: "Prints aah, cli, aah and go version",
 	})
 
+	console.HelpFlag(console.BoolFlag{
+		Name:  "help, h",
+		Usage: "Shows aah cli help",
+	})
+
 	console.VersionPrinter(VersionPrinter)
+
+	console.AppHelpTemplate (`Usage:
+  {{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}
+{{if .Commands}}
+Commands:
+{{range .Commands}}{{if not .HideHelp}}  {{join .Names ", "}}{{ "\t   " }}{{.Usage}}{{ "\n" }}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
+Global Options:
+  {{range .VisibleFlags}}{{.}}
+  {{end}}{{end}}
+`)
+
+	console.CommandHelpTemplate(`Name:
+  {{.HelpName}} - {{.Usage}}
+
+Usage:
+  {{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{if .Category}}
+
+Category:
+  {{.Category}}{{end}}{{if .Description}}
+
+Description:
+  {{.Description}}{{end}}{{if .VisibleFlags}}
+
+Options:
+   {{range .VisibleFlags}}{{.}}
+   {{end}}{{end}}
+`)
 }

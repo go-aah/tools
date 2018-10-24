@@ -189,18 +189,20 @@ func getAppVersion(appBaseDir string, cfg *config.Config) string {
 }
 
 // getBuildDate method returns application build date, which used to display
-// version from compiled bnary
-// 		$ appname version
+// version from compiled binary.
 //
 // Application build date value priority are -
-// 		1. Env variable - AAH_APP_BUILD_DATE
-// 		2. Created with time.Now().Format(time.RFC3339)
-func getBuildDate() string {
+// 		1. Env variable - AAH_APP_BUILD_TIMESTAMP
+// 		2. Env variable - AAH_APP_BUILD_DATE (deprecated in v0.12.0, highly recommended to use timestamp)
+// 		3. Created with time.Now().Format(time.RFC3339)
+func getBuildTimestamp() string {
 	// From env variable
+	if buildTimestamp := os.Getenv("AAH_APP_BUILD_TIMESTAMP"); !ess.IsStrEmpty(buildTimestamp) {
+		return buildTimestamp
+	}
 	if buildDate := os.Getenv("AAH_APP_BUILD_DATE"); !ess.IsStrEmpty(buildDate) {
 		return buildDate
 	}
-
 	return time.Now().Format(time.RFC3339)
 }
 
@@ -234,12 +236,11 @@ func renderTmpl(w io.Writer, text string, data interface{}) error {
 
 // appBinaryFile method binary file path creation
 func appBinaryFile(buildCfg *config.Config, appBuildDir string) string {
-	appName := strings.Replace(aah.AppName(), " ", "_", -1)
-	appBinaryName := buildCfg.StringDefault("build.binary_name", appName)
+	replacer := strings.NewReplacer(" ", "_", ".", "_")
+	appBinaryName := buildCfg.StringDefault("build.binary_name", replacer.Replace(aah.App().Name()))
 	if isWindowsOS() {
 		appBinaryName += ".exe"
 	}
-
 	return filepath.Join(appBuildDir, "bin", appBinaryName)
 }
 

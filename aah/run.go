@@ -84,29 +84,29 @@ func runAction(c *console.Context) error {
 	if !ess.IsStrEmpty(envProfile) {
 		appStartArgs = append(appStartArgs, "-profile", envProfile)
 	}
-
-	if err := aah.Init(importPath); err != nil {
+	app := aah.App()
+	if err := app.Init(importPath); err != nil {
 		logFatal(err)
 	}
-	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
 
-	checkAndGenerateInitgoFile(importPath, aah.AppBaseDir())
+	checkAndGenerateInitgoFile(importPath, app.BaseDir())
 
-	cliLog.Infof("Loaded aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
+	cliLog.Infof("Loaded aah project file: %s", filepath.Join(app.BaseDir(), aahProjectIdentifier))
 
 	if ess.IsStrEmpty(envProfile) {
-		envProfile = aah.AppProfile()
+		envProfile = app.Profile()
 	}
 
 	// Hot-Reload is applicable only to `dev` environment profile.
 	if projectCfg.BoolDefault("hot_reload.enable", true) && envProfile == "dev" {
-		cliLog.Infof("Hot-Reload enabled for environment profile: %s", aah.AppProfile())
+		cliLog.Infof("Hot-Reload enabled for environment profile: %s", app.Profile())
 
-		address := firstNonEmpty(aah.AppHTTPAddress(), "")
+		address := firstNonEmpty(app.HTTPAddress(), "")
 		proxyPort := findAvailablePort()
 		scheme := "http"
-		if aah.AppIsSSLEnabled() {
+		if app.IsSSLEnabled() {
 			scheme = "https"
 		}
 
@@ -114,12 +114,12 @@ func runAction(c *console.Context) error {
 		appHotReload := &hotReload{
 			ProxyURL:      appURL,
 			ProxyPort:     proxyPort,
-			BaseDir:       aah.AppBaseDir(),
+			BaseDir:       app.BaseDir(),
 			Addr:          address,
-			Port:          aah.AppHTTPPort(),
-			IsSSL:         aah.AppIsSSLEnabled(),
-			SSLCert:       aah.AppConfig().StringDefault("server.ssl.cert", ""),
-			SSLKey:        aah.AppConfig().StringDefault("server.ssl.key", ""),
+			Port:          app.HTTPPort(),
+			IsSSL:         app.IsSSLEnabled(),
+			SSLCert:       app.Config().StringDefault("server.ssl.cert", ""),
+			SSLKey:        app.Config().StringDefault("server.ssl.key", ""),
 			Args:          appStartArgs,
 			Proxy:         httputil.NewSingleHostReverseProxy(appURL),
 			ProjectConfig: projectCfg,
@@ -365,7 +365,7 @@ func (hr *hotReload) StartWatcher() {
 }
 
 func (hr *hotReload) AddWatchFiles() {
-	pidName := hr.ProjectConfig.StringDefault("build.binary_name", aah.AppName())
+	pidName := hr.ProjectConfig.StringDefault("build.binary_name", aah.App().Name())
 	// standard file ignore list for aah project
 	stdIgnoreList := []string{
 		filepath.Join(hr.BaseDir, pidName+".pid"),

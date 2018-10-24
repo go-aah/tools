@@ -81,11 +81,12 @@ func migrateCodeAction(c *console.Context) error {
 	cliLog.Info("Loaded migrate configuration: ", grammarFile)
 
 	importPath := appImportPath(c)
-	if err := aah.Init(importPath); err != nil {
+	app := aah.App()
+	if err := app.Init(importPath); err != nil {
 		logFatal(err)
 	}
-	projectCfg := aahProjectCfg(aah.AppBaseDir())
-	cliLog.Info("Loaded aah project file: ", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
+	projectCfg := aahProjectCfg(app.BaseDir())
+	cliLog.Info("Loaded aah project file: ", filepath.Join(app.BaseDir(), aahProjectIdentifier))
 	cliLog = initCLILogger(projectCfg)
 
 	cliLog.Warn("Migrate command does not take file backup. Command assumes application use version control.")
@@ -100,7 +101,7 @@ func migrateCodeAction(c *console.Context) error {
 	cliLog.Info("-----")
 	cliLog.Info("Command works based on 'migrate.conf' file. If you identify a new grammar entry, \n" +
 		"create an issue at https://aahframework.org/issues.\n")
-	cliLog.Infof("Migrate starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Migrate starts for '%s' [%s]", app.Name(), app.ImportPath())
 
 	// Go Source files
 	cliLog.Infof("Go source code migrate starts ...")
@@ -111,7 +112,7 @@ func migrateCodeAction(c *console.Context) error {
 	}
 
 	// View files
-	if ess.IsFileExists(filepath.Join(aah.AppBaseDir(), "views")) {
+	if ess.IsFileExists(filepath.Join(app.BaseDir(), "views")) {
 		cliLog.Infof("View file migrate starts ...")
 		if migrateViewFiles(projectCfg, grammarCfg) == 0 {
 			cliLog.Info("  |-- It seems application view files are up-to-date")
@@ -120,7 +121,7 @@ func migrateCodeAction(c *console.Context) error {
 		}
 	}
 
-	cliLog.Infof("Migrate successful for '%s' [%s]\n", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Migrate successful for '%s' [%s]\n", app.Name(), app.ImportPath())
 	return nil
 }
 
@@ -134,7 +135,7 @@ func migrateGoSrcFiles(projectCfg, grammarCfg *config.Config) int {
 
 	fixer := strings.NewReplacer(grammar...)
 	excludes, _ := projectCfg.StringList("build.ast_excludes")
-	files, _ := ess.FilesPathExcludes(filepath.Join(aah.AppBaseDir(), "app"), true, ess.Excludes(excludes))
+	files, _ := ess.FilesPathExcludes(filepath.Join(aah.App().BaseDir(), "app"), true, ess.Excludes(excludes))
 	for _, f := range files {
 		if filepath.Ext(f) != ".go" {
 			continue
@@ -157,8 +158,8 @@ func migrateViewFiles(projectCfg, grammarCfg *config.Config) int {
 	}
 
 	fixer := strings.NewReplacer(grammar...)
-	files, _ := ess.FilesPath(filepath.Join(aah.AppBaseDir(), "views"), true)
-	fileExt := aah.AppConfig().StringDefault("view.ext", ".html")
+	files, _ := ess.FilesPath(filepath.Join(aah.App().BaseDir(), "views"), true)
+	fileExt := aah.App().Config().StringDefault("view.ext", ".html")
 	for _, f := range files {
 		if filepath.Ext(f) != fileExt {
 			continue
@@ -173,7 +174,7 @@ func migrateViewFiles(projectCfg, grammarCfg *config.Config) int {
 }
 
 func migrateFile(f string, fixer *strings.Replacer) bool {
-	df := strings.TrimPrefix(filepath.ToSlash(stripGoSrcPath(f)), aah.AppImportPath()+"/")
+	df := strings.TrimPrefix(filepath.ToSlash(stripGoSrcPath(f)), aah.App().ImportPath()+"/")
 	fileBytes, err := ioutil.ReadFile(f)
 	if err != nil {
 		logError(err)

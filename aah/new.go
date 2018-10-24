@@ -547,7 +547,7 @@ func checkAndGenerateInitgoFile(importPath, baseDir string) {
 		data := map[string]interface{}{
 			"App": &appTmplData{
 				Type:       appType,
-				ViewEngine: aah.AppConfig().StringDefault("view.engine", "go"),
+				ViewEngine: aah.App().Config().StringDefault("view.engine", "go"),
 			},
 		}
 
