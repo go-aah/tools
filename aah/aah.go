@@ -34,9 +34,7 @@ var (
 	aahVer        string
 
 	// abstract it, so we can do unit test
-	fatal  = log.Fatal
-	fatalf = log.Fatalf
-	exit   = os.Exit
+	exit = os.Exit
 
 	// cli logger
 	cliLog *log.Logger
@@ -89,6 +87,7 @@ func checkPrerequisites() error {
 
 // aah cli tool entry point
 func main() {
+	cliLog = initCLILogger(nil)
 	// if panic happens, recover and abort nicely :)
 	defer func() {
 		if r := recover(); r != nil {
@@ -180,7 +179,7 @@ func init() {
 
 	console.VersionPrinter(VersionPrinter)
 
-	console.AppHelpTemplate (`Usage:
+	console.AppHelpTemplate(`Usage:
   {{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}
 {{if .Commands}}
 Commands:

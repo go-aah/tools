@@ -30,13 +30,10 @@ var migrateCmd = console.Command{
   Currently it supports application Go source code and view files migration.
 
 	To know more about available 'migrate' sub commands:
-		aah h m
 		aah help migrate
 
 	To know more about individual sub-commands details:
-		aah m h c
-		aah migrate help code
-`,
+		aah migrate help code`,
 	Subcommands: []console.Command{
 		{
 			Name:    "code",
@@ -49,10 +46,8 @@ var migrateCmd = console.Command{
 
 	Note: Migrate does not take file backup, assumes application use version control.
 
-	Example of script command:
-		aah m c
-		aah migrate code
-			`,
+	Example:
+		aah migrate code`,
 			Action: migrateCodeAction,
 		},
 	},
@@ -82,7 +77,7 @@ func migrateCodeAction(c *console.Context) error {
 
 	importPath := appImportPath(c)
 	app := aah.App()
-	if err := app.Init(importPath); err != nil {
+	if err := app.InitForCLI(importPath); err != nil {
 		logFatal(err)
 	}
 	projectCfg := aahProjectCfg(app.BaseDir())

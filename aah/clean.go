@@ -20,10 +20,9 @@ var cleanCmd = console.Command{
 	Usage:   "Cleans the aah generated files and build directory",
 	Description: `Cleans the aah generated files and build directory.
 
-	Such as aah.go, aah*_vfs.go and <app-base-dir>/build directory.
+	Such as aah.go, '<app-base-dir>/generated' and '<app-base-dir>/build'.
 
-	Examples of short and long flags:
-		aah c
+	Example:
 		aah clean`,
 	Action: cleanAction,
 }
@@ -32,39 +31,30 @@ func cleanAction(c *console.Context) error {
 	if !isAahProject() {
 		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
 	}
-
 	importPath := appImportPath(c)
 	if ess.IsStrEmpty(importPath) {
 		logFatalf("Unable to infer import path, ensure you're in the application base directory")
 	}
 	chdirIfRequired(importPath)
 	app := aah.App()
-	if err := app.Init(importPath); err != nil {
+	if err := app.InitForCLI(importPath); err != nil {
 		logFatal(err)
 	}
 	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
-
 	cleanupAutoGenFiles(app.BaseDir())
-	cleanupAutoGenVFSFiles(app.BaseDir())
-
 	cliLog.Infof("Import Path '%v' clean successful.\n", importPath)
-
 	return nil
 }
 
 func cleanupAutoGenFiles(appBaseDir string) {
 	appMainGoFile := filepath.Join(appBaseDir, "app", "aah.go")
+	appGeneratedDir := filepath.Join(appBaseDir, "app", "generated")
 	appBuildDir := filepath.Join(appBaseDir, "build")
 	cliLog.Debugf("Cleaning %s", appMainGoFile)
+	ess.DeleteFiles(appMainGoFile)
+	cliLog.Debugf("Cleaning generated directory %s", appGeneratedDir)
+	ess.DeleteFiles(appGeneratedDir)
 	cliLog.Debugf("Cleaning build directory %s", appBuildDir)
-	ess.DeleteFiles(appMainGoFile, appBuildDir)
-}
-
-func cleanupAutoGenVFSFiles(appBaseDir string) {
-	vfsFiles, _ := filepath.Glob(filepath.Join(appBaseDir, "app", "aah_*_vfs.go"))
-	if len(vfsFiles) > 0 {
-		cliLog.Debugf("Cleaning embed files %s", strings.Join(vfsFiles, "\n\t"))
-		ess.DeleteFiles(vfsFiles...)
-	}
+	ess.DeleteFiles(appBuildDir)
 }

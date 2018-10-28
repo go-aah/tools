@@ -38,25 +38,19 @@ var runCmd = console.Command{
 	Description: `Runs aah application. It supports hot-reload (just code and refresh the browser
 	to see your updates).
 
-	Examples of short and long flags:
-    aah run
-		aah run -e qa
-
-		aah run
-		aah run -e qa
-		aah run -e qa -c /path/to/config/external.conf
-
-    aah run
+	Example:
 		aah run --envprofile qa
 		aah run --envprofile qa --config /path/to/config/external.conf
 
-	Note: For production use, it is recommended to follow build and deploy approach. Do not use 'aah run'.`,
+	Note: For production use, it is recommended to follow build and deploy approach. DO NOT USE 'aah run'.`,
 	Flags: []console.Flag{
 		console.StringFlag{
-			Name:  "e, envprofile",
-			Usage: "Environment profile name to activate (e.g: dev, qa, prod)"},
+			Name:  "envprofile, e",
+			Usage: "Environment profile name to activate (e.g: dev, qa, prod)",
+			Value: "dev",
+		},
 		console.StringFlag{
-			Name:  "c, config",
+			Name:  "config, c",
 			Usage: "External config file for overriding aah.conf values",
 		},
 	},
@@ -67,41 +61,32 @@ func runAction(c *console.Context) error {
 	if !isAahProject() {
 		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
 	}
-
 	importPath := appImportPath(c)
 	if ess.IsStrEmpty(importPath) {
 		logFatalf("Unable to infer import path, ensure you're in the application base directory")
 	}
 	chdirIfRequired(importPath)
-	appStartArgs := []string{}
+	appStartArgs := []string{"run"}
 
 	configPath := getNonEmptyAbsPath(c.String("c"), c.String("config"))
 	if !ess.IsStrEmpty(configPath) {
-		appStartArgs = append(appStartArgs, "-config", configPath)
+		appStartArgs = append(appStartArgs, "--config", configPath)
 	}
-
 	envProfile := firstNonEmpty(c.String("e"), c.String("envprofile"))
-	if !ess.IsStrEmpty(envProfile) {
-		appStartArgs = append(appStartArgs, "-profile", envProfile)
-	}
+	appStartArgs = append(appStartArgs, "--envprofile", envProfile)
+
 	app := aah.App()
-	if err := app.Init(importPath); err != nil {
+	if err := app.InitForCLI(importPath); err != nil {
 		logFatal(err)
 	}
 	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
-
 	checkAndGenerateInitgoFile(importPath, app.BaseDir())
-
 	cliLog.Infof("Loaded aah project file: %s", filepath.Join(app.BaseDir(), aahProjectIdentifier))
-
-	if ess.IsStrEmpty(envProfile) {
-		envProfile = app.Profile()
-	}
 
 	// Hot-Reload is applicable only to `dev` environment profile.
 	if projectCfg.BoolDefault("hot_reload.enable", true) && envProfile == "dev" {
-		cliLog.Infof("Hot-Reload enabled for environment profile: %s", app.Profile())
+		cliLog.Infof("Hot-Reload enabled for environment profile: %s", envProfile)
 
 		address := firstNonEmpty(app.HTTPAddress(), "")
 		proxyPort := findAvailablePort()
@@ -109,6 +94,7 @@ func runAction(c *console.Context) error {
 		if app.IsSSLEnabled() {
 			scheme = "https"
 		}
+		appStartArgs = append(appStartArgs, "--proxyport", proxyPort)
 
 		appURL, _ := url.Parse(fmt.Sprintf("%s://%s:%s", scheme, address, proxyPort))
 		appHotReload := &hotReload{
@@ -130,6 +116,7 @@ func runAction(c *console.Context) error {
 	}
 
 	cliLog.Info("Hot-Reload is not enabled, possibly 'hot_reload.enable = false' or environment profile is not 'dev'")
+	cleanupAutoGenFiles(app.BaseDir())
 
 	appBinary, err := compileApp(&compileArgs{
 		Cmd:        "RunCmd",
@@ -205,6 +192,7 @@ func (hr *hotReload) Start() {
 }
 
 func (hr *hotReload) CompileAndStart() error {
+	cleanupAutoGenFiles(hr.BaseDir)
 	appBinary, err := compileApp(&compileArgs{
 		Cmd:        "RunCmd",
 		ProxyPort:  hr.ProxyPort,
@@ -435,22 +423,22 @@ func (p *process) Start() error {
 
 func (p *process) Stop() {
 	if p.cmd != nil && (p.cmd.ProcessState == nil || !p.cmd.ProcessState.Exited()) {
-		if isWindowsOS() {
-			// For windows console app, no graceful close is available;
-			// so we have only option is to kill.
-			_ = p.cmd.Process.Kill()
-		} else {
-			p.nw.checkBytes = []byte("shutdown successful")
-			p.nw.notify = make(chan bool)
-			_ = p.cmd.Process.Signal(os.Interrupt)
-			// wait for process to finish or return after grace time
-			select {
-			case <-p.nw.notify:
-				return
-			case <-time.After(time.Millisecond * 300):
-				return
-			}
+		// if isWindowsOS() {
+		// 	// For windows console app, no graceful close is available;
+		// 	// so we have only option is to kill.
+		// 	_ = p.cmd.Process.Kill()
+		// } else {
+		p.nw.checkBytes = []byte("shutdown successful")
+		p.nw.notify = make(chan bool)
+		_ = p.cmd.Process.Signal(os.Interrupt)
+		// wait for process to finish or return after grace time
+		select {
+		case <-p.nw.notify:
+			return
+		case <-time.After(time.Millisecond * 300):
+			return
 		}
+		// }
 	} else {
 		proc, err := os.FindProcess(p.cmd.Process.Pid)
 		if err == nil {

@@ -304,7 +304,7 @@ func findAvailablePort() string {
 }
 
 func initCLILogger(cfg *config.Config) *log.Logger {
-	if cliLog != nil && cfg == nil {
+	if cfg == nil && cliLog != nil {
 		return cliLog
 	}
 	if cfg == nil {
@@ -318,7 +318,7 @@ func initCLILogger(cfg *config.Config) *log.Logger {
 		printDeprecateInfo = true
 	}
 
-	logCfg, _ := config.ParseString("")
+	logCfg := config.NewEmpty()
 	logCfg.SetString("log.receiver", "console")
 	logCfg.SetString("log.level", logLevel)
 	logCfg.SetString("log.pattern", "%message")
@@ -408,47 +408,23 @@ func readVersionNo(baseDir string) (string, error) {
 		return result[1], nil
 	}
 
-	return "Unknown", nil
+	return "unknown", nil
 }
 
 func logFatal(v ...interface{}) {
-	if cliLog == nil {
-		_ = log.SetPattern("%level %message")
-		fatal(v...)
-		_ = log.SetPattern(log.DefaultPattern)
-	} else {
-		cliLog.Fatal(append([]interface{}{"FATAL "}, v...)...)
-	}
+	cliLog.Fatal(append([]interface{}{"FATAL "}, v...)...)
 }
 
 func logFatalf(format string, v ...interface{}) {
-	if cliLog == nil {
-		_ = log.SetPattern("%level %message")
-		fatalf(format, v...)
-		_ = log.SetPattern(log.DefaultPattern)
-	} else {
-		cliLog.Fatalf("FATAL "+format, v...)
-	}
+	cliLog.Fatalf("FATAL "+format, v...)
 }
 
 func logError(v ...interface{}) {
-	if cliLog == nil {
-		_ = log.SetPattern("%level %message")
-		log.Error(v...)
-		_ = log.SetPattern(log.DefaultPattern)
-	} else {
-		cliLog.Error(append([]interface{}{"ERROR "}, v...)...)
-	}
+	cliLog.Error(append([]interface{}{"ERROR "}, v...)...)
 }
 
 func logErrorf(format string, v ...interface{}) {
-	if cliLog == nil {
-		_ = log.SetPattern("%level %message")
-		log.Errorf(format, v...)
-		_ = log.SetPattern(log.DefaultPattern)
-	} else {
-		cliLog.Errorf("ERROR "+format, v...)
-	}
+	cliLog.Errorf("ERROR "+format, v...)
 }
 
 func waitForConnReady(port string) {

@@ -28,18 +28,17 @@ var buildCmd = console.Command{
 	Artifact naming convention:  <appbinaryname>-<appversion>-<goos>-<goarch>.zip
 	For e.g.: aahwebsite-381eaa8-darwin-amd64.zip
 
-	Examples of short and long flags:
-    aah build  OR  aah b
-		aah build --single  OR  aah b -s
-    aah build -o /Users/jeeva -s
-		aah build -o /Users/jeeva/aahwebsite.zip`,
+	Example:
+		aah build --single
+		aah build --single --output /Users/jeeva/aahwebsite.zip
+		aah build --output /Users/jeeva/aahwebsite.zip`,
 	Flags: []console.Flag{
 		console.StringFlag{
-			Name:  "o, output",
+			Name:  "output, o",
 			Usage: "Output of aah application build artifact; the default is '<appbasedir>/build/<appbinaryname>-<appversion>-<goos>-<goarch>.zip'",
 		},
 		console.BoolFlag{
-			Name:  "s, single",
+			Name:  "single, s",
 			Usage: "Creates aah single application binary",
 		},
 	},
@@ -57,7 +56,7 @@ func buildAction(c *console.Context) error {
 	}
 	chdirIfRequired(importPath)
 	app := aah.App()
-	if err := app.Init(importPath); err != nil {
+	if err := app.InitForCLI(importPath); err != nil {
 		logFatal(err)
 	}
 
@@ -66,6 +65,7 @@ func buildAction(c *console.Context) error {
 
 	cliLog.Infof("Loaded aah project file: %s", filepath.Join(app.BaseDir(), aahProjectIdentifier))
 	cliLog.Infof("Build starts for '%s' [%s]", app.Name(), app.ImportPath())
+	cleanupAutoGenFiles(app.BaseDir())
 
 	if c.Bool("s") || c.Bool("single") {
 		buildSingleBinary(c, projectCfg)
@@ -134,8 +134,6 @@ func buildSingleBinary(c *console.Context, projectCfg *config.Config) {
 
 func processVFSConfig(projectCfg *config.Config, mode bool) {
 	appBaseDir := aah.App().BaseDir()
-	cleanupAutoGenVFSFiles(appBaseDir)
-
 	excludes, _ := projectCfg.StringList("build.excludes")
 	noGzipList, _ := projectCfg.StringList("vfs.no_gzip")
 

@@ -69,7 +69,7 @@ func aahVersion(c *console.Context) (string, error) {
 		vendorPath := filepath.Join(gosrcDir, importPath, "vendor")
 		if ess.IsFileExists(vendorPath) {
 			ver, _ := readVersionNo(filepath.Join(vendorPath, aahImportPath))
-			if len(ver) > 0 && ver != "Unknown" {
+			if len(ver) > 0 && ver != "unknown" {
 				return ver, nil
 			}
 		}

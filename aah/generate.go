@@ -27,13 +27,10 @@ var generateCmd = console.Command{
   Such as boilerplate code, configuration files, complement scripts (systemd, docker), etc.
 
 	To know more about available 'generate' sub commands:
-		aah h g
 		aah help generate
 
 	To know more about individual sub-commands details:
-		aah g h s
-		aah generate help script
-`,
+		aah generate help script`,
 	Subcommands: []console.Command{
 		{
 			Name:    "script",
@@ -42,12 +39,10 @@ var generateCmd = console.Command{
 			Description: `Generates complement scripts such as systemd, dockerize, etc.
 
 	Example of script command:
-		aah g s -n systemd -i github.com/user/appname
-		aah generate script --name systemd --importpath github.com/user/appname
-			`,
+		aah generate script --name systemd --importpath github.com/user/appname`,
 			Flags: []console.Flag{
 				console.StringFlag{
-					Name:  "n, name",
+					Name:  "name, n",
 					Usage: "Provide script name such as 'systemd', 'docker', etc",
 				},
 			},
@@ -99,7 +94,7 @@ func generateSystemdScript(c *console.Context) error {
 	}
 	chdirIfRequired(importPath)
 	app := aah.App()
-	if err := app.Init(importPath); err != nil {
+	if err := app.InitForCLI(importPath); err != nil {
 		logFatal(err)
 	}
 
@@ -141,7 +136,7 @@ func generateDockerScript(c *console.Context) error {
 		logFatalf("Unable to infer import path, ensure you're in the application base directory")
 	}
 	app := aah.App()
-	if err := app.Init(importPath); err != nil {
+	if err := app.InitForCLI(importPath); err != nil {
 		logFatal(err)
 	}
 	projectCfg := aahProjectCfg(app.BaseDir())
@@ -253,7 +248,7 @@ After=network.target
 #User=aah
 #Group=aah
 EnvironmentFile=/home/aah/{{ .AppName }}_env_values
-ExecStart=/home/aah/{{ .AppName }}/bin/{{ .AppName }} -profile prod
+ExecStart=/home/aah/{{ .AppName }}/bin/{{ .AppName }} run --envprofile prod
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 
@@ -273,6 +268,7 @@ RUN aah --version
 ENV AAH_APP_DIR=$GOPATH/src/{{ .AppImportPath }}
 ENV GOOS=linux
 ENV CGO_ENABLED=0
+ENV GO111MODULE=on
 
 RUN mkdir -p $AAH_APP_DIR && \
     cd $AAH_APP_DIR
@@ -298,11 +294,12 @@ RUN aah --version
 ENV AAH_APP_DIR=$GOPATH/src/{{ .AppImportPath }}
 ENV GOOS=linux
 ENV CGO_ENABLED=0
+ENV GO111MODULE=on
 RUN mkdir -p $AAH_APP_DIR && \
     cd $AAH_APP_DIR
 ADD . $AAH_APP_DIR
 WORKDIR $AAH_APP_DIR
-RUN aah build -o build/{{ .AppName }}.zip
+RUN aah build --output build/{{ .AppName }}.zip
 
 #
 # Stage 2 : Production Image - It creates very small docker image
@@ -317,6 +314,6 @@ RUN cd /app && \
     unzip -q {{ .AppName }}.zip && \
     rm -rf {{ .AppName }}.zip
 WORKDIR /app/{{ .AppName }}
-CMD ["./bin/{{ .AppName }}", "-profile", "prod"]
+CMD ["./bin/{{ .AppName }}", "run", "--envprofile", "prod"]
 EXPOSE 8080
 `
