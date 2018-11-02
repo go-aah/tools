@@ -1,5 +1,5 @@
-aahframe.work v0.0.0-20181028100816-d6cafe0fb360 h1:9rwd9Y4nL9lw94KVVyrOaxSat9kcNLGX/FyUH7sWlm0=
-aahframe.work v0.0.0-20181028100816-d6cafe0fb360/go.mod h1:Myl29CGPFtox02z2geOwC5XIfFmqCNzMp+37UlanACg=
+aahframe.work v0.0.0-20181102062325-b2d4cadf425f h1:iU6rKTtwBDboC5tfDXb9+mrEttxGqM69oiW0aHd/c/w=
+aahframe.work v0.0.0-20181102062325-b2d4cadf425f/go.mod h1:Myl29CGPFtox02z2geOwC5XIfFmqCNzMp+37UlanACg=
 cloud.google.com/go v0.30.0 h1:xKvyLgk56d0nksWq49J0UyGEeUIicTl4+UBiX1NPX9g=
 cloud.google.com/go v0.30.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
