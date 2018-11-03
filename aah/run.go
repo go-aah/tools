@@ -51,7 +51,7 @@ var runCmd = console.Command{
 		},
 		console.StringFlag{
 			Name:  "config, c",
-			Usage: "External config file for overriding aah.conf values",
+			Usage: "External config `FILE` for adding or overriding 'config/**/*.conf' values",
 		},
 	},
 	Action: runAction,

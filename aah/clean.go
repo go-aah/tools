@@ -57,4 +57,9 @@ func cleanupAutoGenFiles(appBaseDir string) {
 	ess.DeleteFiles(appGeneratedDir)
 	cliLog.Debugf("Cleaning build directory %s", appBuildDir)
 	ess.DeleteFiles(appBuildDir)
+	// for old files cleanup
+	vfsFiles, _ := filepath.Glob(filepath.Join(appBaseDir, "app", "aah_*_vfs.go"))
+	if len(vfsFiles) > 0 {
+		ess.DeleteFiles(vfsFiles...)
+	}
 }
