@@ -133,28 +133,15 @@ func aahProjectCfg(baseDir string) *config.Config {
 	return cfg
 }
 
-func getNonEmptyAbsPath(patha, pathb string) string {
-	v := firstNonEmpty(patha, pathb)
-	if ess.IsStrEmpty(v) {
-		return v
+func absPath(p string) string {
+	if ess.IsStrEmpty(p) {
+		return p
 	}
-
-	configPath, err := filepath.Abs(v)
+	abs, err := filepath.Abs(p)
 	if err != nil {
 		logFatal(err)
 	}
-
-	return configPath
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		v = strings.TrimSpace(v)
-		if len(v) > 0 {
-			return v
-		}
-	}
-	return ""
+	return abs
 }
 
 // getAppVersion method returns the aah application version, which used to display

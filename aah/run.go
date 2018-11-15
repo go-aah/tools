@@ -68,11 +68,11 @@ func runAction(c *console.Context) error {
 	chdirIfRequired(importPath)
 	appStartArgs := []string{"run"}
 
-	configPath := getNonEmptyAbsPath(c.String("c"), c.String("config"))
+	configPath := absPath(c.String("config"))
 	if !ess.IsStrEmpty(configPath) {
 		appStartArgs = append(appStartArgs, "--config", configPath)
 	}
-	envProfile := firstNonEmpty(c.String("e"), c.String("envprofile"))
+	envProfile := c.String("envprofile")
 	appStartArgs = append(appStartArgs, "--envprofile", envProfile)
 
 	app := aah.App()
@@ -88,7 +88,7 @@ func runAction(c *console.Context) error {
 	if projectCfg.BoolDefault("hot_reload.enable", true) && envProfile == "dev" {
 		cliLog.Infof("Hot-Reload enabled for environment profile: %s", envProfile)
 
-		address := firstNonEmpty(app.HTTPAddress(), "")
+		address := app.HTTPAddress()
 		proxyPort := findAvailablePort()
 		scheme := "http"
 		if app.IsSSLEnabled() {

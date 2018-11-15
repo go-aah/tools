@@ -167,16 +167,8 @@ func chr2str(chr string, cnt int) string {
 }
 
 func init() {
-	console.VersionFlag(console.BoolFlag{
-		Name:  "version, v",
-		Usage: "Prints aah, cli, aah and go version",
-	})
-
-	console.HelpFlag(console.BoolFlag{
-		Name:  "help, h",
-		Usage: "Shows aah cli help",
-	})
-
+	console.VersionFlagDesc("Prints aah, cli, aah and go version")
+	console.HelpFlagDesc("Shows aah cli help")
 	console.VersionPrinter(VersionPrinter)
 
 	console.AppHelpTemplate(`Usage:

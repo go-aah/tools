@@ -67,7 +67,7 @@ func buildAction(c *console.Context) error {
 	cliLog.Infof("Build starts for '%s' [%s]", app.Name(), app.ImportPath())
 	cleanupAutoGenFiles(app.BaseDir())
 
-	if c.Bool("s") || c.Bool("single") {
+	if c.Bool("single") {
 		buildSingleBinary(c, projectCfg)
 	} else {
 		buildBinary(c, projectCfg)
@@ -225,7 +225,7 @@ func createZipArchive(buildBaseDir, destArchiveFile string) error {
 
 func createZipArchiveName(c *console.Context, projectCfg *config.Config, appBaseDir, appBinary string) string {
 	var err error
-	outputFile := firstNonEmpty(c.String("o"), c.String("output"))
+	outputFile := c.String("output")
 	archiveName := ess.StripExt(filepath.Base(appBinary)) + "-" + getAppVersion(appBaseDir, projectCfg)
 	archiveName = addTargetBuildInfo(archiveName)
 

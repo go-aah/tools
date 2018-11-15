@@ -85,7 +85,7 @@ func migrateCodeAction(c *console.Context) error {
 	cliLog = initCLILogger(projectCfg)
 
 	cliLog.Warn("Migrate command does not take file backup. Command assumes application use version control.")
-	if c.GlobalBool("y") || c.GlobalBool("yes") {
+	if c.GlobalBool("yes") {
 		fmt.Println("Would you like to continue? [y/N]: y")
 	} else if !collectYesOrNo(reader, "Would you like to continue? [y/N]") {
 		cliLog.Info("Okay, I respect your choice. Bye.")

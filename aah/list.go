@@ -38,7 +38,7 @@ var listCmd = console.Command{
 func listAction(c *console.Context) error {
 	cliLog = initCLILogger(nil)
 
-	scanDir := firstNonEmpty(c.String("s"), c.String("scan"))
+	scanDir := c.String("scan")
 	if len(scanDir) > 0 {
 		if !filepath.IsAbs(scanDir) {
 			logFatal("Absolute directory path required for scanning")

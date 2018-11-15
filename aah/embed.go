@@ -234,8 +234,7 @@ package generated
 import ({{ if .Mode }}
 	"time"{{ end }}
 	
-	"aahframe.work"
-	"aahframe.work/log"{{ if .Mode }}
+	"aahframe.work"{{ if .Mode }}
 	"aahframe.work/vfs"{{ end }}
 )
 
@@ -244,7 +243,7 @@ func init() {
 	{{ if .Mode }}app.VFS().SetEmbeddedMode(){{ end }}
 
 	if err := app.VFS().AddMount("{{ .MountPath }}", "{{ .PhysicalPath }}"); err != nil {
-		log.Fatal("vfs: ", err)
+		app.Log().Fatal("vfs: ", err)
 	}
 {{ end }}
 
@@ -253,7 +252,7 @@ func init() {
   // Find Mount point
   m, err := app.VFS().FindMount("{{ .MountPath }}")
   if err != nil {
-		log.Fatal("vfs: ", err)
+		app.Log().Fatal("vfs: ", err)
 	}
 
 	// Adding directories into VFS

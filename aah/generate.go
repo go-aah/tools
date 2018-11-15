@@ -60,7 +60,7 @@ func generateScriptsAction(c *console.Context) error {
 		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
 	}
 
-	scriptName := strings.TrimSpace(firstNonEmpty(c.String("n"), c.String("name")))
+	scriptName := strings.TrimSpace(c.String("name"))
 	if ess.IsStrEmpty(scriptName) {
 		_ = console.ShowSubcommandHelp(c)
 		return nil
