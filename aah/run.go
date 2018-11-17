@@ -63,10 +63,10 @@ func runAction(c *console.Context) error {
 	}
 	importPath := appImportPath(c)
 	if ess.IsStrEmpty(importPath) {
-		logFatalf("Unable to infer import path, ensure you're in the application base directory")
+		logFatalf("Unable to infer import path, ensure you're in the aah application base directory")
 	}
 	chdirIfRequired(importPath)
-	appStartArgs := []string{"run"}
+	appStartArgs := []string{"run", "--importpath", importPath}
 
 	configPath := absPath(c.String("config"))
 	if !ess.IsStrEmpty(configPath) {
@@ -120,6 +120,7 @@ func runAction(c *console.Context) error {
 	}
 
 	cliLog.Info("Hot-Reload is not enabled, possibly 'hot_reload.enable = false' or environment profile is not 'dev'")
+	cliLog.Warn("DO NOT USE aah CLI for non-development run. Instead use 'aah build' and then run application binary")
 	cleanupAutoGenFiles(app.BaseDir())
 
 	appBinary, err := compileApp(&compileArgs{

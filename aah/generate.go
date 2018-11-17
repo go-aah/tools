@@ -90,7 +90,7 @@ func generateScriptsAction(c *console.Context) error {
 func generateSystemdScript(c *console.Context) error {
 	importPath := appImportPath(c)
 	if ess.IsStrEmpty(importPath) {
-		logFatalf("Unable to infer import path, ensure you're in the application base directory")
+		logFatalf("Unable to infer import path, ensure you're in the aah application base directory")
 	}
 	chdirIfRequired(importPath)
 	app := aah.App()
@@ -133,7 +133,7 @@ func generateSystemdScript(c *console.Context) error {
 func generateDockerScript(c *console.Context) error {
 	importPath := appImportPath(c)
 	if ess.IsStrEmpty(importPath) {
-		logFatalf("Unable to infer import path, ensure you're in the application base directory")
+		logFatalf("Unable to infer import path, ensure you're in the aah application base directory")
 	}
 	app := aah.App()
 	if err := app.InitForCLI(importPath); err != nil {

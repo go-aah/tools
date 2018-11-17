@@ -117,6 +117,7 @@ func main() {
 	app.Commands = []console.Command{
 		newCmd,
 		runCmd,
+		runConsoleCmd,
 		buildCmd,
 		listCmd,
 		cleanCmd,

@@ -31,8 +31,7 @@ var (
 
 	Application templates are kept at '$HOME/.aah/app-templates'.
 
-	Go to https://docs.aahframework.org to learn more and customize your aah application.
-	`,
+	Go to https://docs.aahframework.org to learn more and customize your aah application.`,
 		Action: newAction,
 	}
 

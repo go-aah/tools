@@ -24,8 +24,7 @@ var listCmd = console.Command{
 	Description: `Command 'list' helps you to view all the aah application projects on your System.
 
 	Note: aah CLI is only aware of projects created using 'aah new' otherwise you have to teach 
-	it using 'aah list --scan /base/dir/to/scan/aah-projects'.
-	`,
+	it using 'aah list --scan /base/dir/to/scan/aah-projects'.`,
 	Flags: []console.Flag{
 		console.StringFlag{
 			Name:  "s, scan",
