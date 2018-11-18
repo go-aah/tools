@@ -341,10 +341,12 @@ func (fs *fswatcher) Start() {
 					if e.Op == watcher.Create || e.Op == watcher.Rename || e.Op == watcher.Move {
 						_ = fs.w.Add(e.Path)
 					}
+					cliLog.Trace(e)
 					watch <- true
 				}
 			case err := <-fs.w.Error:
 				if err == watcher.ErrWatchedFileDeleted {
+					cliLog.Trace(err)
 					watch <- true
 				}
 			case <-fs.w.Closed:

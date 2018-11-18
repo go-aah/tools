@@ -146,7 +146,7 @@ func absPath(p string) string {
 
 // getAppVersion method returns the aah application version, which used to display
 // version from compiled bnary
-// 		$ appname version
+// 		$ appname --version
 //
 // Application version value priority are -
 // 		1. Env variable - AAH_APP_VERSION

@@ -96,6 +96,10 @@ func (a *appTmplData) IsAuth(name string) bool {
 	return strings.Contains(a.AuthScheme, name)
 }
 
+func (a *appTmplData) IsBasicAuthFileRealm() bool {
+	return a.BasicAuthMode == basicFileRealm
+}
+
 func (a *appTmplData) checkSubType(t string) bool {
 	for _, v := range a.SubTypes {
 		if v == t {

@@ -6,7 +6,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"go/format"
 	"io"
 	"io/ioutil"
 	"os"
@@ -69,8 +71,8 @@ func newAction(c *console.Context) error {
 	app.Name = filepath.Base(app.BaseDir)
 	app.SessionFileStorePath = filepath.ToSlash(filepath.Join(app.BaseDir, "sessions"))
 
-	if app.BasicAuthMode == basicFileRealm {
-		app.BasicAuthFileRealmPath = filepath.Join(app.BaseDir, "config", "basic-realm.conf")
+	if app.IsBasicAuthFileRealm() {
+		app.BasicAuthFileRealmPath = filepath.Join(app.BaseDir, "config", "basic-auth-realm.conf")
 	} else {
 		app.BasicAuthFileRealmPath = "/path/to/basic-realm.conf"
 	}
@@ -89,8 +91,8 @@ func newAction(c *console.Context) error {
 
 	if app.BasicAuthMode == basicFileRealm {
 		fmt.Println("\nNext step:")
-		fmt.Println("\tCreate basic auth realm file per your application requirements.")
-		fmt.Println("\tRefer to 'https://docs.aahframework.org/authentication.html#basic-auth-file-realm-format' to create basic auth realm file.")
+		fmt.Println("\tSample Basic Auth file-realm have been created at", app.BasicAuthFileRealmPath)
+		fmt.Println("\tRefer to 'https://docs.aahframework.org/auth-schemes/basic.html' and update realm file per your application requirements.")
 	}
 	fmt.Println()
 	return nil
@@ -385,6 +387,13 @@ func createAahApp(appDir string, data map[string]interface{}) error {
 		dst: filepath.Join(appBaseDir, ".gitignore"),
 	})
 
+	if app.IsBasicAuthFileRealm() {
+		files = append(files, file{
+			src: filepath.Join(appTmplBaseDir, "misc", "basic-auth-realm.conf"),
+			dst: app.BasicAuthFileRealmPath,
+		})
+	}
+
 	// source
 	files = append(files, sourceTmplFiles(app, appTmplBaseDir, appBaseDir)...)
 
@@ -513,9 +522,18 @@ func processFile(appBaseDir string, f file, data map[string]interface{}) {
 	// render or write it directly
 	if strings.HasSuffix(f.src, aahTmplExt) {
 		sfbytes, _ := ioutil.ReadAll(sf)
-		if err := renderTmpl(df, string(sfbytes), data); err != nil {
+		var buf bytes.Buffer
+		if err := renderTmpl(&buf, string(sfbytes), data); err != nil {
 			logFatalf("Unable to process file '%s': %s", dst, err)
 		}
+		var err error
+		b := buf.Bytes()
+		if strings.HasSuffix(dst, ".go") {
+			if b, err = format.Source(b); err != nil {
+				logFatalf("aah '%s' file format source error: %s", dst, err)
+			}
+		}
+		_, _ = io.Copy(df, bytes.NewReader(b))
 	} else {
 		_, _ = io.Copy(df, sf)
 	}
