@@ -40,9 +40,7 @@ var migrateCmd = console.Command{
 			Aliases: []string{"c"},
 			Usage:   "Migrates application codebase by making it compatible with current version of aah",
 			Description: `Command code is to fix/upgrade aah's breaking changes and deprecated elements
-  in application codebase to the current version of aah.
-
-  The goal of 'Code' command is to keep aah users always up-to-date with latest version of aah.
+  in the application codebase to the current version of aah incrementally.
 
 	Note: Migrate does not take file backup, assumes application use version control.
 
@@ -59,7 +57,7 @@ func migrateCodeAction(c *console.Context) error {
 	}
 
 	pwd, _ := os.Getwd()
-	createProjectInventory()
+	// createProjectInventory()
 	_ = os.Chdir(pwd)
 
 	grammarFile := filepath.Join(aahPath(), aahGrammarIdentifier)
@@ -94,82 +92,119 @@ func migrateCodeAction(c *console.Context) error {
 
 	cliLog.Info("\nNote:")
 	cliLog.Info("-----")
-	cliLog.Info("Command works based on 'migrate.conf' file. If you identify a new grammar entry, \n" +
-		"create an issue at https://aahframework.org/issues.\n")
-	cliLog.Infof("Migrate starts for '%s' [%s]", app.Name(), app.ImportPath())
+	cliLog.Infof("Command works based on file '%s'.\n"+
+		"If you identify a missing grammar entry, create an issue at https://aahframework.org/issues.\n",
+		grammarFile)
+	cliLog.Infof("Code migration starts for '%s' [%s]", app.Name(), app.ImportPath())
 
 	// Go Source files
-	cliLog.Infof("Go source code migrate starts ...")
+	cliLog.Infof("Go source code migration starts ...")
 	if migrateGoSrcFiles(projectCfg, grammarCfg) == 0 {
 		cliLog.Info("  |-- It seems application Go source code are up-to-date")
 	} else {
-		cliLog.Infof("Go source code migrate successful")
+		cliLog.Infof("Go source code migration successful")
 	}
 
 	// View files
 	if ess.IsFileExists(filepath.Join(app.BaseDir(), "views")) {
-		cliLog.Infof("View file migrate starts ...")
+		cliLog.Infof("View file migration starts ...")
 		if migrateViewFiles(projectCfg, grammarCfg) == 0 {
 			cliLog.Info("  |-- It seems application view files are up-to-date")
 		} else {
-			cliLog.Infof("View file migrate successful")
+			cliLog.Infof("View file migration successful")
 		}
 	}
 
-	cliLog.Infof("Migrate successful for '%s' [%s]\n", app.Name(), app.ImportPath())
+	cliLog.Infof("Code migration successful for '%s' [%s]\n", app.Name(), app.ImportPath())
 	return nil
 }
 
 func migrateGoSrcFiles(projectCfg, grammarCfg *config.Config) int {
 	count := 0
-	grammar, found := grammarCfg.StringList("file.go.upgrade_replacer")
-	if !found {
-		cliLog.Info("Config 'file.go.upgrades_replacer' not found in the grammar file")
+	levelKeys, found := grammarCfg.StringList("file.go.levels")
+	if !found || len(levelKeys) == 0 {
+		cliLog.Errorf("Grammar definitions not found in migration config file")
 		return count
 	}
 
-	fixer := strings.NewReplacer(grammar...)
-	excludes, _ := projectCfg.StringList("build.ast_excludes")
-	files, _ := ess.FilesPathExcludes(filepath.Join(aah.App().BaseDir(), "app"), true, ess.Excludes(excludes))
-	for _, f := range files {
-		if filepath.Ext(f) != ".go" {
+	for _, keyName := range levelKeys {
+		grammar, found := grammarCfg.StringList("file.go." + keyName)
+		if !found {
 			continue
 		}
-		if !migrateFile(f, fixer) {
-			continue
+		cliLog.Infof("Processing %s", strings.Replace(keyName, "_", " ", -1))
+		fixer := strings.NewReplacer(grammar...)
+		excludes, _ := projectCfg.StringList("build.ast_excludes")
+		files, _ := ess.FilesPathExcludes(filepath.Join(aah.App().BaseDir(), "app"), true, ess.Excludes(excludes))
+		for _, f := range files {
+			if filepath.Ext(f) != ".go" {
+				continue
+			}
+			if !migrateFile(f, fixer) {
+				continue
+			}
+			count++
 		}
-		count++
 	}
-
 	return count
 }
 
 func migrateViewFiles(projectCfg, grammarCfg *config.Config) int {
 	count := 0
-	grammar, found := grammarCfg.StringList("file.view.upgrade_replacer")
-	if !found {
-		cliLog.Info("Config 'file.view.upgrades_replacer' not found in the grammar file")
+	levelKeys, found := grammarCfg.StringList("file.view.levels")
+	if !found || len(levelKeys) == 0 {
+		cliLog.Errorf("Grammar definitions not found in migration config file")
 		return count
 	}
 
-	fixer := strings.NewReplacer(grammar...)
-	files, _ := ess.FilesPath(filepath.Join(aah.App().BaseDir(), "views"), true)
-	fileExt := aah.App().Config().StringDefault("view.ext", ".html")
-	for _, f := range files {
-		if filepath.Ext(f) != fileExt {
-			continue
+	app := aah.App()
+	fileExt := app.Config().StringDefault("view.ext", ".html")
+	delimiters := strings.Split(app.Config().StringDefault("view.delimiters", "{{.}}"), ".")
+	for _, keyName := range levelKeys {
+		rules := grammarCfg.KeysByPath("file.view." + keyName)
+		for _, rule := range rules {
+			skipCheckStr := strings.TrimSpace(grammarCfg.StringDefault(
+				fmt.Sprintf("file.view.%s.%s.skip_check", keyName, rule), ""))
+			grammar, found := grammarCfg.StringList(
+				fmt.Sprintf("file.view.%s.%s.grammar", keyName, rule))
+			if !found {
+				continue
+			}
+			for i := 0; i < len(grammar); i++ {
+				grammar[i] = strings.Replace(strings.Replace(grammar[i], "%delim_start%", delimiters[0], -1), "%delim_end%", delimiters[1], -1)
+			}
+			cliLog.Infof("Processing %s", strings.Replace(keyName, "_", " ", -1))
+			files, _ := ess.FilesPath(filepath.Join(app.BaseDir(), "views"), true)
+			fixer := strings.NewReplacer(grammar...)
+			for _, f := range files {
+				if filepath.Ext(f) != fileExt {
+					continue
+				}
+				if len(skipCheckStr) > 0 {
+					b, err := ioutil.ReadFile(f)
+					if err != nil {
+						cliLog.Error(err)
+						continue
+					}
+					if strings.Contains(string(b), skipCheckStr) {
+						continue
+					}
+				}
+				if !migrateFile(f, fixer) {
+					continue
+				}
+				count++
+			}
 		}
-		if !migrateFile(f, fixer) {
-			continue
-		}
-		count++
 	}
-
 	return count
 }
 
 func migrateFile(f string, fixer *strings.Replacer) bool {
-	df := strings.TrimPrefix(filepath.ToSlash(stripGoSrcPath(f)), aah.App().ImportPath()+"/")
+	df := filepath.ToSlash(strings.TrimPrefix(f, aah.App().BaseDir()+"/"))
+	if strings.Index(filepath.ToSlash(aah.App().BaseDir()), "/src/") > 0 {
+		df = strings.TrimPrefix(filepath.ToSlash(stripGoSrcPath(f)), aah.App().ImportPath()+"/")
+	}
 	fileBytes, err := ioutil.ReadFile(f)
 	if err != nil {
 		logError(err)

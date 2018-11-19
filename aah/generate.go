@@ -39,7 +39,7 @@ var generateCmd = console.Command{
 			Description: `Generates complement scripts such as systemd, dockerize, etc.
 
 	Example of script command:
-		aah generate script --name systemd --importpath github.com/user/appname`,
+		aah generate script --name systemd`,
 			Flags: []console.Flag{
 				console.StringFlag{
 					Name:  "name, n",
@@ -103,21 +103,22 @@ func generateSystemdScript(c *console.Context) error {
 
 	cliLog.Infof("Loaded aah project file: %s\n", filepath.Join(app.BaseDir(), aahProjectIdentifier))
 
-	fileName := fmt.Sprintf("%s.service", app.Name())
+	appName := strings.ToLower(projectCfg.StringDefault("name", app.Name()))
+	fileName := fmt.Sprintf("%s.service", appName)
 	destFile := filepath.Join(app.BaseDir(), fileName)
 	if checkAndConfirmOverwrite(c, destFile) {
 		return nil
 	}
 
 	data := map[string]interface{}{
-		"AppName":    app.Name(),
+		"AppName":    appName,
 		"FileName":   fileName,
 		"CreateDate": time.Now().Format(time.RFC1123Z),
-		"Desc":       fmt.Sprintf("%s application", app.Name()),
+		"Desc":       fmt.Sprintf("%s application", appName),
 	}
 
-	buf := &bytes.Buffer{}
-	if err := renderTmpl(buf, aahSystemdScriptTemplate, data); err != nil {
+	var buf bytes.Buffer
+	if err := renderTmpl(&buf, aahSystemdScriptTemplate, data); err != nil {
 		return fmt.Errorf("Unable to create systemd service file: %s", err)
 	}
 	if err := ioutil.WriteFile(destFile, buf.Bytes(), permRWXRXRX); err != nil {
@@ -161,8 +162,10 @@ func generateDockerScript(c *console.Context) error {
 		codeVersion = "edge"
 	}
 
+	appName := strings.ToLower(projectCfg.StringDefault("name", app.Name()))
+
 	devData := map[string]interface{}{
-		"AppName":       app.Name(),
+		"AppName":       appName,
 		"AppImportPath": app.ImportPath(),
 		"FileName":      devFileName,
 		"CreateDate":    time.Now().Format(time.RFC1123Z),
@@ -170,7 +173,7 @@ func generateDockerScript(c *console.Context) error {
 	}
 
 	prodData := map[string]interface{}{
-		"AppName":       app.Name(),
+		"AppName":       appName,
 		"AppImportPath": app.ImportPath(),
 		"FileName":      prodFileName,
 		"CreateDate":    time.Now().Format(time.RFC1123Z),
@@ -204,7 +207,7 @@ func generateDockerScript(c *console.Context) error {
 func checkAndConfirmOverwrite(c *console.Context, destFile string) bool {
 	if ess.IsFileExists(destFile) {
 		cliLog.Warnf("File: %s already exists, it will be overwritten.", destFile)
-		if c.GlobalBool("y") || c.GlobalBool("yes") {
+		if c.GlobalBool("yes") {
 			fmt.Println("\nWould you like to continue? [y/N]: y")
 			return true
 		}
@@ -302,7 +305,7 @@ WORKDIR $AAH_APP_DIR
 RUN aah build --output build/{{ .AppName }}.zip
 
 #
-# Stage 2 : Production Image - It creates very small docker image
+# Stage 2 : Production Image - It creates tiny docker image
 #
 FROM alpine:latest
 RUN apk update && \
