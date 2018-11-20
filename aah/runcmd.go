@@ -46,7 +46,7 @@ func runConsoleCmdAction(c *console.Context) error {
 	}
 	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
-	checkAndGenerateInitgoFile(importPath, app.BaseDir())
+	checkAndGenerateInitgoFile(importPath, app.BaseDir(), app.Config())
 	cliLog.Infof("Loaded aah project file: %s", filepath.Join(app.BaseDir(), aahProjectIdentifier))
 
 	cleanupAutoGenFiles(app.BaseDir())

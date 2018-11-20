@@ -81,7 +81,7 @@ func runAction(c *console.Context) error {
 	}
 	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
-	checkAndGenerateInitgoFile(importPath, app.BaseDir())
+	checkAndGenerateInitgoFile(importPath, app.BaseDir(), app.Config())
 	cliLog.Infof("Loaded aah project file: %s", filepath.Join(app.BaseDir(), aahProjectIdentifier))
 
 	// Hot-Reload is applicable only to `dev` environment profile.

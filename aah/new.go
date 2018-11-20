@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframe.work"
 	"aahframe.work/console"
 	"aahframe.work/essentials"
 )
@@ -518,6 +517,7 @@ func processFile(appBaseDir string, f file, data map[string]interface{}) {
 	// open src and create dst
 	sf, _ := os.Open(f.src)
 	df, _ := os.Create(dst)
+	defer ess.CloseQuietly(df, sf)
 
 	// render or write it directly
 	if strings.HasSuffix(f.src, aahTmplExt) {
@@ -539,40 +539,11 @@ func processFile(appBaseDir string, f file, data map[string]interface{}) {
 	}
 
 	_ = ess.ApplyFileMode(dst, permRWRWRW)
-	ess.CloseQuietly(sf, df)
 }
 
 func isAuthSchemeSupported(authScheme string) bool {
 	return ess.IsStrEmpty(authScheme) || authScheme == authForm || authScheme == authBasic ||
 		authScheme == authGeneric || authScheme == authNone
-}
-
-func checkAndGenerateInitgoFile(importPath, baseDir string) {
-	initGoFile := filepath.Join(baseDir, "app", "init.go")
-	if !ess.IsFileExists(initGoFile) {
-		cliLog.Warn("***** In aah v0.10 'init.go' file introduced to evolve aah framework." +
-			" Since its not found, generating 'init.go' file. Please add 'init.go' into VCS. *****\n")
-
-		appTmplBaseDir := inferAppTmplBaseDir()
-		if ess.IsStrEmpty(appTmplBaseDir) {
-			logFatal("Unable to find aah app template at $HOME/.aah/app-templates")
-		}
-		appType := typeAPI
-		if ess.IsFileExists(filepath.Join(baseDir, "views")) {
-			appType = typeWeb
-		}
-		data := map[string]interface{}{
-			"App": &appTmplData{
-				Type:       appType,
-				ViewEngine: aah.App().Config().StringDefault("view.engine", "go"),
-			},
-		}
-
-		processFile(baseDir, file{
-			src: filepath.Join(appTmplBaseDir, "app", "init.go.atmpl"),
-			dst: filepath.Join(baseDir, "app", "init.go"),
-		}, data)
-	}
 }
 
 const templateBranchName = "0.12.x"

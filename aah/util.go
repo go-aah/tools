@@ -350,6 +350,10 @@ func stripGoSrcPath(pkgFilePath string) string {
 	return filepath.Clean(pkgFilePath[idx+4:])
 }
 
+func isInGoPath(p string) bool  {
+	return strings.Index(filepath.ToSlash(p), "/src/") > 0
+}
+
 func libDependencyImports(importPath string) []string {
 	args := []string{"list", "-f", "{{.Imports}}", importPath}
 	output, err := execCmd(gocmd, args, false)

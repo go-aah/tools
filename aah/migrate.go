@@ -78,8 +78,9 @@ func migrateCodeAction(c *console.Context) error {
 	if err := app.InitForCLI(importPath); err != nil {
 		logFatal(err)
 	}
-	projectCfg := aahProjectCfg(app.BaseDir())
-	cliLog.Info("Loaded aah project file: ", filepath.Join(app.BaseDir(), aahProjectIdentifier))
+	appBaseDir := app.BaseDir()
+	projectCfg := aahProjectCfg(appBaseDir)
+	cliLog.Info("Loaded aah project file: ", filepath.Join(appBaseDir, aahProjectIdentifier))
 	cliLog = initCLILogger(projectCfg)
 
 	cliLog.Warn("Migrate command does not take file backup. Command assumes application use version control.")
@@ -115,7 +116,64 @@ func migrateCodeAction(c *console.Context) error {
 		}
 	}
 
+	// .gitignore
+	if ess.IsFileExists(".gitignore") {
+		gitIgnore, err := ioutil.ReadFile(".gitignore")
+		if err != nil {
+			cliLog.Error("Unable to read .gitignore file, so no auto migration. Please do it manually.")
+		} else {
+			gitIgnoreStr := string(gitIgnore)
+			replaceSet := []string{"build/"} // will be updated to "# aah application - end"
+			for _, entry := range []string{
+				"aah_*_vfs.go", "app/generated", "vendor/*/", "# aah application - end",
+			} {
+				if !strings.Contains(gitIgnoreStr, entry) {
+					replaceSet = append(replaceSet, entry)
+				}
+			}
+			if len(replaceSet) == 0 {
+				cliLog.Info("It seems file '.gitignore' are up-to-date")
+			} else {
+				cliLog.Info("Updating file '.gitignore' ...")
+				fixer := strings.NewReplacer("build/", strings.Join(replaceSet, "\n"))
+				gitIgnore = []byte(fixer.Replace(gitIgnoreStr))
+				if err = ioutil.WriteFile(".gitignore", gitIgnore, permRWXRXRX); err != nil {
+					cliLog.Error(err)
+				}
+			}
+		}
+	}
+
+	// go mod
+	aahBasePath := aahPath()
+	appTmplBaseDir := inferAppTmplBaseDir()
+	if ess.IsStrEmpty(appTmplBaseDir) {
+		logFatalf("Unable to find aah app template at %s/.aah/app-templates", aahBasePath)
+	}
+	cliLog.Infof("Creating file 'go.mod' for %s ...", app.Name())
+	if ess.IsFileExists("go.mod") {
+		cliLog.Info("File 'go.mod' already exists")
+		// TODO To be uncomment in next release
+		// if _, err = execCmd(gocmd, []string{"get", "aahframe.work@latest"}, false); err != nil {
+		// 	logError(err)
+		// }
+	} else {
+		modImportPath := filepath.Base(app.ImportPath())
+		if isInGoPath(appBaseDir) {
+			modImportPath = filepath.ToSlash(stripGoSrcPath(appBaseDir))
+		} else {
+			cliLog.Warn("Please check the file 'go.mod' and update your application import path.")
+		}
+		processFile(appBaseDir, file{
+			src: filepath.Join(appTmplBaseDir, "go.mod.atmpl"),
+			dst: filepath.Join(appBaseDir, "go.mod.atmpl"),
+		}, map[string]interface{}{
+			"App": appTmplData{ImportPath: modImportPath},
+		})
+	}
+
 	cliLog.Infof("Code migration successful for '%s' [%s]\n", app.Name(), app.ImportPath())
+	cliLog.Warn("PLEASE MOVE YOUR aah PROJECT OUTSIDE THE 'GOPATH'.")
 	return nil
 }
 
@@ -202,7 +260,7 @@ func migrateViewFiles(projectCfg, grammarCfg *config.Config) int {
 
 func migrateFile(f string, fixer *strings.Replacer) bool {
 	df := filepath.ToSlash(strings.TrimPrefix(f, aah.App().BaseDir()+"/"))
-	if strings.Index(filepath.ToSlash(aah.App().BaseDir()), "/src/") > 0 {
+	if isInGoPath(aah.App().BaseDir()) {
 		df = strings.TrimPrefix(filepath.ToSlash(stripGoSrcPath(f)), aah.App().ImportPath()+"/")
 	}
 	fileBytes, err := ioutil.ReadFile(f)
@@ -242,4 +300,32 @@ func migrateFile(f string, fixer *strings.Replacer) bool {
 	}
 
 	return true
+}
+
+func checkAndGenerateInitgoFile(importPath, baseDir string, appCfg *config.Config) {
+	initGoFile := filepath.Join(baseDir, "app", "init.go")
+	if !ess.IsFileExists(initGoFile) {
+		cliLog.Warn("***** In aah v0.10 'init.go' file introduced to evolve aah framework." +
+			" Since its not found, generating 'init.go' file. Please add 'init.go' into VCS. *****\n")
+
+		appTmplBaseDir := inferAppTmplBaseDir()
+		if ess.IsStrEmpty(appTmplBaseDir) {
+			logFatalf("Unable to find aah app template at %s/.aah/app-templates", aahPath())
+		}
+		appType := typeAPI
+		if ess.IsFileExists(filepath.Join(baseDir, "views")) {
+			appType = typeWeb
+		}
+		data := map[string]interface{}{
+			"App": &appTmplData{
+				Type:       appType,
+				ViewEngine: appCfg.StringDefault("view.engine", "go"),
+			},
+		}
+
+		processFile(baseDir, file{
+			src: filepath.Join(appTmplBaseDir, "app", "init.go.atmpl"),
+			dst: filepath.Join(baseDir, "app", "init.go"),
+		}, data)
+	}
 }
