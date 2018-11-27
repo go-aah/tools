@@ -38,12 +38,13 @@ var generateCmd = console.Command{
 			Usage:   "Generates complement scripts such as systemd, dockerize, etc.",
 			Description: `Generates complement scripts such as systemd, dockerize, etc.
 
-	Example of script command:
-		aah generate script --name systemd`,
+	Examples:
+		aah generate script --target systemd
+		aah generate script --target docker`,
 			Flags: []console.Flag{
 				console.StringFlag{
-					Name:  "name, n",
-					Usage: "Provide script name such as 'systemd', 'docker', etc",
+					Name:  "target, t",
+					Usage: "Provide script target such as 'systemd', 'docker', etc",
 				},
 			},
 			Action: generateScriptsAction,
