@@ -154,7 +154,6 @@ func migrateCodeAction(c *console.Context) error {
 	if ess.IsFileExists("go.mod") {
 		cliLog.Info("File 'go.mod' already exists, so let's update it")
 		aahLibImports, found := grammarCfg.StringList("file.go.official_modules")
-		fmt.Println("aahLibImports", aahLibImports)
 		if found {
 			goModBytes, err := ioutil.ReadFile("go.mod")
 			if err != nil {
@@ -176,11 +175,15 @@ func migrateCodeAction(c *console.Context) error {
 		} else {
 			cliLog.Warn("Please check the file 'go.mod' and update your application import path.")
 		}
+		data := appTmplData{ImportPath: modImportPath}
+		if ess.IsFileExists("views") {
+			data.Type = typeWeb
+		}
 		processFile(appBaseDir, file{
 			src: filepath.Join(appTmplBaseDir, "go.mod.atmpl"),
 			dst: filepath.Join(appBaseDir, "go.mod.atmpl"),
 		}, map[string]interface{}{
-			"App": appTmplData{ImportPath: modImportPath},
+			"App": data,
 		})
 	}
 
