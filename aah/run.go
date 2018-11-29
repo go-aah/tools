@@ -120,7 +120,7 @@ func runAction(c *console.Context) error {
 	}
 
 	cliLog.Info("Hot-Reload is not enabled, possibly 'hot_reload.enable = false' or environment profile is not 'dev'")
-	cliLog.Warn("DO NOT USE aah CLI for non-development run. Instead use 'aah build' and then run application binary")
+	cliLog.Warn("DO NOT USE aah CLI for non-development run. Instead use 'aah build' and then run binary from build artifact")
 	cleanupAutoGenFiles(app.BaseDir())
 
 	appBinary, err := compileApp(&compileArgs{

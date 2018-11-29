@@ -37,7 +37,6 @@ func VersionPrinter(c *console.Context) {
 	if goVer := goVersion(); len(goVer) > 0 {
 		fmt.Printf("%-3s v%s\n", "go", goVer)
 	}
-	fmt.Println()
 }
 
 func aahVersion(c *console.Context) (string, error) {

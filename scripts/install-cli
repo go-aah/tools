@@ -14,7 +14,7 @@
 #	OR
 #	$ wget -qO- https://aahframework.org/install-cli | bash
 #
-# Credits: This inspired by Caddy server and Glide installer.
+# Credits: This script inspired by Caddy server and Glide installer.
 
 trap "exit 1" TERM
 set -e
@@ -27,8 +27,6 @@ quit() {
 	echo -e $1
 	exit 1
 }
-
-cli_version="$1"
 
 fetch() {
 	local url="$2"
@@ -62,32 +60,7 @@ download() {
     echo "$httpStatusCode"
 }
 
-# Verify Go installation and Check GOPATH environment variable is set
-go_cmd=$(which go)
-if [ "$?" = "1" ]; then
-    quit "Go is not installed, aah CLI requires Go. Please install it."
-fi
-if [ -z "$GOPATH" ]; then
-    go_path=$(go env GOPATH)
-    if [ ! -d "$go_path" ]; then
-        say "GOPATH \"$go_path\" is not exists, creating one."
-        mkdir -p "$go_path"
-    fi
-fi
-if [ ! -d "$go_path/bin" ]; then
-    say "GOBIN \"$go_path/bin\" is not exists, creating one. Please add it to PATH."
-    mkdir -p "$go_path/bin"
-fi
-go_bin_dir="$go_path/bin"
-
-# Infer download command
-if type -p curl >/dev/null 2>&1; then
-    download_cmd="curl"
-elif type -p wget >/dev/null 2>&1; then
-    download_cmd="wget"
-else
-    quit "Installation aborted, unable to find 'curl' or 'wget'"
-fi
+cli_version="$1"
 
 # Infer target arch 
 target_arch=$(uname -m)
@@ -105,13 +78,42 @@ case "$target_os" in
     msys*) target_os='windows';;
 esac
 
-say "Starting aah CLI installer for $target_os/$target_arch ..."
+say "Starting aah CLI installer for $target_os/$target_arch"
+
+# Verify Go installation and Check GOPATH environment variable is set
+go_cmd=$(which go)
+if [ "$?" = "1" ]; then
+    quit "Go is not installed, aah CLI requires Go. Please install it"
+fi
+if [ -z "$GOPATH" ]; then
+    go_path=$(go env GOPATH)
+    if [ ! -d "$go_path" ]; then
+        say "GOPATH \"$go_path\" is not exists, creating one"
+        mkdir -p "$go_path"
+    fi
+fi
+if [ ! -d "$go_path/bin" ]; then
+    say "GOBIN \"$go_path/bin\" is not exists, creating one. Please add it to PATH"
+    mkdir -p "$go_path/bin"
+fi
+go_bin_dir="$go_path/bin"
+go_bin_dir="${go_bin_dir//\\//}"
+
+# Infer download command
+if type -p curl >/dev/null 2>&1; then
+    download_cmd="curl"
+elif type -p wget >/dev/null 2>&1; then
+    download_cmd="wget"
+else
+    quit "Installation aborted, unable to find 'curl' or 'wget'"
+fi
 
 # Fetch latest version no and Download aah CLI binary
 if [ -z "$cli_version" ]; then
-    echo "getting version info from server"
+    say "Fetch latest aah CLI version info from https://aahframework.org/version-cli"
     fetch cli_version https://aahframework.org/version-cli
 fi
+say "Resolve aah CLI release artifact for $cli_version"
 cli_release=aah-$cli_version-$target_os-$target_arch
 cli_file_name="$cli_release.zip"
 cli_tmp_file="/tmp/$cli_file_name"
@@ -120,9 +122,9 @@ rm -rf $cli_tmp_file
 say "Downloading $cli_download_uri"
 status_code=$(download "$cli_download_uri" "$cli_tmp_file")
 if [ "$status_code" -ne 200 ]; then
-    say "Unable to find aah CLI release $cli_version for your system $target_os/$target_arch."
+    say "Unable to find aah CLI release $cli_version for your system $target_os/$target_arch"
     say "Note: aah CLI binary distribution available since CLI v0.13.0"
-    quit "Please create an issue here https://aahframework.org/issues to add support."
+    quit "Please create an issue here https://aahframework.org/issues to add support"
 fi
 
 # Install the aah CLI into GOPATH/bin
@@ -138,7 +140,6 @@ say "Installing aah CLI into $go_bin_dir/"
 rm -rf "$go_bin_dir/aah"
 cp "$cli_extract_tmp_dir/aah" $go_bin_dir/
 rm -rf $cli_tmp_file $cli_extract_tmp_dir
-
+say "Congrats, aah CLI installed successfully"
 say "Running aah --version"
 aah --version
-say "Congrats, aah CLI installed successfully."
