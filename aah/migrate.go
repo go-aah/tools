@@ -145,18 +145,30 @@ func migrateCodeAction(c *console.Context) error {
 	}
 
 	// go mod
-	aahBasePath := aahPath()
+	aahBasePath := filepath.ToSlash(aahPath())
 	appTmplBaseDir := inferAppTmplBaseDir()
 	if ess.IsStrEmpty(appTmplBaseDir) {
 		logFatalf("Unable to find aah app template at %s/.aah/app-templates", aahBasePath)
 	}
 	cliLog.Infof("Creating file 'go.mod' for %s ...", app.Name())
 	if ess.IsFileExists("go.mod") {
-		cliLog.Info("File 'go.mod' already exists")
-		// TODO To be uncomment in next release
-		// if _, err = execCmd(gocmd, []string{"get", "aahframe.work@latest"}, false); err != nil {
-		// 	logError(err)
-		// }
+		cliLog.Info("File 'go.mod' already exists, so let's update it")
+		aahLibImports, found := grammarCfg.StringList("file.go.official_modules")
+		fmt.Println("aahLibImports", aahLibImports)
+		if found {
+			goModBytes, err := ioutil.ReadFile("go.mod")
+			if err != nil {
+				logFatal(err)
+			}
+			for _, imp := range aahLibImports {
+				// if go.mod file contains import path then update it
+				if bytes.Contains(goModBytes, []byte(imp+" v")) {
+					if _, err = execCmd(gocmd, []string{"get", imp + "@latest"}, false); err != nil {
+						logError(err)
+					}
+				}
+			}
+		}
 	} else {
 		modImportPath := filepath.Base(app.ImportPath())
 		if isInGoPath(appBaseDir) {
