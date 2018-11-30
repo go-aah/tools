@@ -61,9 +61,24 @@ func migrateCodeAction(c *console.Context) error {
 	_ = os.Chdir(pwd)
 
 	grammarFile := filepath.Join(aahPath(), aahGrammarIdentifier)
-	if !ess.IsFileExists(grammarFile) {
-		cliLog.Info("Fetching migrate configuration: ", aahGrammarFetchLoc)
-		if err := fetchFile(grammarFile, aahGrammarFetchLoc); err != nil {
+	if ess.IsFileExists(grammarFile) {
+		cliLog.Info("Refreshing migrate configuration from ", aahGrammarFetchLoc)
+		fb, err := fetchURL(aahGrammarFetchLoc)
+		if err == nil && fb.Len() > 0 {
+			if err = ioutil.WriteFile(grammarFile, fb.Bytes(), permRWXRXRX); err == nil {
+				cliLog.Info("Migrate configuration refreshed successfully")
+			}
+		} else {
+			cliLog.Warnf("Unable to refresh migration configuration, error: %s", err)
+			cliLog.Infof("Let's use the locally available config %s", grammarFile)
+		}
+	} else {
+		cliLog.Info("Fetching migrate configuration from ", aahGrammarFetchLoc)
+		fb, err := fetchURL(aahGrammarFetchLoc); 
+		if err != nil {
+			logFatal(err)
+		}
+		if err = ioutil.WriteFile(grammarFile, fb.Bytes(), permRWXRXRX); err != nil {
 			logFatal(err)
 		}
 	}
@@ -79,6 +94,7 @@ func migrateCodeAction(c *console.Context) error {
 		logFatal(err)
 	}
 	appBaseDir := app.BaseDir()
+	projectIsInGoPath := isInGoPath(appBaseDir)
 	projectCfg := aahProjectCfg(appBaseDir)
 	cliLog.Info("Loaded aah project file: ", filepath.Join(appBaseDir, aahProjectIdentifier))
 	cliLog = initCLILogger(projectCfg)
@@ -170,12 +186,12 @@ func migrateCodeAction(c *console.Context) error {
 		}
 	} else {
 		modImportPath := filepath.Base(app.ImportPath())
-		if isInGoPath(appBaseDir) {
+		if projectIsInGoPath {
 			modImportPath = filepath.ToSlash(stripGoSrcPath(appBaseDir))
 		} else {
 			cliLog.Warn("Please check the file 'go.mod' and update your application import path.")
 		}
-		data := appTmplData{ImportPath: modImportPath}
+		data := &appTmplData{ImportPath: modImportPath}
 		if ess.IsFileExists("views") {
 			data.Type = typeWeb
 		}
@@ -188,7 +204,10 @@ func migrateCodeAction(c *console.Context) error {
 	}
 
 	cliLog.Infof("Code migration successful for '%s' [%s]\n", app.Name(), app.ImportPath())
-	cliLog.Warn("PLEASE MOVE YOUR aah PROJECT OUTSIDE THE 'GOPATH'.")
+	if projectIsInGoPath {
+		cliLog.Warn("PLEASE MOVE YOUR aah PROJECT OUTSIDE THE 'GOPATH'.")
+	}
+	cliLog.Warn("REVIEW YOUR APPLICATION CHANGES, VERIFY AND COMMIT IT.")
 	return nil
 }
 

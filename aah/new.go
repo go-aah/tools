@@ -71,7 +71,7 @@ func newAction(c *console.Context) error {
 	app.SessionFileStorePath = filepath.ToSlash(filepath.Join(app.BaseDir, "sessions"))
 
 	if app.IsBasicAuthFileRealm() {
-		app.BasicAuthFileRealmPath = filepath.Join(app.BaseDir, "config", "basic-auth-realm.conf")
+		app.BasicAuthFileRealmPath = filepath.ToSlash(filepath.Join(app.BaseDir, "config", "basic-auth-realm.conf"))
 	} else {
 		app.BasicAuthFileRealmPath = "/path/to/basic-realm.conf"
 	}

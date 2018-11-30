@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"bufio"
 	"encoding/json"
 	"fmt"
@@ -483,20 +484,13 @@ func goCmdName() string {
 	return "go"
 }
 
-func fetchFile(dst, src string) error {
-	resp, err := http.Get(src)
+func fetchURL(srcURL string) (*bytes.Buffer, error) {
+	resp, err := http.Get(srcURL)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer ess.CloseQuietly(resp.Body)
-
-	_ = ess.MkDirAll(filepath.Dir(dst), permRWXRXRX)
-	f, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer ess.CloseQuietly(f)
-
-	_, err = io.Copy(f, resp.Body)
-	return err
+	var b bytes.Buffer	
+	_, err = io.Copy(&b, resp.Body)
+	return &b, err
 }
