@@ -35,6 +35,7 @@ else
 fi
 cli_version=${cli_version#"v"}
 cli_import_path=aahframe.work/cli/aah
+cli_git_commit_sha=$TRAVIS_COMMIT
 
 build() {
     say "Starting aah CLI binary cross-platform builds for v$cli_version ..."
@@ -51,7 +52,7 @@ build() {
         mkdir -p $build_dir
         output="$cli_name"
         if [[ "$goos" == "windows" ]]; then output="$output.exe"; fi
-        cmd="GOOS=$goos GOARCH=$goarch go build -o $build_dir/$output -ldflags=\"-s -w -X main.Version=$cli_version -X main.CliPackaged=true -X main.CliOS=$goos -X main.CliArch=$goarch\" $cli_import_path"
+        cmd="GOOS=$goos GOARCH=$goarch go build -o $build_dir/$output -ldflags=\"-s -w -X main.Version=$cli_version -X main.CliCommitID=$cli_git_commit_sha -X main.CliPackaged=true -X main.CliOS=$goos -X main.CliArch=$goarch\" $cli_import_path"
         say "Running $cmd"
         eval $cmd || errors="$errors $platform"
     done
@@ -70,6 +71,7 @@ build() {
 checksum_file="$build_base_dir/sha256-checksum.txt"
 archive_checksum() {
     say "\nStarting aah CLI binary zip archive and checksum generations ..."
+    rm -f $checksum_file
     for file in $build_base_dir/*/ ; do 
         if [[ -d "$file" && ! -L "$file" ]]; then
             archive_name=$(basename -- "$file")
@@ -78,7 +80,7 @@ archive_checksum() {
             cp $repo_base_path/LICENSE "$file/LICENSE.txt"
             zip -q -r -j $archive_dir/$archive_name.zip $file
             sha256=$(sha256sum $archive_dir/$archive_name.zip | cut -d " " -f 1)
-            echo "$sha256 $archive_name" >> $checksum_file
+            echo "$sha256 $archive_name.zip" >> $checksum_file
         fi; 
     done
     cat $checksum_file

@@ -39,6 +39,9 @@ var (
 	// cli logger
 	cliLog *log.Logger
 
+	// CliCommitID is the build git commit sha
+	CliCommitID string
+
 	// CliPackaged is to identify cli from go get or binary dist
 	CliPackaged string
 
@@ -130,6 +133,10 @@ func main() {
 		console.BoolFlag{
 			Name:  "yes, y",
 			Usage: `Automatic yes to prompts. Assume "yes" as answer to all prompts and run non-interactively`,
+		},
+		console.BoolFlag{
+			Name:  "buildinfo, b",
+			Usage: `Build info flag works with version flag to display git commit sha, os and arch`,
 		},
 	}
 

@@ -37,6 +37,11 @@ func VersionPrinter(c *console.Context) {
 	if goVer := goVersion(); len(goVer) > 0 {
 		fmt.Printf("%-3s v%s\n", "go", goVer)
 	}
+	if c.GlobalBool("buildinfo") {
+		if len(CliCommitID) > 0 {
+			fmt.Printf("commit sha %s (%s/%s)\n", CliCommitID, CliOS, CliArch)
+		}
+	}
 }
 
 func aahVersion(c *console.Context) (string, error) {
