@@ -1,20 +1,27 @@
 #!/usr/bin/env bash
 
-# Creator: Jeevanandam M. (https://github.com/jeevatkm, jeeva@myjeeva.com)
+# Purpose       : Script installs aah CLI into 'GOPATH/bin' based OS and ARCH. 
+#                 It should work on macOS, Linux, Unix systems and 
+#                 on Windows with msys and mingw.
 # Script License: Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+# Creator       : Jeevanandam M. (https://github.com/jeevatkm, jeeva@myjeeva.com)
+# Requires      : bash, mkdir, cp, rm, curl/wget, sed/awk, tr, type, unzip, mktemp
+# Credits       : This script inspired by Caddy server and Glide installer.
+#
+# Version History
+# ---------------
+#   v1.0.0      Initial install aah CLI script created for CLI v0.13.0 release
 #
 # Report an bugs/improvements at https://aahframework.org/issues
-# Requires: bash, mkdir, cp, rm, curl/wget, sed/awk, tr, type, unzip, mktemp
-#
-# Script install the aah CLI into 'GOPATH/bin'. It should work on
-# macOS, Linux, Unix systems and on Windows with msys and mingw.
 #
 # Usage:
 #	$ curl -s https://aahframework.org/install-cli | bash
 #	OR
 #	$ wget -qO- https://aahframework.org/install-cli | bash
-#
-# Credits: This script inspired by Caddy server and Glide installer.
+#	OR
+#	$ curl -s https://aahframework.org/install-cli | bash -s v0.13.0
+#	OR
+#	$ wget -qO- https://aahframework.org/install-cli | bash -s v0.13.0
 
 trap "exit 1" TERM
 set -e

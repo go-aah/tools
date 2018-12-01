@@ -243,7 +243,7 @@ func init() {
 	{{ if .Mode }}app.VFS().SetEmbeddedMode(){{ end }}
 
 	if err := app.VFS().AddMount("{{ .MountPath }}", "{{ .PhysicalPath }}"); err != nil {
-		app.Log().Fatal("vfs: ", err)
+		app.Log().Fatal(err)
 	}
 {{ end }}
 
@@ -252,7 +252,7 @@ func init() {
   // Find Mount point
   m, err := app.VFS().FindMount("{{ .MountPath }}")
   if err != nil {
-		app.Log().Fatal("vfs: ", err)
+		app.Log().Fatal(err)
 	}
 
 	// Adding directories into VFS

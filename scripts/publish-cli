@@ -1,10 +1,24 @@
 #!/usr/bin/env bash
 
-# Creator: Jeevanandam M. (https://github.com/jeevatkm, jeeva@myjeeva.com)
+# Purpose       : Script builds aah CLI for various OS and ARCH and publishes to GitHub Release
 # Script License: Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+# Creator       : Jeevanandam M. (https://github.com/jeevatkm, jeeva@myjeeva.com)
+#
+# Version History
+# ---------------
+#   v1.0.0      Initial publish aah CLI script created for CLI v0.13.0 release
+#
+# Usage:
+#	$ curl -s https://aahframework.org/publish-cli | bash
+#	OR
+#	$ wget -qO- https://aahframework.org/publish-cli | bash
 
 trap "exit 1" TERM
 set -e
+
+say() {
+    echo -e $1
+}
 
 repo_base_path=$TRAVIS_BUILD_DIR
 if [ -z "$repo_base_path" ]; then
@@ -14,12 +28,13 @@ fi
 
 build_base_dir=$repo_base_path/artifacts
 cli_name=aah
-cli_version=$(cat $repo_base_path/aah/version.go | grep -oP "([0-9]+([.][0-9]+)+(\-edge|\-beta)?)")
+if [ -z "$TRAVIS_TAG" ]; then
+    cli_version=$(cat $repo_base_path/aah/version.go | grep -oP "([0-9]+([.][0-9]+)+(\-edge|\-beta)?)")
+else
+    cli_version=$TRAVIS_TAG
+fi
+cli_version=${cli_version#"v"}
 cli_import_path=aahframe.work/cli/aah
-
-say() {
-    echo -e $1
-}
 
 build() {
     say "Starting aah CLI binary cross-platform builds for v$cli_version ..."
@@ -36,7 +51,7 @@ build() {
         mkdir -p $build_dir
         output="$cli_name"
         if [[ "$goos" == "windows" ]]; then output="$output.exe"; fi
-        cmd="GOOS=$goos GOARCH=$goarch go build -o $build_dir/$output -ldflags=\"-s -w -X main.CliPackaged=true -X main.CliOS=$goos -X main.CliArch=$goarch\" $cli_import_path"
+        cmd="GOOS=$goos GOARCH=$goarch go build -o $build_dir/$output -ldflags=\"-s -w -X main.Version=$cli_version -X main.CliPackaged=true -X main.CliOS=$goos -X main.CliArch=$goarch\" $cli_import_path"
         say "Running $cmd"
         eval $cmd || errors="$errors $platform"
     done
@@ -87,13 +102,13 @@ upload() {
     for file in $build_base_dir/*.zip; do
         filename=$(basename -- "$file")
         say "Uploading $filename"
-        github-release upload --user go-aah --repo tools --tag "v$cli_version" --name $filename --file $file
+        github-release upload --replace --user go-aah --repo tools --tag "v$cli_version" --name $filename --file $file
     done
     say "Finished aah CLI zip archives upload into GitHub Release."
 
     checksum_filename=$(basename -- "$checksum_file")
     say "\nUploading $checksum_filename"
-    github-release upload --user go-aah --repo tools --tag "v$cli_version" --name $checksum_filename --file $checksum_file
+    github-release upload --replace --user go-aah --repo tools --tag "v$cli_version" --name $checksum_filename --file $checksum_file
 }
 
 build

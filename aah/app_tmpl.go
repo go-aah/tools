@@ -7,6 +7,7 @@ package main
 import (
 	"strings"
 	"text/template"
+	"time"
 
 	"aahframe.work/essentials"
 )
@@ -98,6 +99,10 @@ func (a *appTmplData) IsAuth(name string) bool {
 
 func (a *appTmplData) IsBasicAuthFileRealm() bool {
 	return a.BasicAuthMode == basicFileRealm
+}
+
+func (a *appTmplData) CurrentYear() string {
+	return time.Now().Format("2006")
 }
 
 func (a *appTmplData) checkSubType(t string) bool {
