@@ -1,0 +1,11 @@
+This license file contains the 3rd party libraries DIRECTLY used for aah CLI library.
+
+MIT License Libraries
+---------------------
+    - aahframe.work
+    - github.com/stretchr/testify
+
+BSD 3-Clause License Libraries
+------------------------------
+    - github.com/radovskyb/watcher
+
