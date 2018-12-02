@@ -18,11 +18,11 @@ import (
 )
 
 // Version no. of aah framework CLI tool
-var Version = "0.13.0-edge"
+var Version = "0.13.0"
 
 var (
 	errVersionNotExists = errors.New("version not exists")
-	verRegex            = regexp.MustCompile(`Version = "([\d.]+(\-edge)?)"`)
+	verRegex            = regexp.MustCompile(`Version = "([\d.]+(\-edge|\-beta)?)"`)
 )
 
 // VersionPrinter method prints the versions info.
