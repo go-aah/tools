@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 
-# Purpose       : Script installs aah CLI into 'GOPATH/bin' based OS and ARCH. 
-#                 It should work on macOS, Linux, Unix systems and 
-#                 on Windows with msys and mingw.
+# Purpose       : Script installs aah CLI into 'GOPATH/bin'. 
+#                 It should work on macOS, Linux BSD systems and Windows with Cygwin.
 # Script License: Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
 # Creator       : Jeevanandam M. (https://github.com/jeevatkm, jeeva@myjeeva.com)
-# Requires      : bash, mkdir, cp, rm, curl/wget, sed/awk, tr, type, unzip, mktemp
+# Requires      : bash, mkdir, rm, curl/wget, sed/awk, tr, type, mktemp
 # Credits       : This script inspired by Caddy server and Glide installer.
 #
 # Version History
@@ -55,19 +54,44 @@ fetch() {
 	eval "$1='$body'"
 }
 
-download() {
-    local url="$1"
-	local filePath="$2"
-	if [ "$download_cmd" = "curl" ]; then
-		httpStatusCode=$(curl -s -w '%{http_code}' -L "$url" -o "$filePath")
-	elif [ "$download_cmd" = "wget" ]; then
-		body=$(wget --quiet --server-response --content-on-error -O "$filePath" "$url")
-		httpStatusCode=$(cat $tmpFile | awk '/^  HTTP/{print $2}')
-	fi
-    echo "$httpStatusCode"
+quiet_git() {
+    stdout=$(mktemp)
+    stderr=$(mktemp)
+    if ! git "$@" </dev/null >$stdout 2>$stderr; then
+        cat $stderr >&2
+        rm -f $stdout $stderr
+        exit 1
+    fi
+    rm -f $stdout $stderr
 }
 
-cli_version="$1"
+quiet_go() {
+    stdout=$(mktemp)
+    stderr=$(mktemp)
+    if ! go "$@" </dev/null >$stdout 2>$stderr; then
+        cat $stderr >&2
+        rm -f $stdout $stderr
+        exit 1
+    fi
+    rm -f $stdout $stderr
+}
+
+# check prerequesties check
+if ! type -p git >/dev/null 2>&1; then
+    quit "aah CLI Installation aborted, unable to find 'git'"
+fi
+if ! type -p go >/dev/null 2>&1; then
+    quit "aah CLI Installation aborted, unable to find 'go'"
+fi
+
+# Infer download command
+if type -p curl >/dev/null 2>&1; then
+    download_cmd="curl"
+elif type -p wget >/dev/null 2>&1; then
+    download_cmd="wget"
+else
+    quit "Installation aborted, unable to find 'curl' or 'wget'"
+fi
 
 # Infer target arch 
 target_arch=$(uname -m)
@@ -86,12 +110,8 @@ case "$target_os" in
 esac
 
 say "Starting aah CLI installer for $target_os/$target_arch"
+say "aah requires >= go.11"
 
-# Verify Go installation and Check GOPATH environment variable is set
-go_cmd=$(which go)
-if [ "$?" = "1" ]; then
-    quit "Go is not installed, aah CLI requires Go. Please install it"
-fi
 go_path=$GOPATH
 if [ -z "$go_path" ]; then
     go_path=$(go env GOPATH)
@@ -107,47 +127,31 @@ fi
 go_bin_dir="$go_path/bin"
 go_bin_dir="${go_bin_dir//\\//}"
 
-# Infer download command
-if type -p curl >/dev/null 2>&1; then
-    download_cmd="curl"
-elif type -p wget >/dev/null 2>&1; then
-    download_cmd="wget"
-else
-    quit "Installation aborted, unable to find 'curl' or 'wget'"
-fi
+export GO111MODULE=on
 
-# Fetch latest version no and Download aah CLI binary
+cli_version="$1"
+# Fetch latest version no
 if [ -z "$cli_version" ]; then
-    say "Fetch latest aah CLI version info from https://aahframework.org/version-cli"
+    say "Fetch latest version info from https://aahframework.org/version-cli"
     fetch cli_version https://aahframework.org/version-cli
-fi
-say "Resolve aah CLI release artifact for $cli_version"
-cli_release=aah-$cli_version-$target_os-$target_arch
-cli_file_name="$cli_release.zip"
-cli_tmp_file="/tmp/$cli_file_name"
-cli_download_uri="https://github.com/go-aah/tools/releases/download/$cli_version/$cli_file_name"
-rm -rf $cli_tmp_file
-say "Downloading $cli_download_uri"
-status_code=$(download "$cli_download_uri" "$cli_tmp_file")
-if [ "$status_code" -ne 200 ]; then
-    say "Unable to find aah CLI release $cli_version for your system $target_os/$target_arch"
-    say "Note: aah CLI binary distribution available since CLI v0.13.0"
-    quit "Please create an issue here https://aahframework.org/issues to add support"
+else
+    say "Use given version info $cli_version"
 fi
 
-# Install the aah CLI into GOPATH/bin
-cli_extract_tmp_dir="/tmp/$cli_release/"
-rm -rf $cli_extract_tmp_dir
-mkdir -p $cli_extract_tmp_dir
-if type unzip >/dev/null 2>&1; then
-    unzip -q $cli_tmp_file -d $cli_extract_tmp_dir
-else
-    quit "Installation aborted, unable to find 'unzip' program. Please install it"
+cli_import_path=aahframe.work/cli/aah
+cli_tmp_dir=$(mktemp -d)
+cli_tmp_dir="$cli_tmp_dir/aah-cli"
+
+say "Getting git tag $cli_version"
+quiet_git clone -b $cli_version --single-branch --depth 1 https://github.com/go-aah/tools.git $cli_tmp_dir
+if [ ! -d "$cli_tmp_dir/aah" ]; then
+    quit "It seems there was issue with fetching source code from github for tag $cli_version"
 fi
-say "Installing aah CLI into $go_bin_dir/"
-rm -rf "$go_bin_dir/aah"
-cp "$cli_extract_tmp_dir/aah" $go_bin_dir/
-rm -rf $cli_tmp_file $cli_extract_tmp_dir
+cd $cli_tmp_dir/aah
+cli_git_commit_sha=$(git rev-parse HEAD)
+just_cli_version=${cli_version#"v"}
+
+say "Build & Install aah CLI into $go_bin_dir/"
+quiet_go install -ldflags="-s -w -X main.Version=$just_cli_version -X main.CliCommitID=$cli_git_commit_sha -X main.CliPackaged=true -X main.CliOS=$target_os -X main.CliArch=$target_arch" $cli_import_path
+rm -rf $cli_tmp_dir
 say "Congrats, aah CLI installed successfully"
-say "Running aah --version"
-aah --version
