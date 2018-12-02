@@ -5,8 +5,8 @@
 package main
 
 import (
-	"bytes"
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"go/build"
@@ -351,7 +351,7 @@ func stripGoSrcPath(pkgFilePath string) string {
 	return filepath.Clean(pkgFilePath[idx+4:])
 }
 
-func isInGoPath(p string) bool  {
+func isInGoPath(p string) bool {
 	return strings.Index(filepath.ToSlash(p), "/src/") > 0
 }
 
@@ -490,7 +490,7 @@ func fetchURL(srcURL string) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	defer ess.CloseQuietly(resp.Body)
-	var b bytes.Buffer	
+	var b bytes.Buffer
 	_, err = io.Copy(&b, resp.Body)
 	return &b, err
 }

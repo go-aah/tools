@@ -74,7 +74,7 @@ func migrateCodeAction(c *console.Context) error {
 		}
 	} else {
 		cliLog.Info("Fetching migrate configuration from ", aahGrammarFetchLoc)
-		fb, err := fetchURL(aahGrammarFetchLoc); 
+		fb, err := fetchURL(aahGrammarFetchLoc)
 		if err != nil {
 			logFatal(err)
 		}
