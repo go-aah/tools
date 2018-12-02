@@ -1,49 +1,65 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
-	"gopkg.in/urfave/cli.v1"
+	"os"
+	"path/filepath"
+	"strings"
 
-	"aahframework.org/aah.v0"
+	"aahframe.work"
+	"aahframe.work/console"
+	"aahframe.work/essentials"
 )
 
-var cleanCmd = cli.Command{
+var cleanCmd = console.Command{
 	Name:    "clean",
 	Aliases: []string{"c"},
 	Usage:   "Cleans the aah generated files and build directory",
 	Description: `Cleans the aah generated files and build directory.
 
-	Such as aah.go and <app-base-dir>/build directory.
+	Such as aah.go, '<app-base-dir>/generated' and '<app-base-dir>/build'.
 
-	Examples of short and long flags:
-		aah clean
-		aah clean -i github.com/user/appname
-		aah clean --importpath github.com/user/appname`,
+	Example:
+		aah clean`,
 	Action: cleanAction,
-	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "i, importpath",
-			Usage: "Import path of aah application",
-		},
-	},
 }
 
-func cleanAction(c *cli.Context) error {
+func cleanAction(c *console.Context) error {
+	if !isAahProject() {
+		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
+	}
 	importPath := appImportPath(c)
-
-	if err := aah.Init(importPath); err != nil {
+	if ess.IsStrEmpty(importPath) {
+		logFatalf("Unable to infer import path, ensure you're in the aah application base directory")
+	}
+	chdirIfRequired(importPath)
+	app := aah.App()
+	if err := app.InitForCLI(importPath); err != nil {
 		logFatal(err)
 	}
-	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
-
-	cleanupAutoGenFiles(aah.AppBaseDir())
-	cleanupAutoGenVFSFiles(aah.AppBaseDir())
-
+	cleanupAutoGenFiles(app.BaseDir())
 	cliLog.Infof("Import Path '%v' clean successful.\n", importPath)
-
 	return nil
+}
+
+func cleanupAutoGenFiles(appBaseDir string) {
+	appMainGoFile := filepath.Join(appBaseDir, "app", "aah.go")
+	appGeneratedDir := filepath.Join(appBaseDir, "app", "generated")
+	appBuildDir := filepath.Join(appBaseDir, "build")
+	cliLog.Debugf("Cleaning %s", appMainGoFile)
+	ess.DeleteFiles(appMainGoFile)
+	cliLog.Debugf("Cleaning generated directory %s", appGeneratedDir)
+	ess.DeleteFiles(appGeneratedDir)
+	cliLog.Debugf("Cleaning build directory %s", appBuildDir)
+	ess.DeleteFiles(appBuildDir)
+	// for old files cleanup
+	vfsFiles, _ := filepath.Glob(filepath.Join(appBaseDir, "app", "aah_*_vfs.go"))
+	if len(vfsFiles) > 0 {
+		ess.DeleteFiles(vfsFiles...)
+	}
 }

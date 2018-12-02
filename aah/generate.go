@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -8,18 +8,18 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"aahframework.org/aah.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
-
-	"gopkg.in/urfave/cli.v1"
+	"aahframe.work"
+	"aahframe.work/console"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
 )
 
-var generateCmd = cli.Command{
+var generateCmd = console.Command{
 	Name:    "generate",
 	Aliases: []string{"g"},
 	Usage:   "Generates boilerplate code, configurations, complement scripts (systemd, docker), etc.",
@@ -27,32 +27,24 @@ var generateCmd = cli.Command{
   Such as boilerplate code, configuration files, complement scripts (systemd, docker), etc.
 
 	To know more about available 'generate' sub commands:
-		aah h g
 		aah help generate
 
 	To know more about individual sub-commands details:
-		aah g h s
-		aah generate help script
-`,
-	Subcommands: []cli.Command{
-		cli.Command{
+		aah generate help script`,
+	Subcommands: []console.Command{
+		{
 			Name:    "script",
 			Aliases: []string{"s"},
 			Usage:   "Generates complement scripts such as systemd, dockerize, etc.",
 			Description: `Generates complement scripts such as systemd, dockerize, etc.
 
-	Example of script command:
-		aah g s -n systemd -i github.com/user/appname
-		aah generate script --name systemd --importpath github.com/user/appname
-			`,
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "n, name",
-					Usage: "Provide script name such as 'systemd', 'docker', etc",
-				},
-				cli.StringFlag{
-					Name:  "i, importpath",
-					Usage: "Import path of aah application",
+	Examples:
+		aah generate script --name systemd
+		aah generate script --name docker`,
+			Flags: []console.Flag{
+				console.StringFlag{
+					Name:  "name, n",
+					Usage: "Provide script target such as 'systemd', 'docker', etc",
 				},
 			},
 			Action: generateScriptsAction,
@@ -64,10 +56,14 @@ var generateCmd = cli.Command{
 // Generate Subcommand - Script
 //___________________________________
 
-func generateScriptsAction(c *cli.Context) error {
-	scriptName := strings.TrimSpace(firstNonEmpty(c.String("n"), c.String("name")))
+func generateScriptsAction(c *console.Context) error {
+	if !isAahProject() {
+		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
+	}
+
+	scriptName := strings.TrimSpace(c.String("name"))
 	if ess.IsStrEmpty(scriptName) {
-		_ = cli.ShowSubcommandHelp(c)
+		_ = console.ShowSubcommandHelp(c)
 		return nil
 	}
 
@@ -92,32 +88,38 @@ func generateScriptsAction(c *cli.Context) error {
 // Implementation methods
 //___________________________________
 
-func generateSystemdScript(c *cli.Context) error {
+func generateSystemdScript(c *console.Context) error {
 	importPath := appImportPath(c)
-	if err := aah.Init(importPath); err != nil {
+	if ess.IsStrEmpty(importPath) {
+		logFatalf("Unable to infer import path, ensure you're in the aah application base directory")
+	}
+	chdirIfRequired(importPath)
+	app := aah.App()
+	if err := app.InitForCLI(importPath); err != nil {
 		logFatal(err)
 	}
 
-	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
 
-	cliLog.Infof("Loaded aah project file: %s\n", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
+	cliLog.Infof("Loaded aah project file: %s\n", filepath.Join(app.BaseDir(), aahProjectIdentifier))
 
-	fileName := fmt.Sprintf("%s.service", aah.AppName())
-	destFile := filepath.Join(aah.AppBaseDir(), fileName)
+	appName := strings.ToLower(projectCfg.StringDefault("name", app.Name()))
+	fileName := fmt.Sprintf("%s.service", appName)
+	destFile := filepath.Join(app.BaseDir(), fileName)
 	if checkAndConfirmOverwrite(c, destFile) {
 		return nil
 	}
 
 	data := map[string]interface{}{
-		"AppName":    aah.AppName(),
+		"AppName":    appName,
 		"FileName":   fileName,
 		"CreateDate": time.Now().Format(time.RFC1123Z),
-		"Desc":       fmt.Sprintf("%s application", aah.AppName()),
+		"Desc":       fmt.Sprintf("%s application", appName),
 	}
 
-	buf := &bytes.Buffer{}
-	if err := renderTmpl(buf, aahSystemdScriptTemplate, data); err != nil {
+	var buf bytes.Buffer
+	if err := renderTmpl(&buf, aahSystemdScriptTemplate, data); err != nil {
 		return fmt.Errorf("Unable to create systemd service file: %s", err)
 	}
 	if err := ioutil.WriteFile(destFile, buf.Bytes(), permRWXRXRX); err != nil {
@@ -130,25 +132,28 @@ func generateSystemdScript(c *cli.Context) error {
 	return nil
 }
 
-func generateDockerScript(c *cli.Context) error {
+func generateDockerScript(c *console.Context) error {
 	importPath := appImportPath(c)
-
-	if err := aah.Init(importPath); err != nil {
+	if ess.IsStrEmpty(importPath) {
+		logFatalf("Unable to infer import path, ensure you're in the aah application base directory")
+	}
+	app := aah.App()
+	if err := app.InitForCLI(importPath); err != nil {
 		logFatal(err)
 	}
-	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
 
-	cliLog.Infof("Loaded aah project file: %s\n", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
+	cliLog.Infof("Loaded aah project file: %s\n", filepath.Join(app.BaseDir(), aahProjectIdentifier))
 
 	devFileName := "Dockerfile.dev"
-	devDestFile := filepath.Join(aah.AppBaseDir(), devFileName)
+	devDestFile := filepath.Join(app.BaseDir(), devFileName)
 	if checkAndConfirmOverwrite(c, devDestFile) {
 		return nil
 	}
 
 	prodFileName := "Dockerfile.prod"
-	prodDestFile := filepath.Join(aah.AppBaseDir(), prodFileName)
+	prodDestFile := filepath.Join(app.BaseDir(), prodFileName)
 	if checkAndConfirmOverwrite(c, prodDestFile) {
 		return nil
 	}
@@ -158,17 +163,19 @@ func generateDockerScript(c *cli.Context) error {
 		codeVersion = "edge"
 	}
 
+	appName := strings.ToLower(projectCfg.StringDefault("name", app.Name()))
+
 	devData := map[string]interface{}{
-		"AppName":       aah.AppName(),
-		"AppImportPath": aah.AppImportPath(),
+		"AppName":       appName,
+		"AppImportPath": app.ImportPath(),
 		"FileName":      devFileName,
 		"CreateDate":    time.Now().Format(time.RFC1123Z),
 		"CodeVersion":   codeVersion,
 	}
 
 	prodData := map[string]interface{}{
-		"AppName":       aah.AppName(),
-		"AppImportPath": aah.AppImportPath(),
+		"AppName":       appName,
+		"AppImportPath": app.ImportPath(),
 		"FileName":      prodFileName,
 		"CreateDate":    time.Now().Format(time.RFC1123Z),
 		"CodeVersion":   codeVersion,
@@ -198,12 +205,12 @@ func generateDockerScript(c *cli.Context) error {
 	return nil
 }
 
-func checkAndConfirmOverwrite(c *cli.Context, destFile string) bool {
+func checkAndConfirmOverwrite(c *console.Context, destFile string) bool {
 	if ess.IsFileExists(destFile) {
 		cliLog.Warnf("File: %s already exists, it will be overwritten.", destFile)
-		if c.GlobalBool("y") || c.GlobalBool("yes") {
+		if c.GlobalBool("yes") {
 			fmt.Println("\nWould you like to continue? [y/N]: y")
-			return true
+			return false
 		}
 
 		var input string
@@ -245,7 +252,7 @@ After=network.target
 #User=aah
 #Group=aah
 EnvironmentFile=/home/aah/{{ .AppName }}_env_values
-ExecStart=/home/aah/{{ .AppName }}/bin/{{ .AppName }} -profile prod
+ExecStart=/home/aah/{{ .AppName }}/bin/{{ .AppName }} run --envprofile prod
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 
@@ -258,20 +265,21 @@ const aahDockerDevScriptTemplate = `# GENERATED BY aah CLI - Feel free to custom
 # DATE: {{ .CreateDate }}
 # DESC: aah application {{ .FileName }}
 
-FROM aahframework/aah:{{ .CodeVersion }}
+FROM golang:latest
+RUN go version
 
-RUN aah --version
-
-ENV AAH_APP_DIR=$GOPATH/src/{{ .AppImportPath }}
+ENV AAH_APP_DIR=/aah/{{ .AppName }}
 ENV GOOS=linux
 ENV CGO_ENABLED=0
+ENV GO111MODULE=on
 
-RUN mkdir -p $AAH_APP_DIR && \
-    cd $AAH_APP_DIR
+RUN apt-get update -yqq && apt-get -y install unzip
+RUN mkdir -p ${GOPATH}/bin && rm -rf ${GOPATH}/src
+RUN curl -s https://aahframework.org/install-cli | bash
 
-ADD . $AAH_APP_DIR
-
-WORKDIR $AAH_APP_DIR
+RUN mkdir -p ${AAH_APP_DIR}
+ADD ./ ${AAH_APP_DIR}
+WORKDIR ${AAH_APP_DIR}
 
 EXPOSE 8080
 `
@@ -285,30 +293,32 @@ const aahDockerProdScriptTemplate = `# GENERATED BY aah CLI - Feel free to custo
 #
 # Stage 1 : Builder Image
 #
-FROM aahframework/aah:{{ .CodeVersion }} AS builder
-RUN aah --version
-ENV AAH_APP_DIR=$GOPATH/src/{{ .AppImportPath }}
+FROM golang:latest AS builder
+RUN go version
+ENV AAH_APP_DIR=/aah/{{ .AppName }}
 ENV GOOS=linux
 ENV CGO_ENABLED=0
-RUN mkdir -p $AAH_APP_DIR && \
-    cd $AAH_APP_DIR
-ADD . $AAH_APP_DIR
-WORKDIR $AAH_APP_DIR
-RUN aah build -o build/{{ .AppName }}.zip
+ENV GO111MODULE=on
+RUN apt-get update -yqq && apt-get -y install unzip
+RUN curl -s https://aahframework.org/install-cli | bash
+RUN mkdir -p ${AAH_APP_DIR}
+ADD ./ ${AAH_APP_DIR}
+WORKDIR ${AAH_APP_DIR}
+RUN aah build --output build/{{ .AppName }}.zip
 
 #
-# Stage 2 : Production Image - It creates very small docker image
+# Stage 2 : Production Image - It creates tiny docker image
 #
 FROM alpine:latest
 RUN apk update && \
     apk upgrade && \
-    apk --no-cache add ca-certificates
-RUN mkdir -p /app/{{ .AppName }}
-COPY --from=builder /go/src/{{ .AppImportPath }}/build/{{ .AppName }}.zip /app
-RUN cd /app && \
+	apk --no-cache add ca-certificates
+RUN mkdir -p /aah
+COPY --from=builder /aah/{{ .AppName }}/build/{{ .AppName }}.zip /aah/
+RUN cd /aah && \
     unzip -q {{ .AppName }}.zip && \
     rm -rf {{ .AppName }}.zip
-WORKDIR /app/{{ .AppName }}
-CMD ["./bin/{{ .AppName }}", "-profile", "prod"]
+WORKDIR /aah/{{ .AppName }}
+CMD ["./bin/{{ .AppName }}", "run", "--envprofile", "prod"]
 EXPOSE 8080
 `

@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/tools/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -16,11 +16,11 @@ import (
 	"regexp"
 	"strings"
 
-	"aahframework.org/aah.v0"
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/router.v0"
+	"aahframe.work"
+	"aahframe.work/ainsp"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/router"
 )
 
 type compileArgs struct {
@@ -41,24 +41,25 @@ func compileApp(args *compileArgs) (string, error) {
 	projectCfg := args.ProjectCfg
 
 	// app variables
-	appBaseDir := aah.AppBaseDir()
-	appImportPath := aah.AppImportPath()
+	app := aah.App()
+	appBaseDir := app.BaseDir()
+	appImportPath := app.ImportPath()
 	appCodeDir := filepath.Join(appBaseDir, "app")
 	appControllersPath := filepath.Join(appCodeDir, "controllers")
 	appWebSocketsPath := filepath.Join(appCodeDir, "websockets")
 	appBuildDir := filepath.Join(appBaseDir, "build")
 
-	appName := projectCfg.StringDefault("name", aah.AppName())
+	appName := projectCfg.StringDefault("name", app.Name())
 	cliLog.Infof("Compile starts for '%s' [%s]", appName, appImportPath)
 
 	// excludes for Go AST processing
 	excludes, _ := projectCfg.StringList("build.ast_excludes")
 
 	// get all configured Controllers with action info
-	registeredActions := aah.AppRouter().RegisteredActions()
+	registeredActions := app.Router().RegisteredActions()
 
 	// Go AST processing for Controllers
-	acntlr, errs := ainsp.Inspect(appControllersPath, ess.Excludes(excludes), registeredActions)
+	acntlr, errs := ainsp.Inspect(appControllersPath, appImportPath, ess.Excludes(excludes), registeredActions)
 	if len(acntlr.Packages) > 0 {
 		if len(errs) > 0 {
 			errMsgs := []string{}
@@ -83,22 +84,16 @@ func compileApp(args *compileArgs) (string, error) {
 		}
 	}
 
-	appImportPaths := map[string]string{
-		"aahframework.org/aah.v0":        "aah",
-		"aahframework.org/aruntime.v0":   "aruntime",
-		"aahframework.org/config.v0":     "config",
-		"aahframework.org/essentials.v0": "ess",
-		"aahframework.org/log.v0":        "log",
-	}
+	appImportPaths := map[string]string{}
 
 	// get all the types info referred aah framework context embedded
-	appControllers := acntlr.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", libImportPath("aah")))
+	appControllers := acntlr.FindTypeByEmbeddedType(aahImportPath + ".Context")
 	appImportPaths = acntlr.CreateImportPaths(appControllers, appImportPaths)
-	appSecurity := appSecurity(aah.AppConfig(), appImportPaths)
+	appSecurity := appSecurity(app.Config(), appImportPaths)
 
 	// Go AST processing for WebSockets
-	registeredWSActions := aah.AppRouter().RegisteredWSActions()
-	wsc, errs := ainsp.Inspect(appWebSocketsPath, ess.Excludes(excludes), registeredWSActions)
+	registeredWSActions := app.Router().RegisteredWSActions()
+	wsc, errs := ainsp.Inspect(appWebSocketsPath, appImportPath, ess.Excludes(excludes), registeredWSActions)
 	if len(wsc.Packages) > 0 {
 		if len(errs) > 0 {
 			errMsgs := []string{}
@@ -123,7 +118,7 @@ func compileApp(args *compileArgs) (string, error) {
 		}
 	}
 
-	appWebSockets := wsc.FindTypeByEmbeddedType(fmt.Sprintf("%s.Context", libImportPath("ws")))
+	appWebSockets := wsc.FindTypeByEmbeddedType(aahImportPath + "/ws.Context")
 	appImportPaths = wsc.CreateImportPaths(appWebSockets, appImportPaths)
 
 	if len(appControllers) == 0 && len(appWebSockets) == 0 {
@@ -131,12 +126,12 @@ func compileApp(args *compileArgs) (string, error) {
 	}
 
 	if len(appControllers) > 0 || len(appWebSockets) > 0 {
-		appImportPaths[libImportPath("ainsp")] = "ainsp"
+		appImportPaths[aahImportPath+"/ainsp"] = "ainsp"
 	}
 
 	// prepare aah application version and build date
 	appVersion := getAppVersion(appBaseDir, projectCfg)
-	appBuildDate := getBuildDate()
+	appBuildTimestamp := getBuildTimestamp()
 
 	// create go build arguments
 	buildArgs := []string{"build"}
@@ -160,24 +155,29 @@ func compileApp(args *compileArgs) (string, error) {
 	// main.go location e.g. path/to/import/app
 	buildArgs = append(buildArgs, path.Join(appImportPath, "app"))
 
-	// clean previously auto generated files
-	cleanupAutoGenFiles(appBaseDir)
+	if err := generateSource(filepath.Join(appBaseDir, "app", "generated"), "add_controllers.go",
+		aahControllerTemplate, map[string]interface{}{
+			"AahVersion":        strings.TrimPrefix(strings.TrimSpace(aahVer), "v"),
+			"AppImportPath":     appImportPath,
+			"AppVersion":        appVersion,
+			"AppBuildTimestamp": appBuildTimestamp,
+			"AppBuildGoVersion": goVersion(),
+			"AppBinaryName":     appBinaryName,
+			"AppControllers":    appControllers,
+			"AppWebSockets":     appWebSockets,
+			"AppImportPaths":    appImportPaths,
+			"AppSecurity":       appSecurity,
+			"AppIsPackaged":     args.AppPack,
+			"AppIsEmbedded":     args.AppEmbed,
+		}); err != nil {
+		return "", err
+	}
 
-	if err := generateSource(appCodeDir, "aah.go", aahMainTemplate, map[string]interface{}{
-		"AppTargetCmd":   args.Cmd,
-		"AppProxyPort":   args.ProxyPort,
-		"AahVersion":     aah.Version,
-		"AppImportPath":  appImportPath,
-		"AppVersion":     appVersion,
-		"AppBuildDate":   appBuildDate,
-		"AppBinaryName":  appBinaryName,
-		"AppControllers": appControllers,
-		"AppWebSockets":  appWebSockets,
-		"AppImportPaths": appImportPaths,
-		"AppSecurity":    appSecurity,
-		"AppIsPackaged":  args.AppPack,
-		"AppIsEmbedded":  args.AppEmbed,
-	}); err != nil {
+	if err := generateSource(filepath.Join(appBaseDir, "app"), "aah.go", aahMainTemplate,
+		map[string]interface{}{
+			"AahVersion":    strings.TrimPrefix(strings.TrimSpace(aahVer), "v"),
+			"AppImportPath": appImportPath,
+		}); err != nil {
 		return "", err
 	}
 
@@ -198,7 +198,7 @@ func compileApp(args *compileArgs) (string, error) {
 
 func generateSource(dir, filename, templateSource string, templateArgs map[string]interface{}) error {
 	if !ess.IsFileExists(dir) {
-		if err := ess.MkDirAll(dir, 0644); err != nil {
+		if err := ess.MkDirAll(dir, permRWXRXRX); err != nil {
 			return err
 		}
 	}
@@ -231,13 +231,16 @@ var notExistRegex = regexp.MustCompile(`cannot find package "(.*)" in any of`)
 // 		go list -f '{{ join .Imports "\n" }}' aah-app/import/path/app/...
 //
 func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
+	if ess.IsFileExists(goModIdentifier) || !strings.HasPrefix(aah.App().BaseDir(), gopath) {
+		return nil
+	}
 	debList := libDependencyImports(path.Join(appImportPath, "app", "..."))
 	if len(debList) == 0 {
 		return nil
 	}
 
 	args := append([]string{"list"}, debList...)
-	b, _ := exec.Command(gocmd, args...).CombinedOutput()
+	b, _ := exec.Command(gocmd, args...).CombinedOutput() // #nosec
 	notExistsPkgs := []string{}
 	matches := notExistRegex.FindAllStringSubmatch(string(b), -1)
 	for _, m := range matches {
@@ -261,7 +264,7 @@ func checkAndGetAppDeps(appImportPath string, cfg *config.Config) error {
 
 func appSecurity(appCfg *config.Config, appImportPaths map[string]string) map[string]interface{} {
 	securityInfo := make(map[string]interface{})
-	importPathPrefix := path.Join(aah.AppImportPath(), "app")
+	importPathPrefix := path.Join(aah.App().ImportPath(), "app")
 	keyPrefixAuthScheme := "security.auth_schemes"
 
 	for _, keyAuthScheme := range appCfg.KeysByPath(keyPrefixAuthScheme) {
@@ -338,167 +341,72 @@ func prepareAuthAlias(keyAuthAlias, auth, importPathPrefix string, appImportPath
 // Generate Templates
 //___________________________________
 
-const aahMainTemplate = `// Code generated by aah CLI, DO NOT EDIT
+const aahControllerTemplate = `// Code generated by aah CLI, DO NOT EDIT
 //
-// aah framework v{{.AahVersion}} - https://aahframework.org
-// FILE: aah.go
-// DESC: aah application entry point
+// aah framework v{{ .AahVersion }} - https://aahframework.org
+// FILE: add_controllers.go
+// DESC: aah application controllers, websockets, auth providers registration
 
-package main
+package generated
 
 import (
-	"bytes"
-	"flag"
-	"path/filepath"
-	"fmt"
-	"os"
-	"os/signal"
 	"reflect"
-	"regexp"
-	"syscall"
-	{{ if .AppSecurity }}
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/authz"{{ end }}{{ range $k, $v := $.AppImportPaths }}
+
+	"aahframe.work"{{ if .AppSecurity }}
+	"aahframe.work/security/authc"
+	"aahframe.work/security/authz"{{ end }}{{ range $k, $v := $.AppImportPaths }}
 	{{ $v }} "{{ $k }}"{{ end }}
 )
 
-var (
-	// Define aah application binary flags
-	configPath = flag.String("config", "", "Absolute path of external config file.")
-	list       = flag.String("list", "", "Prints the embedded file/directory path that matches the given regex pattern.")
-	profile    = flag.String("profile", "", "Environment profile name to activate. For e.g.: dev, qa, prod, etc.")
-	version    = flag.Bool("version", false, "Prints the aah application binary name, version and build timestamp.")
-	_          = reflect.Invalid
-)
+var _ = reflect.Invalid
 
-func MergeSuppliedConfig(_ *aah.Event) {
-	cpath, err := filepath.Abs(*configPath)
-	if err != nil {
-		log.Errorf("Unable to resolve external config: %s", *configPath)
-	}
-
-	externalConfig, err := config.LoadFile(cpath)
-	if err != nil {
-		log.Errorf("Unable to load external config: %s", cpath)
-	}
-
-	log.Infof("Merging external config[%s] into aah application[%s]", cpath, aah.AppName())
-	if err := aah.AppConfig().Merge(externalConfig); err != nil {
-		log.Errorf("Unable to merge external config into aah application[%s]: %s", aah.AppName(), err)
-	}
-}
-
-func ActivateAppEnvProfile(_ *aah.Event) {
-	aah.AppConfig().SetString("env.active", *profile)
-}
-
-func PrintFilepath(pattern string) {
-	if !aah.AppVFS().IsEmbeddedMode() {
-		fmt.Println("'"+aah.AppBuildInfo().BinaryName + "' binary does not have embedded files.")
-		return
-	}
-
-	regex, err := regexp.Compile(pattern)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	if err := aah.AppVFS().Walk(aah.AppVirtualBaseDir(),
-		func(fpath string, _ os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-
-			if regex.MatchString(fpath) {
-				fmt.Println(fpath)
-			}
-
-			return nil
-		}); err != nil {
-		log.Error(err)
-	}
-}
-
-{{ if eq .AppTargetCmd "RunCmd" -}}
-{{ if .AppProxyPort -}}
-func RunCmdSetAppProxyPort(e *aah.Event) {
-	aah.AppConfig().SetString("server.proxyport", "{{ .AppProxyPort }}")
-}
-{{- end }}
-{{- end }}
-
-func main() {
-	defer func() {
-		if r := recover(); r != nil {
-			st := aruntime.NewStacktrace(r, aah.AppConfig())
-			buf := new(bytes.Buffer)
-			st.Print(buf)
-			log.Error(buf.String())
-		}
-	}()
-
-	flag.Parse()
-
-	aah.SetAppBuildInfo(&aah.BuildInfo{
+func init() {
+	app := aah.App()
+	app.SetBuildInfo(&aah.BuildInfo{
 		BinaryName: "{{ .AppBinaryName }}",
 		Version:    "{{ .AppVersion }}",
-		Date:       "{{ .AppBuildDate }}",
-	})
-
-	{{ if .AppIsPackaged }}aah.SetAppPackaged({{ .AppIsPackaged }}){{ end }}
-
-	// display application information
-	if *version {
-		fmt.Printf("%-16s: %s\n", "Binary Name", aah.AppBuildInfo().BinaryName)
-		fmt.Printf("%-16s: %s\n", "Version", aah.AppBuildInfo().Version)
-		fmt.Printf("%-16s: %s\n", "Build Timestamp", aah.AppBuildInfo().Date)
-		fmt.Printf("%-16s: %s\n", "aah Version", aah.Version)
-		return
-	}
-
-	if !ess.IsStrEmpty(*list) {
-		PrintFilepath(*list)
-		return
-	}
-
-	// Apply supplied external config file
-	if !ess.IsStrEmpty(*configPath) {
-		aah.OnInit(MergeSuppliedConfig)
-	}
-
-	// Activate environment profile
-	if !ess.IsStrEmpty(*profile) {
-		aah.OnInit(ActivateAppEnvProfile)
-	}
-
-	log.Infof("aah framework v%s, requires ≥ go1.8", aah.Version)
-
-	if err := aah.Init("{{ .AppImportPath }}"); err != nil {
-		log.Fatal(err)
-	}
-
-	{{ if gt (len .AppControllers) 0 -}}
-	// Adding all the application controllers which refers 'aah.Context' directly
-	// or indirectly from app/controllers/** {{ range $i, $c := .AppControllers }}
-	aah.AddController((*{{ index $.AppImportPaths .ImportPath }}.{{ .Name }})(nil), []*ainsp.Method{ {{ range .Methods }}
+		Timestamp:  "{{ .AppBuildTimestamp }}",
+		AahVersion: "{{ .AahVersion }}",
+		GoVersion:  "{{ .AppBuildGoVersion }}",
+	}){{ if .AppIsPackaged }}
+	app.SetPackaged({{ .AppIsPackaged }}){{ end }} {{ if gt (len .AppControllers) 0 }}
+	app.OnStart(AddControllers){{ end }} {{ if gt (len .AppWebSockets) 0 }}
+	app.OnStart(AddWebSocketControllers){{ end }} {{ if .AppSecurity }}
+	app.OnStart(AddAuthProviders){{ end }}
+}
+{{ if gt (len .AppControllers) 0 }}
+// AddControllers method adds all the application controllers which refers 'aah.Context' directly
+// or indirectly from <app-base-dir>/app/controllers/** 
+func AddControllers(_ *aah.Event) { 
+	app := aah.App()
+	app.Log().Info("Add {{ len .AppControllers }} Controllers from 'app/controllers/**'"){{ range $i, $c := .AppControllers }}
+	app.Log().Debugf("Adding {{ .ImportPath }}.{{ .Name }}")
+	app.AddController((*{{ index $.AppImportPaths .ImportPath }}.{{ .Name }})(nil), []*ainsp.Method{ {{ range .Methods }}
 		{Name: "{{ .Name }}"{{ if gt (len .Parameters) 0 }}, Parameters: []*ainsp.Parameter{ {{ range .Parameters }}
-	    {Name: "{{ .Name }}", Type: reflect.TypeOf((*{{ .Type.Name }})(nil))},{{- end }}
+		{Name: "{{ .Name }}", Type: reflect.TypeOf((*{{ .Type.Name }})(nil))},{{- end }}
 		}{{ end }}},{{ end }}
 	}){{- end }}
-	{{ end -}}
-
-	{{ if gt (len .AppWebSockets) 0 -}}
-	// Adding all the application websockets which refers 'ws.Context' directly
-	// or indirectly from app/websockets/** {{ range $i, $c := .AppWebSockets }}
-	aah.AddWebSocket((*{{ index $.AppImportPaths .ImportPath }}.{{ .Name }})(nil), []*ainsp.Method{ {{ range .Methods }}
+}
+{{ end }}
+{{ if gt (len .AppWebSockets) 0 -}}
+// AddWebSocketControllers adds all the application websockets which refers 'ws.Context' directly
+// or indirectly from <app-base-dir>/app/websockets/** 
+func AddWebSocketControllers(_ *aah.Event) {
+	app := aah.App()
+	app.Log().Info("Add {{ len .AppWebSockets }} WebSockets from 'app/websockets/**'")
+	{{ range $i, $c := .AppWebSockets }}
+	app.Log().Debug("Adding {{ .ImportPath }}.{{ .Name }}")
+	app.AddWebSocket((*{{ index $.AppImportPaths .ImportPath }}.{{ .Name }})(nil), []*ainsp.Method{ {{ range .Methods }}
 		{Name: "{{ .Name }}"{{ if gt (len .Parameters) 0 }}, Parameters: []*ainsp.Parameter{ {{ range .Parameters }}
 	    {Name: "{{ .Name }}", Type: reflect.TypeOf((*{{ .Type.Name }})(nil))},{{- end }}
 	  }{{ end }}},{{ end }}
 	}){{- end }}
-	{{ end -}}
-
-	{{ if .AppSecurity }}
+}
+{{ end -}}
+{{ if .AppSecurity }}
+// AddAuthProviders method registers auth scheme providers configured
+// in security.conf
+func AddAuthProviders(_ *aah.Event) {
 	type setprincipal interface {
 		SetPrincipalProvider(principal authc.PrincipalProvider) error
 	}
@@ -508,59 +416,66 @@ func main() {
 	type setauthorizer interface {
 		SetAuthorizer(authorizer authz.Authorizer) error
 	}
-
+	app := aah.App()
+	app.Log().Info("Add Auth Providers")
 	// Initialize application security auth schemes - Authenticator,
 	// PrincipalProvider & Authorizer
-	secMgr := aah.AppSecurityManager()
+	secMgr := app.SecurityManager()
 	{{- range $k, $v := $.AppSecurity }}{{ $vPrefix := (variablename $k)  }}
 	{{ $vPrefix }}AuthScheme := secMgr.AuthScheme("{{ $k }}")
 	{{ if $v.Authenticator -}}if sauthc, ok := {{ $vPrefix }}AuthScheme.(setauthenticator); ok {
-		aah.AppLog().Debugf("Initializing authenticator for auth scheme '%s'", "{{ $k }}")
+		app.Log().Debugf("Initializing authenticator for auth scheme '%s'", "{{ $k }}")
 		if err := sauthc.SetAuthenticator(&{{ $v.Authenticator }}{}); err != nil {
-			aah.AppLog().Fatal(err)
+			app.Log().Fatal(err)
 		}
 	}{{ end }}
 	{{ if $v.Principal -}}if sprincipal, ok := {{ $vPrefix }}AuthScheme.(setprincipal); ok {
-		aah.AppLog().Debugf("Initializing principalprovider for auth scheme '%s'", "{{ $k }}")
+		app.Log().Debugf("Initializing principalprovider for auth scheme '%s'", "{{ $k }}")
 		if err := sprincipal.SetPrincipalProvider(&{{ $v.Principal }}{}); err != nil {
-			aah.AppLog().Fatal(err)
+			app.Log().Fatal(err)
 		}
 	}{{ end }}
 	{{ if $v.Authorizer }}if sauthz, ok := {{ $vPrefix }}AuthScheme.(setauthorizer); ok {
-		aah.AppLog().Debugf("Initializing authorizer for auth scheme '%s'", "{{ $k }}")
+		app.Log().Debugf("Initializing authorizer for auth scheme '%s'", "{{ $k }}")
 		if err := sauthz.SetAuthorizer(&{{ $v.Authorizer }}{}); err != nil {
-			aah.AppLog().Fatal(err)
+			app.Log().Fatal(err)
 		}
 	}{{ end }}
 	{{ end -}}
-	{{ end }}
+}
+{{ end }}
+`
 
-	aah.AppLog().Info("aah application initialized successfully")
+const aahMainTemplate = `// Code generated by aah CLI, DO NOT EDIT
+//
+// aah framework v{{ .AahVersion }} - https://aahframework.org
+// FILE: aah.go
+// DESC: aah application entry point
 
-	{{ if eq .AppTargetCmd "RunCmd" -}}
-	{{ if .AppProxyPort -}}
-	aah.OnStart(RunCmdSetAppProxyPort)
-	{{- end }}
-	{{- end }}
+package main
 
-	go aah.Start()
+import (
+	"bytes"
+	"os"
 
-	// Listen to OS signal's SIGINT & SIGTERM for aah server Shutdown
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
-	sig := <-sc
-	switch sig {
-	case os.Interrupt:
-		aah.AppLog().Warn("Interrupt signal (SIGINT) received")
-	case syscall.SIGTERM:
-		aah.AppLog().Warn("Termination signal (SIGTERM) received")
+	"aahframe.work"
+	"aahframe.work/aruntime"
+	_ "{{ .AppImportPath }}/app/generated"
+)
+
+func main() {
+	app := aah.App()
+	defer func() {
+		if r := recover(); r != nil {
+			st := aruntime.NewStacktrace(r, app.Config())
+			buf := new(bytes.Buffer)
+			st.Print(buf)
+			app.Log().Error(buf.String())
+		}
+	}()
+
+	if err := app.Run(os.Args); err != nil {
+		app.Log().Error(err)
 	}
-
-	// Call aah shutdown
-	aah.Shutdown()
-	aah.AppLog().Info("aah application shutdown successful")
-
-	// bye bye, see you later.
-	os.Exit(0)
 }
 `

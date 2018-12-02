@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/tools/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -7,62 +7,67 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/urfave/cli.v1"
-
-	"aahframework.org/aah.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
+	"aahframe.work"
+	"aahframe.work/config"
+	"aahframe.work/console"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
 )
 
-var buildCmd = cli.Command{
+var buildCmd = console.Command{
 	Name:    "build",
 	Aliases: []string{"b"},
-	Usage:   "Builds aah application for deployment (single or non-single)",
+	Usage:   "Builds aah application for deployment (single or non-single binary)",
 	Description: `Builds aah application for deployment. It supports single and non-single
 	binary. It is a trade-off learn more https://docs.aahframework.org/vfs.html
 
 	Artifact naming convention:  <appbinaryname>-<appversion>-<goos>-<goarch>.zip
 	For e.g.: aahwebsite-381eaa8-darwin-amd64.zip
 
-	Examples of short and long flags:
-    aah build  OR  aah b
-		aah build --single  OR  aah b -s
-    aah build -i github.com/user/appname -o /Users/jeeva
-		aah build -i github.com/user/appname -o /Users/jeeva/aahwebsite.zip`,
-	Action: buildAction,
-	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "i, importpath",
-			Usage: "Import path of aah application",
-		},
-		cli.StringFlag{
-			Name:  "o, output",
+	Example:
+		aah build --single
+		aah build --single --output /Users/jeeva/aahwebsite.zip
+		aah build --output /Users/jeeva/aahwebsite.zip`,
+	Flags: []console.Flag{
+		console.StringFlag{
+			Name:  "output, o",
 			Usage: "Output of aah application build artifact; the default is '<appbasedir>/build/<appbinaryname>-<appversion>-<goos>-<goarch>.zip'",
 		},
-		cli.BoolFlag{
-			Name:  "s, single",
+		console.BoolFlag{
+			Name:  "single, s",
 			Usage: "Creates aah single application binary",
 		},
 	},
+	Action: buildAction,
 }
 
-func buildAction(c *cli.Context) error {
+func buildAction(c *console.Context) error {
+	if !isAahProject() {
+		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
+	}
+
 	importPath := appImportPath(c)
-	if err := aah.Init(importPath); err != nil {
+	if ess.IsStrEmpty(importPath) {
+		logFatalf("Unable to infer import path, ensure you're in the aah application base directory")
+	}
+	chdirIfRequired(importPath)
+	app := aah.App()
+	if err := app.InitForCLI(importPath); err != nil {
 		logFatal(err)
 	}
 
-	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
 
-	cliLog.Infof("Loaded aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
-	cliLog.Infof("Build starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Loaded aah project file: %s", filepath.Join(app.BaseDir(), aahProjectIdentifier))
+	cliLog.Infof("Build starts for '%s' [%s]", app.Name(), app.ImportPath())
+	cleanupAutoGenFiles(app.BaseDir())
 
-	if c.Bool("s") || c.Bool("single") {
+	if c.Bool("single") {
 		buildSingleBinary(c, projectCfg)
 	} else {
 		buildBinary(c, projectCfg)
@@ -71,8 +76,9 @@ func buildAction(c *cli.Context) error {
 	return nil
 }
 
-func buildBinary(c *cli.Context, projectCfg *config.Config) {
-	appBaseDir := aah.AppBaseDir()
+func buildBinary(c *console.Context, projectCfg *config.Config) {
+	app := aah.App()
+	appBaseDir := app.BaseDir()
 	processVFSConfig(projectCfg, false)
 
 	appBinary, err := compileApp(&compileArgs{
@@ -96,14 +102,15 @@ func buildBinary(c *cli.Context, projectCfg *config.Config) {
 		logFatal(err)
 	}
 
-	cliLog.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Build successful for '%s' [%s]", app.Name(), app.ImportPath())
 	cliLog.Infof("Application artifact is here: %s\n", destArchiveFile)
 }
 
-func buildSingleBinary(c *cli.Context, projectCfg *config.Config) {
-	cliLog.Infof("Embed starts for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+func buildSingleBinary(c *console.Context, projectCfg *config.Config) {
+	app := aah.App()
+	cliLog.Infof("Embed starts for '%s' [%s]", app.Name(), app.ImportPath())
 	processVFSConfig(projectCfg, true)
-	cliLog.Infof("Embed successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Embed successful for '%s' [%s]", app.Name(), app.ImportPath())
 
 	appBinary, err := compileApp(&compileArgs{
 		Cmd:        "BuildCmd",
@@ -116,19 +123,17 @@ func buildSingleBinary(c *cli.Context, projectCfg *config.Config) {
 	}
 
 	// Creating app archive
-	destArchiveFile := createZipArchiveName(c, projectCfg, aah.AppBaseDir(), appBinary)
+	destArchiveFile := createZipArchiveName(c, projectCfg, app.BaseDir(), appBinary)
 	if err = createZipArchive(appBinary, destArchiveFile); err != nil {
 		logFatal(err)
 	}
 
-	cliLog.Infof("Build successful for '%s' [%s]", aah.AppName(), aah.AppImportPath())
+	cliLog.Infof("Build successful for '%s' [%s]", app.Name(), app.ImportPath())
 	cliLog.Infof("Application artifact is here: %s\n", destArchiveFile)
 }
 
 func processVFSConfig(projectCfg *config.Config, mode bool) {
-	appBaseDir := aah.AppBaseDir()
-	cleanupAutoGenVFSFiles(appBaseDir)
-
+	appBaseDir := aah.App().BaseDir()
 	excludes, _ := projectCfg.StringList("build.excludes")
 	noGzipList, _ := projectCfg.StringList("vfs.no_gzip")
 
@@ -218,9 +223,9 @@ func createZipArchive(buildBaseDir, destArchiveFile string) error {
 	return ess.Zip(destArchiveFile, buildBaseDir)
 }
 
-func createZipArchiveName(c *cli.Context, projectCfg *config.Config, appBaseDir, appBinary string) string {
+func createZipArchiveName(c *console.Context, projectCfg *config.Config, appBaseDir, appBinary string) string {
 	var err error
-	outputFile := firstNonEmpty(c.String("o"), c.String("output"))
+	outputFile := c.String("output")
 	archiveName := ess.StripExt(filepath.Base(appBinary)) + "-" + getAppVersion(appBaseDir, projectCfg)
 	archiveName = addTargetBuildInfo(archiveName)
 

@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -23,140 +23,105 @@ import (
 	"syscall"
 	"time"
 
-	"gopkg.in/radovskyb/watcher.v1"
-	"gopkg.in/urfave/cli.v1"
+	"aahframe.work"
+	"aahframe.work/config"
+	"aahframe.work/console"
+	"aahframe.work/essentials"
 
-	"aahframework.org/aah.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
+	"github.com/radovskyb/watcher"
 )
 
-var runCmd = cli.Command{
+var runCmd = console.Command{
 	Name:    "run",
 	Aliases: []string{"r"},
 	Usage:   "Runs aah application (supports hot-reload)",
 	Description: `Runs aah application. It supports hot-reload (just code and refresh the browser
 	to see your updates).
 
-	Examples of short and long flags:
-    aah run
-		aah run -e qa
+	Example:
+		aah run --envprofile qa
+		aah run --envprofile qa --config /path/to/config/external.conf
 
-		aah run -i github.com/user/appname
-		aah run -i github.com/user/appname -e qa
-		aah run -i github.com/user/appname -e qa -c /path/to/config/external.conf
-
-    aah run --importpath github.com/user/appname
-		aah run --importpath github.com/user/appname --envprofile qa
-		aah run --importpath github.com/user/appname --envprofile qa --config /path/to/config/external.conf
-
-	Note: For production use, it is recommended to follow build and deploy approach instead of
-	using 'aah run'.`,
-	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "i, importpath",
-			Usage: "Import path of aah application",
+	Note: For production use, it is recommended to follow build and deploy approach. DO NOT USE 'aah run'.`,
+	Flags: []console.Flag{
+		console.StringFlag{
+			Name:  "envprofile, e",
+			Usage: "Environment profile name to activate (e.g: dev, qa, prod)",
+			Value: "dev",
 		},
-		cli.StringFlag{
-			Name:  "e, envprofile",
-			Usage: "Environment profile name to activate (e.g: dev, qa, prod)"},
-		cli.StringFlag{
-			Name:  "c, config",
-			Usage: "External config file for overriding aah.conf values",
+		console.StringFlag{
+			Name:  "config, c",
+			Usage: "External config `FILE` for adding or overriding 'config/**/*.conf' values",
 		},
 	},
 	Action: runAction,
 }
 
-type (
-	hotReload struct {
-		ChangedOrError bool
-		IsSSL          bool
-		ProxyPort      string
-		BaseDir        string
-		Addr           string
-		Port           string
-		SSLCert        string
-		SSLKey         string
-		Args           []string
-		ProxyURL       *url.URL
-		Proxy          *httputil.ReverseProxy
-		Process        *process
-		ProjectConfig  *config.Config
-		Watcher        *watcher.Watcher
+func runAction(c *console.Context) error {
+	if !isAahProject() {
+		logFatalf("Please go to aah application base directory and run '%s'.", strings.Join(os.Args, " "))
 	}
-
-	process struct {
-		cmd *exec.Cmd
-		nw  *notifyWriter
-	}
-
-	notifyWriter struct {
-		w          io.Writer
-		checkBytes []byte
-		notify     chan bool
-	}
-)
-
-func runAction(c *cli.Context) error {
 	importPath := appImportPath(c)
-	appStartArgs := []string{}
+	if ess.IsStrEmpty(importPath) {
+		logFatalf("Unable to infer import path, ensure you're in the aah application base directory")
+	}
+	chdirIfRequired(importPath)
+	appStartArgs := []string{"run", "--importpath", importPath}
 
-	configPath := getNonEmptyAbsPath(c.String("c"), c.String("config"))
+	configPath := absPath(c.String("config"))
 	if !ess.IsStrEmpty(configPath) {
-		appStartArgs = append(appStartArgs, "-config", configPath)
+		appStartArgs = append(appStartArgs, "--config", configPath)
 	}
+	envProfile := c.String("envprofile")
+	appStartArgs = append(appStartArgs, "--envprofile", envProfile)
 
-	envProfile := firstNonEmpty(c.String("e"), c.String("envprofile"))
-	if !ess.IsStrEmpty(envProfile) {
-		appStartArgs = append(appStartArgs, "-profile", envProfile)
-	}
-
-	if err := aah.Init(importPath); err != nil {
+	app := aah.App()
+	if err := app.InitForCLI(importPath); err != nil {
 		logFatal(err)
 	}
-	projectCfg := aahProjectCfg(aah.AppBaseDir())
+	projectCfg := aahProjectCfg(app.BaseDir())
 	cliLog = initCLILogger(projectCfg)
-
-	checkAndGenerateInitgoFile(importPath, aah.AppBaseDir())
-
-	cliLog.Infof("Loaded aah project file: %s", filepath.Join(aah.AppBaseDir(), aahProjectIdentifier))
-
-	if ess.IsStrEmpty(envProfile) {
-		envProfile = aah.AppProfile()
-	}
+	checkAndGenerateInitgoFile(importPath, app.BaseDir(), app.Config())
+	cliLog.Infof("Loaded aah project file: %s", filepath.Join(app.BaseDir(), aahProjectIdentifier))
 
 	// Hot-Reload is applicable only to `dev` environment profile.
 	if projectCfg.BoolDefault("hot_reload.enable", true) && envProfile == "dev" {
-		cliLog.Infof("Hot-Reload enabled for environment profile: %s", aah.AppProfile())
+		cliLog.Infof("Hot-Reload enabled for environment profile: %s", envProfile)
 
-		address := firstNonEmpty(aah.AppHTTPAddress(), "")
+		address := app.HTTPAddress()
 		proxyPort := findAvailablePort()
 		scheme := "http"
-		if aah.AppIsSSLEnabled() {
+		if app.IsSSLEnabled() {
 			scheme = "https"
 		}
+		appStartArgs = append(appStartArgs, "--proxyport", proxyPort)
 
 		appURL, _ := url.Parse(fmt.Sprintf("%s://%s:%s", scheme, address, proxyPort))
 		appHotReload := &hotReload{
 			ProxyURL:      appURL,
 			ProxyPort:     proxyPort,
-			BaseDir:       aah.AppBaseDir(),
+			BaseDir:       app.BaseDir(),
 			Addr:          address,
-			Port:          aah.AppHTTPPort(),
-			IsSSL:         aah.AppIsSSLEnabled(),
-			SSLCert:       aah.AppConfig().StringDefault("server.ssl.cert", ""),
-			SSLKey:        aah.AppConfig().StringDefault("server.ssl.key", ""),
+			Port:          app.HTTPPort(),
+			IsSSL:         app.IsSSLEnabled(),
+			SSLCert:       app.Config().StringDefault("server.ssl.cert", ""),
+			SSLKey:        app.Config().StringDefault("server.ssl.key", ""),
 			Args:          appStartArgs,
 			Proxy:         httputil.NewSingleHostReverseProxy(appURL),
 			ProjectConfig: projectCfg,
 		}
-
+		appHotReload.Watcher = &fswatcher{
+			hr:             appHotReload,
+			IgnoreDirList:  make(map[string]bool),
+			IgnoreFileList: make(map[string]bool),
+		}
 		appHotReload.Start()
 		return nil
 	}
 
 	cliLog.Info("Hot-Reload is not enabled, possibly 'hot_reload.enable = false' or environment profile is not 'dev'")
+	cliLog.Warn("DO NOT USE aah CLI for non-development run. Instead use 'aah build' and then run binary from build artifact")
+	cleanupAutoGenFiles(app.BaseDir())
 
 	appBinary, err := compileApp(&compileArgs{
 		Cmd:        "RunCmd",
@@ -173,6 +138,23 @@ func runAction(c *cli.Context) error {
 	}
 
 	return nil
+}
+
+type hotReload struct {
+	ChangedOrError bool
+	IsSSL          bool
+	ProxyPort      string
+	BaseDir        string
+	Addr           string
+	Port           string
+	SSLCert        string
+	SSLKey         string
+	Args           []string
+	ProxyURL       *url.URL
+	Proxy          *httputil.ReverseProxy
+	Process        *process
+	ProjectConfig  *config.Config
+	Watcher        *fswatcher
 }
 
 func (hr *hotReload) Start() {
@@ -200,7 +182,7 @@ func (hr *hotReload) Start() {
 			err = server.ListenAndServe()
 		}
 		if err != nil {
-			logFatalf("Unable to start proxy server, %s", err.Error())
+			logFatalf("Unable to start aah dev hot-reload server, %s", err.Error())
 		}
 	}()
 
@@ -215,6 +197,7 @@ func (hr *hotReload) Start() {
 }
 
 func (hr *hotReload) CompileAndStart() error {
+	cleanupAutoGenFiles(hr.BaseDir)
 	appBinary, err := compileApp(&compileArgs{
 		Cmd:        "RunCmd",
 		ProxyPort:  hr.ProxyPort,
@@ -232,39 +215,23 @@ func (hr *hotReload) CompileAndStart() error {
 		nw: &notifyWriter{
 			w:          os.Stdout,
 			notify:     make(chan bool),
-			checkBytes: []byte("aah go server running on"),
+			checkBytes: []byte("aah go server running"),
 		},
 	}
-
-	if err = hr.Process.Start(); err != nil {
-		return err
+	if !hr.Watcher.running {
+		go hr.Watcher.Start()
 	}
-
-	hr.RefreshWatcher()
-
-	return nil
+	return hr.Process.Start()
 }
 
 func (hr *hotReload) Stop() {
 	hr.Process.Stop()
 }
 
-func (hr *hotReload) RefreshWatcher() {
-	hr.Watcher = watcher.New()
-	watch := make(chan bool)
-	go startWatcher(hr.ProjectConfig, hr.BaseDir, hr.Watcher, watch)
-	go func() {
-		for {
-			hr.ChangedOrError = <-watch
-		}
-	}()
-}
-
 func (hr *hotReload) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if hr.ChangedOrError {
 		cliLog.Info("Application file change(s) detected")
 		hr.ChangedOrError = false
-		ess.CloseQuietly(hr.Watcher)
 		hr.Stop()
 		if err := hr.CompileAndStart(); err != nil {
 			logError(err)
@@ -338,30 +305,51 @@ func (hr *hotReload) tunnel(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
-func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher, watch chan<- bool) {
-	w.IgnoreHiddenFiles(true)
-	w.SetMaxEvents(1)
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// fswatcher for aah hot-reload
+//___________________________________
 
-	loadWatchFiles(projectCfg, baseDir, w)
+type fswatcher struct {
+	running        bool
+	w              *watcher.Watcher
+	hr             *hotReload
+	IgnoreFileList map[string]bool
+	IgnoreDirList  map[string]bool
+}
 
-	go func() { w.Wait() }()
+func (fs *fswatcher) Start() {
+	if fs.w != nil {
+		return
+	}
+	fs.w = watcher.New()
+	watch := make(chan bool)
+	go func() {
+		for {
+			fs.hr.ChangedOrError = <-watch
+		}
+	}()
+	fs.w.IgnoreHiddenFiles(true)
+	// w.w.SetMaxEvents(1)
+	fs.w.FilterOps(watcher.Create, watcher.Write, watcher.Remove, watcher.Rename, watcher.Move)
+	fs.AddAppFiles()
 
 	go func() {
 		for {
 			select {
-			case e := <-w.Event:
-				if !e.IsDir() {
-					watch <- true
-					if e.Op == watcher.Create {
-						_ = w.Add(e.Path)
+			case e := <-fs.w.Event:
+				if !fs.IsInIgnoreList(e) {
+					if e.Op == watcher.Create || e.Op == watcher.Rename || e.Op == watcher.Move {
+						_ = fs.w.Add(e.Path)
 					}
+					cliLog.Trace(e)
+					watch <- true
 				}
-			case err := <-w.Error:
+			case err := <-fs.w.Error:
 				if err == watcher.ErrWatchedFileDeleted {
-					// treat as trace information, not an error
-					cliLog.Trace("Watched file/directory is deleted, just move on")
+					cliLog.Trace(err)
+					watch <- true
 				}
-			case <-w.Closed:
+			case <-fs.w.Closed:
 				return
 			}
 		}
@@ -369,61 +357,87 @@ func startWatcher(projectCfg *config.Config, baseDir string, w *watcher.Watcher,
 
 	if cliLog.IsLevelTrace() {
 		var fileList []string
-		for path := range w.WatchedFiles() {
+		for path := range fs.w.WatchedFiles() {
 			fileList = append(fileList, stripGoSrcPath(path))
 		}
 		cliLog.Trace("Watched files:\n\t", strings.Join(fileList, "\n\t"))
 	}
 
-	if err := w.Start(time.Millisecond * 100); err != nil {
+	go func() { fs.w.Wait() }()
+	fs.running = true
+	if err := fs.w.Start(time.Millisecond * 100); err != nil {
+		fs.running = false
 		logError(err)
 	}
 }
 
-func loadWatchFiles(projectCfg *config.Config, baseDir string, w *watcher.Watcher) {
-	// standard file ignore list for aah project
-	stdIgnoreList := []string{
-		filepath.Join(baseDir, aah.AppName()+".pid"),
-		filepath.Join(baseDir, "app", "aah.go"),
+// AddWatch method adds files into watcher and create app watch ignore list.
+func (fs *fswatcher) AddAppFiles() {
+	// Build ignore list using User provided list via config plus defaults
+	dirExcludes, _ := fs.hr.ProjectConfig.StringList("hot_reload.watch.dir_excludes")
+	dirExcludes = append(dirExcludes, "build", "static", "vendor", "views", "tests", "logs") // put defaults
+	for _, d := range dirExcludes {
+		fs.IgnoreDirList[filepath.Join(fs.hr.BaseDir, filepath.FromSlash(d))] = true
 	}
+	fs.IgnoreDirList[filepath.Join(fs.hr.BaseDir, filepath.FromSlash("app/generated"))] = true
 
-	// user can provide their list via config
-	dirExcludes, _ := projectCfg.StringList("hot_reload.watch.dir_excludes")
-	if len(dirExcludes) == 0 { // put defaults
-		dirExcludes = append(dirExcludes, ".*")
+	fileExcludes, _ := fs.hr.ProjectConfig.StringList("hot_reload.watch.file_excludes")
+	fileExcludes = append(fileExcludes, ".*", "*.pid", "*_test.go", "LICENSE", "README.md") // put defaults
+	for _, f := range fileExcludes {
+		fs.IgnoreFileList[filepath.Join(fs.hr.BaseDir, filepath.FromSlash(f))] = true
 	}
+	fs.IgnoreFileList[filepath.Join(fs.hr.BaseDir, "app", "aah.go")] = true
+	fs.IgnoreFileList[filepath.Join(fs.hr.BaseDir, "app", "aah*_vfs.go")] = true
 
-	fileExcludes, _ := projectCfg.StringList("hot_reload.watch.file_excludes")
-	if len(fileExcludes) == 0 { // put defaults
-		fileExcludes = append(fileExcludes, ".*", "_test.go", "LICENSE", "README.md")
-	}
-
-	// standard dir ignore list for aah project
-	dirExcludes = append(dirExcludes, "build", "static", "vendor", "views", "tests", "logs")
-
-	dirs, _ := ess.DirsPathExcludes(baseDir, true, dirExcludes)
+	dirs, _ := ess.DirsPathExcludes(fs.hr.BaseDir, true, append(dirExcludes, "generated"))
 	for _, d := range dirs {
-		if err := w.Add(d); err != nil {
+		if err := fs.w.Add(d); err != nil {
 			logErrorf("Unable add watch for '%v'", d)
 		}
-
-		files, _ := ess.FilesPathExcludes(d, false, fileExcludes)
+		files, _ := ess.FilesPathExcludes(d, false, append(fileExcludes, "aah.go", "aah*_vfs.go"))
 		for _, f := range files {
-			if err := w.Add(f); err != nil {
+			if err := fs.w.Add(f); err != nil {
 				logErrorf("Unable add watch for '%v'", f)
 			}
 		}
 	}
-
-	// Add ignore list
-	if err := w.Ignore(stdIgnoreList...); err != nil {
-		logError(err)
+	var err error
+	for _, f := range fileExcludes {
+		if err = fs.w.Ignore(f); err != nil {
+			logError(err)
+		}
 	}
 }
 
+func (fs *fswatcher) IsInIgnoreList(e watcher.Event) bool {
+	appDir := filepath.Join(fs.hr.BaseDir, "app")
+	if fs.hr.BaseDir == e.Path || appDir == e.Path {
+		return true
+	}
+	if e.IsDir() {
+		for k := range fs.IgnoreDirList {
+			if strings.HasPrefix(e.Path, k) {
+				return true
+			}
+		}
+	} else {
+		for k := range fs.IgnoreFileList {
+			if matched, _ := filepath.Match(k, e.Path); matched {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// process methods
+// process and its methods
 //___________________________________
+
+type process struct {
+	cmd *exec.Cmd
+	nw  *notifyWriter
+}
 
 func (p *process) Start() error {
 	cliLog.Debug("Executing ", strings.Join(p.cmd.Args, " "))
@@ -433,13 +447,11 @@ func (p *process) Start() error {
 		return err
 	}
 
-	for {
-		select {
-		case <-p.nw.notify:
-			return nil
-		case <-p.processWait():
-			return errors.New("aah application did not start")
-		}
+	select {
+	case <-p.nw.notify:
+		return nil
+	case <-p.processWait():
+		return errors.New("aah application did not start")
 	}
 }
 
@@ -449,25 +461,21 @@ func (p *process) Stop() {
 			// For windows console app, no graceful close is available;
 			// so we have only option is to kill.
 			_ = p.cmd.Process.Kill()
-		} else {
-			p.nw.checkBytes = []byte("shutdown successful")
-			p.nw.notify = make(chan bool)
-			_ = p.cmd.Process.Signal(os.Interrupt)
-			// wait for process to finish or return after grace time
-			for {
-				select {
-				case <-p.nw.notify:
-					return
-				case <-time.After(time.Millisecond * 300):
-					return
-				}
-			}
+			return
 		}
-	} else {
-		proc, err := os.FindProcess(p.cmd.Process.Pid)
-		if err == nil {
-			_ = proc.Kill()
+		p.nw.checkBytes = []byte("shutdown successful")
+		p.nw.notify = make(chan bool)
+		_ = p.cmd.Process.Signal(os.Interrupt)
+		// wait for process to finish or return after grace time
+		select {
+		case <-p.nw.notify:
+			return
+		case <-time.After(time.Millisecond * 300):
+			return
 		}
+	}
+	if proc, err := os.FindProcess(p.cmd.Process.Pid); err == nil {
+		_ = proc.Kill()
 	}
 }
 
@@ -483,6 +491,12 @@ func (p *process) processWait() <-chan bool {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // notifyWriter methods
 //___________________________________
+
+type notifyWriter struct {
+	w          io.Writer
+	checkBytes []byte
+	notify     chan bool
+}
 
 func (nw *notifyWriter) Write(b []byte) (n int, err error) {
 	if nw.notify != nil && bytes.Contains(b, nw.checkBytes) {

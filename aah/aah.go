@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
@@ -12,37 +12,44 @@ import (
 	"path/filepath"
 	"sort"
 
-	"gopkg.in/urfave/cli.v1"
-
-	"aahframework.org/aruntime.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
+	"aahframe.work/aruntime"
+	"aahframe.work/config"
+	"aahframe.work/console"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
 )
 
 const (
-	permRWXRXRX  = 0755
-	permRWRWRW   = 0666
-	importPrefix = "aahframework.org"
+	permRWXRXRX   = os.FileMode(0755)
+	permRWRWRW    = os.FileMode(0666)
+	aahImportPath = "aahframe.work"
 )
 
 var (
-	gopath   string
-	gocmd    string
-	gosrcDir string
-	gitcmd   string
-	aahVer   string
+	go111AndAbove bool
+	gopath        string
+	gocmd         string
+	gosrcDir      string
+	gitcmd        string
+	aahVer        string
 
 	// abstract it, so we can do unit test
-	fatal  = log.Fatal
-	fatalf = log.Fatalf
-	exit   = os.Exit
+	exit = os.Exit
 
 	// cli logger
 	cliLog *log.Logger
 
-	// CliPackaged is identify cli from go get or binary dist
+	// CliCommitID is the build git commit sha
+	CliCommitID string
+
+	// CliPackaged is to identify cli from go get or binary dist
 	CliPackaged string
+
+	// CliOS target build os name
+	CliOS string
+
+	// CliArch target build arch name
+	CliArch string
 )
 
 var errStopHere = errors.New("stop here")
@@ -56,13 +63,18 @@ func checkPrerequisites() error {
 
 	var err error
 
-	// get GOPATH, refer https://godoc.org/aahframework.org/essentials.v0#GoPath
-	if gopath, err = ess.GoPath(); err != nil {
+	// Go executable
+	if gocmd, err = exec.LookPath(gocmdName); err != nil {
 		return err
 	}
 
-	// Go executable
-	if gocmd, err = exec.LookPath(gocmdName); err != nil {
+	go111AndAbove = inferGo111AndAbove()
+	if !go111AndAbove {
+		logFatal("aah framework requires >= go1.11, since aah v0.12.0 and cli v0.13.0 release.")
+	}
+
+	// get GOPATH, refer https://godoc.org/aahframework.org/essentials.v0#GoPath
+	if gopath, err = ess.GoPath(); err != nil {
 		return err
 	}
 
@@ -78,6 +90,7 @@ func checkPrerequisites() error {
 
 // aah cli tool entry point
 func main() {
+	cliLog = initCLILogger(nil)
 	// if panic happens, recover and abort nicely :)
 	defer func() {
 		if r := recover(); r != nil {
@@ -94,7 +107,7 @@ func main() {
 		logFatal(err)
 	}
 
-	app := cli.NewApp()
+	app := console.NewApp()
 	app.Name = "aah"
 	app.Usage = "framework CLI tool"
 	app.Version = Version
@@ -104,27 +117,30 @@ func main() {
 	app.EnableBashCompletion = true
 
 	app.Before = printHeader
-	app.Commands = []cli.Command{
+	app.Commands = []console.Command{
 		newCmd,
 		runCmd,
+		runConsoleCmd,
 		buildCmd,
 		listCmd,
 		cleanCmd,
-		switchCmd,
-		updateCmd,
 		generateCmd,
 		migrateCmd,
 	}
 
 	// Global flags
-	app.Flags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "y, yes",
-			Usage: `Automatic yes to prompts. Assume "yes" as answer to all prompts and run non-interactively.`,
+	app.Flags = []console.Flag{
+		console.BoolFlag{
+			Name:  "yes, y",
+			Usage: `Automatic yes to prompts. Assume "yes" as answer to all prompts and run non-interactively`,
+		},
+		console.BoolFlag{
+			Name:  "buildinfo, b",
+			Usage: `Build info flag works with version flag to display git commit sha, os and arch`,
 		},
 	}
 
-	sort.Sort(cli.FlagsByName(app.Flags))
+	sort.Sort(console.FlagsByName(app.Flags))
 	_ = app.Run(os.Args)
 }
 
@@ -132,9 +148,12 @@ func main() {
 // Unexported methods
 //___________________________________
 
-func printHeader(c *cli.Context) error {
+func printHeader(c *console.Context) error {
 	aahVer, _ = aahVersion(c)
-	hdr := fmt.Sprintf("aah framework v%s", aahVer)
+	if len(aahVer) > 0 {
+		aahVer = " v" + aahVer
+	}
+	hdr := "aah framework" + aahVer + " (cli v" + Version + ")"
 	improveRpt := "# Report improvements/bugs at https://aahframework.org/issues #"
 	cnt := len(improveRpt)
 	sp := ((cnt - len(hdr)) / 2) - 1
@@ -156,19 +175,11 @@ func chr2str(chr string, cnt int) string {
 }
 
 func init() {
-	cli.HelpFlag = cli.BoolFlag{
-		Name:  "h, help",
-		Usage: "Shows help",
-	}
+	console.VersionFlagDesc("Prints aah, cli, aah and go version")
+	console.HelpFlagDesc("Shows aah cli help")
+	console.VersionPrinter(VersionPrinter)
 
-	cli.VersionFlag = cli.BoolFlag{
-		Name:  "v, version",
-		Usage: "Prints cli, aah, go and aah libraries version",
-	}
-
-	cli.VersionPrinter = VersionPrinter
-
-	cli.AppHelpTemplate = `Usage:
+	console.AppHelpTemplate(`Usage:
   {{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}
 {{if .Commands}}
 Commands:
@@ -176,9 +187,9 @@ Commands:
 Global Options:
   {{range .VisibleFlags}}{{.}}
   {{end}}{{end}}
-`
+`)
 
-	cli.CommandHelpTemplate = `Name:
+	console.CommandHelpTemplate(`Name:
   {{.HelpName}} - {{.Usage}}
 
 Usage:
@@ -193,5 +204,5 @@ Description:
 Options:
    {{range .VisibleFlags}}{{.}}
    {{end}}{{end}}
-`
+`)
 }

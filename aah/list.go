@@ -1,67 +1,71 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/tools/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"strings"
+	"strconv"
 
-	"gopkg.in/urfave/cli.v1"
-
-	"aahframework.org/essentials.v0"
+	"aahframe.work/console"
 )
 
-const aahProjectIdentifier = "aah.project"
+const (
+	aahProjectIdentifier = "aah.project"
+	goModIdentifier      = "go.mod"
+)
 
-var listCmd = cli.Command{
+var listCmd = console.Command{
 	Name:    "list",
 	Aliases: []string{"l"},
-	Usage:   "Lists all the aah projects on your GOPATH",
-	Description: `Command 'list' helps you to view all the aah application projects on your GOPATH.
-	`,
+	Usage:   "Lists all the aah projects",
+	Description: `Command 'list' helps you to view all the aah application projects on your System.
+
+	Note: aah CLI is only aware of projects created using 'aah new' otherwise you have to teach 
+	it using 'aah list --scan /base/dir/to/scan/aah-projects'.`,
+	Flags: []console.Flag{
+		console.StringFlag{
+			Name:  "s, scan",
+			Usage: "Directory path to scan for aah projects",
+		},
+	},
 	Action: listAction,
 }
 
-func listAction(c *cli.Context) error {
+func listAction(c *console.Context) error {
 	cliLog = initCLILogger(nil)
-	cliLog.Infof("Scanning GOPATH: %s\n", filepath.Join(gopath, "..."))
 
-	var aahProjects []string
-	_ = ess.Walk(gosrcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+	scanDir := c.String("scan")
+	if len(scanDir) > 0 {
+		if !filepath.IsAbs(scanDir) {
+			logFatal("Absolute directory path required for scanning")
 		}
+		scanProjects2Inventory(scanDir)
+	}
 
-		if info.IsDir() {
-			return nil
+	if count := len(aahInventory.Projects); count > 0 {
+		cliLog.Infof("%d aah projects were found, import paths are: ", count)
+		l, ll := 0, 0
+		for _, m := range aahInventory.Projects {
+			pl := len(m.Path)
+			if pl > l {
+				l = pl
+			}
+			if ml := pl + len(m.Dir); ml > ll {
+				ll = ml
+			}
 		}
-
-		// Skip Git Directory
-		if strings.Contains(path, "/.git/") || strings.Contains(path, "\\.git\\") {
-			return nil
+		fmtStr := "    %-" + strconv.Itoa(l) + "s %s\n"
+		fmt.Printf(fmtStr, "Import Path", "Location")
+		fmt.Println("    " + chr2str("-", ll-4))
+		for _, m := range aahInventory.Projects {
+			fmt.Printf(fmtStr, m.Path, m.Dir)
 		}
-
-		if isAahProject(path) {
-			aahProjects = append(aahProjects, filepath.Dir(path))
-		}
-
-		return nil
-	})
-
-	if count := len(aahProjects); count > 0 {
-		cliLog.Infof("%d aah projects were found, import paths are:\n", count)
-		prefix := gosrcDir + string(filepath.Separator)
-		for _, p := range aahProjects {
-			fmt.Printf("    %s\n", filepath.ToSlash(strings.TrimPrefix(p, prefix)))
-		}
-		fmt.Println()
 		return nil
 	}
 
-	cliLog.Info("No aah projects was found, you can create one with 'aah new'\n")
+	cliLog.Info("No aah projects was found, you can create one with 'aah new'.")
 	return nil
 }

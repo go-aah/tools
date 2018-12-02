@@ -1,10 +1,15 @@
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
+// Source code and usage is governed by a MIT style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
 	"strings"
 	"text/template"
+	"time"
 
-	"aahframework.org/essentials.v0"
+	"aahframe.work/essentials"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -25,6 +30,8 @@ const (
 	authNone       = "none"
 	basicFileRealm = "file-realm"
 )
+
+var domainNameKeyReplacer = strings.NewReplacer(" ", "_", "-", "_", ".", "_", "*", "_")
 
 // appTmplData struct holds inputs collected from user for new aah creation
 type appTmplData struct {
@@ -59,7 +66,7 @@ func (a *appTmplData) IsWebSocketApp() bool {
 }
 
 func (a *appTmplData) DomainNameKey() string {
-	return strings.Replace(strings.Replace(a.Name, " ", "_", -1), "-", "_", -1)
+	return domainNameKeyReplacer.Replace(a.Name)
 }
 
 func (a *appTmplData) IsAuthSchemeForWeb() bool {
@@ -88,6 +95,14 @@ func (a *appTmplData) IsSessionConfigRequired() bool {
 
 func (a *appTmplData) IsAuth(name string) bool {
 	return strings.Contains(a.AuthScheme, name)
+}
+
+func (a *appTmplData) IsBasicAuthFileRealm() bool {
+	return a.BasicAuthMode == basicFileRealm
+}
+
+func (a *appTmplData) CurrentYear() string {
+	return time.Now().Format("2006")
 }
 
 func (a *appTmplData) checkSubType(t string) bool {
