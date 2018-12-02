@@ -4,10 +4,10 @@ sudo: false
 
 branches:
   except:
-    # skip master build, we are building edge and tag that is enough for
-    # consistenty check and release. 
-    # Let's use Travis CI resources optimally for aah framework.
-    - master
+    # skip tags build, we are building branch and master that is enough for
+    # consistenty check and release. Let's use Travis CI resources optimally
+    # for aah framework.
+    - /^v[0-9.]+$/
 
 go:
   - 1.11.x
@@ -24,13 +24,6 @@ script:
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
-
-deploy:
-  provider: script
-  skip_cleanup: true
-  script: curl -s https://aahframework.org/publish-cli | bash
-  on:
-    tags: true
 
 matrix:
   allow_failures:
