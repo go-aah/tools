@@ -38,7 +38,7 @@ func processMount(mode bool, appBaseDir, vroot, proot string, skipList ess.Exclu
 	if mode {
 		cliLog.Infof("|-- Processing mount: '%s' <== '%s'", vroot, proot)
 	}
-	b, err := generateVFSSource(mode, vroot, proot, skipList, noGzipList)
+	b, err := generateVFSSource(mode, appBaseDir, vroot, proot, skipList, noGzipList)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func processMount(mode bool, appBaseDir, vroot, proot string, skipList ess.Exclu
 // generateVFSSource method creates Virtual FileSystem (VFS) code
 // to add files and directories within binary for configured Mount points
 // on file aah.project.
-func generateVFSSource(mode bool, vroot, proot string, skipList ess.Excludes, noGzipList []string) ([]byte, error) {
+func generateVFSSource(mode bool, appBaseDir, vroot, proot string, skipList ess.Excludes, noGzipList []string) ([]byte, error) {
 	err := skipList.Validate()
 	if err != nil {
 		return nil, err
@@ -87,7 +87,8 @@ func generateVFSSource(mode bool, vroot, proot string, skipList ess.Excludes, no
 		fpath = filepath.ToSlash(fpath)
 		fname := path.Base(fpath)
 		if skipList.Match(fname) {
-			if fname == "app" && strings.Contains(fpath, "/pages/") {
+			if fname == "app" && (strings.Contains(fpath, "/pages/") ||
+				fpath == filepath.ToSlash(appBaseDir)) {
 				goto sc
 			}
 
