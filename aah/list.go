@@ -66,6 +66,8 @@ func listAction(c *console.Context) error {
 		return nil
 	}
 
-	cliLog.Info("No aah projects was found, you can create one with 'aah new'.")
+	cliLog.Info("No aah projects was found.")
+	cliLog.Info("You could create one with command 'aah new'.")
+	cliLog.Info("or Run 'aah list --scan /base/dir/to/scan/aah-projects' to teach aah CLI\n about existing aah project locations.")
 	return nil
 }

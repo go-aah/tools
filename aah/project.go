@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go/build"
 	"os"
 	"path/filepath"
 	"sort"
@@ -89,13 +88,6 @@ func (inv *inventory) Persist() {
 
 func (inv *inventory) SortProjects() {
 	sort.Slice(inv.Projects, func(i, j int) bool { return inv.Projects[i].Path < inv.Projects[j].Path })
-}
-
-func createProjectInventory() {
-	cliLog.Info("Creating aah projects inventory from GOPATH(s), its an one-time activity\n")
-	for _, gp := range filepath.SplitList(build.Default.GOPATH) {
-		scanProjects2Inventory(filepath.Join(gp, "src"))
-	}
 }
 
 func scanProjects2Inventory(baseDir string) {
