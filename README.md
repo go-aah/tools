@@ -10,7 +10,7 @@
 
 ### News
 
-  * `v0.13.1` [released](https://github.com/go-aah/tools/releases/tag/v0.13.1) and tagged on Dec 04, 2018.
+  * `v0.13.2` [released](https://github.com/go-aah/tools/releases/tag/v0.13.2) and tagged on Dec 07, 2018.
   * `v0.13.0` [released](https://github.com/go-aah/tools/releases/tag/v0.13.0) and tagged on Dec 02, 2018.
   * `v0.12.2` [released](https://github.com/go-aah/tools/releases/tag/v0.12.2) and tagged on Jul 20, 2018.
 
