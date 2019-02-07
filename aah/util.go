@@ -160,7 +160,7 @@ func getAppVersion(appBaseDir string, cfg *config.Config) string {
 	}
 
 	// fallback version number from file aah.project
-	version := cfg.StringDefault("build.version", "")
+	version := cfg.StringDefault("build.version", "0.0.1")
 
 	// git describe
 	if !ess.IsFileExists(filepath.Join(appBaseDir, ".git")) {
