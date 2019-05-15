@@ -12,7 +12,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -85,12 +84,13 @@ func generateVFSSource(mode bool, appBaseDir, vroot, proot string, skipList ess.
 		}
 
 		fpath = filepath.ToSlash(fpath)
-		fname := path.Base(fpath)
-		if skipList.Match(fname) {
-			if fname == "app" && (strings.Contains(fpath, "/pages/") ||
-				fpath == filepath.ToSlash(appBaseDir)) {
-				goto sc
-			}
+		// fname := path.Base(fpath)
+		if skipList.Match(fpath, appBaseDir) {
+			// TODO clean up later, improved in GH #245
+			// if fname == "app" && (strings.Contains(fpath, "/pages/") ||
+			// 	fpath == filepath.ToSlash(appBaseDir)) {
+			// 	goto sc
+			// }
 
 			cliLog.Debugf("     |-- Skipping: %s", fpath)
 			if info.IsDir() {
@@ -98,7 +98,7 @@ func generateVFSSource(mode bool, appBaseDir, vroot, proot string, skipList ess.
 			}
 			return nil // skip file
 		}
-	sc:
+		// sc:
 
 		if info.IsDir() {
 			mp := filepath.ToSlash(filepath.Join(vroot, strings.TrimPrefix(fpath, proot)))
