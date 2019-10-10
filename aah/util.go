@@ -23,10 +23,10 @@ import (
 	"text/template"
 	"time"
 
-	"aahframe.work"
+	aah "aahframe.work"
 	"aahframe.work/config"
 	"aahframe.work/console"
-	"aahframe.work/essentials"
+	ess "aahframe.work/essentials"
 	"aahframe.work/log"
 )
 
@@ -452,7 +452,9 @@ func toLowerCamelCase(v string) string {
 func aahPath() string {
 	s := os.Getenv("AAHPATH")
 	if s == "" {
-		return filepath.Join(userHomeDir(), ".aah")
+		ap := filepath.Join(userHomeDir(), ".aah")
+		_ = ess.MkDirAll(ap, permRWXRXRX)
+		return ap
 	}
 	return s
 }

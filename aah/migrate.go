@@ -13,13 +13,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframe.work"
+	aah "aahframe.work"
 	"aahframe.work/config"
 	"aahframe.work/console"
-	"aahframe.work/essentials"
+	ess "aahframe.work/essentials"
 )
 
-const aahGrammarIdentifier = "migrate-0.12.x.conf"
+const aahGrammarIdentifier = "migrate-0.13.x.conf"
 const aahGrammarFetchLoc = "https://cdn.aahframework.org/" + aahGrammarIdentifier
 
 var migrateCmd = console.Command{

@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	"aahframe.work/console"
-	"aahframe.work/essentials"
+	ess "aahframe.work/essentials"
 )
 
 var (
@@ -546,7 +546,7 @@ func isAuthSchemeSupported(authScheme string) bool {
 		authScheme == authGeneric || authScheme == authNone
 }
 
-const templateBranchName = "0.12.x"
+const templateBranchName = "0.13.x"
 
 func inferAppTmplBaseDir() string {
 	aahBasePath := aahPath()
